@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Status Executivo do Projeto</title>
+  <style>
+    :root {
+      --green-950: #002b15;
+      --green-900: #003817;
+      --green-850: #00431d;
+      --green-800: #005324;
+      --green-700: #006b2d;
+      --green-600: #087535;
+      --green-500: #0f7f3b;
+      --green-100: #eef8ef;
+      --green-050: #f7fbf7;
+
+      --blue-900: #0a347d;
+      --blue-800: #0b3f96;
+      --blue-050: #eef4ff;
+
+      --red-700: #c90909;
+      --red-600: #e01818;
+      --red-050: #fff1f1;
+
+      --orange-700: #f26b11;
+      --orange-600: #ff7a1a;
+      --orange-050: #fff6ed;
+
+      --yellow-500: #ffd11c;
+      --yellow-600: #f0b900;
+
+      --gray-900: #151922;
+      --gray-800: #252a32;
+      --gray-700: #3b414b;
+      --gray-600: #5c6470;
+      --gray-500: #7c8490;
+      --gray-400: #a7adb6;
+      --gray-300: #d2d6dc;
+      --gray-200: #e7e9ed;
+      --gray-100: #f4f5f7;
+      --white: #ffffff;
+
+      --radius-lg: 18px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+      --shadow-card: 0 9px 22px rgba(0, 0, 0, 0.055), 0 1px 2px rgba(0, 0, 0, 0.06);
+      --shadow-soft: 0 6px 18px rgba(0, 42, 17, 0.10);
+      --font: "Segoe UI", Inter, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at 12% 10%, rgba(8, 117, 53, 0.10), transparent 34%),
+        linear-gradient(135deg, #eef2f0 0%, #ffffff 50%, #eef4ef 100%);
+      font-family: var(--font);
+      color: var(--gray-900);
+    }
+
+    body {
+      padding: 18px;
+    }
+
+    .toolbar {
+      width: min(1780px, 100%);
+      margin: 0 auto 14px auto;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .toolbar button {
+      border: 1px solid rgba(0, 62, 26, 0.16);
+      background: #ffffff;
+      color: var(--green-900);
+      font-weight: 800;
+      border-radius: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+      transition: 0.18s ease;
+    }
+
+    .toolbar button:hover {
+      transform: translateY(-1px);
+      background: var(--green-050);
+      border-color: rgba(0, 62, 26, 0.30);
+    }
+
+    .page-shell {
+      width: min(1780px, 100%);
+      margin: 0 auto;
+      background: linear-gradient(180deg, #ffffff 0%, #fbfcfb 100%);
+      border: 1px solid rgba(0, 53, 25, 0.16);
+      border-radius: 0 0 20px 20px;
+      overflow: hidden;
+      box-shadow:
+        0 18px 44px rgba(0, 37, 16, 0.12),
+        0 1px 2px rgba(0, 0, 0, 0.06);
+    }
+
+    .topbar {
+      height: 128px;
+      background:
+        radial-gradient(circle at 4% 30%, rgba(255,255,255,0.10) 0 18%, transparent 19%),
+        linear-gradient(90deg, #002b13 0%, #003918 38%, #002d15 100%);
+      color: #fff;
+      display: grid;
+      grid-template-columns: 138px minmax(360px, 1fr) 238px 202px 188px 168px 194px;
+      align-items: center;
+      gap: 0;
+      padding: 0 30px 0 34px;
+    }
+
+    .brand {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding-right: 12px;
+    }
+
+    .logo-box {
+      text-align: center;
+      color: #ffffff;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      font-size: 13px;
+    }
+
+    .logo-mark {
+      width: 62px;
+      height: 62px;
+      margin: 0 auto 8px auto;
+      display: grid;
+      place-items: center;
+    }
+
+    .title-block {
+      min-width: 0;
+      padding-left: 8px;
+    }
+
+    .title-block h1 {
+      margin: 0;
+      font-size: 40px;
+      line-height: 1.05;
+      letter-spacing: 0.03em;
+      font-weight: 800;
+      text-shadow: 0 1px 0 rgba(0,0,0,0.18);
+    }
+
+    .title-block p {
+      margin: 18px 0 0 0;
+      color: #f2fff4;
+      font-size: 21px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .header-alert {
+      height: 70px;
+      border-radius: 8px;
+      background: linear-gradient(180deg, #ffdc29 0%, #f2ba00 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      color: #39420a;
+      font-size: 24px;
+      font-weight: 900;
+      box-shadow: inset 0 -3px 0 rgba(0,0,0,0.10), 0 8px 18px rgba(0,0,0,0.18);
+    }
+
+    .top-info {
+      height: 82px;
+      border-left: 2px solid rgba(255,255,255,0.32);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      color: #fff;
+    }
+
+    .top-info .big-icon {
+      width: 46px;
+      height: 46px;
+      flex: 0 0 46px;
+      opacity: 0.94;
+    }
+
+    .top-info small {
+      display: block;
+      color: rgba(255,255,255,0.78);
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .top-info strong {
+      display: block;
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .progress-ring-header {
+      position: relative;
+      width: 63px;
+      height: 63px;
+      flex: 0 0 63px;
+      border-radius: 50%;
+      background:
+        conic-gradient(#ffffff 0 42%, rgba(255,255,255,0.20) 42% 100%);
+    }
+
+    .progress-ring-header::after {
+      content: "";
+      position: absolute;
+      inset: 9px;
+      border-radius: 50%;
+      background: #003215;
+    }
+
+    .content {
+      padding: 24px 28px 28px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.92)),
+        radial-gradient(circle at 30% 26%, rgba(0,88,37,0.06), transparent 34%),
+        radial-gradient(circle at 75% 80%, rgba(13,63,150,0.06), transparent 30%);
+    }
+
+    .timeline {
+      padding: 2px 18px 20px;
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      position: relative;
+    }
+
+    .timeline::before {
+      content: "";
+      position: absolute;
+      left: 7.4%;
+      right: 7.4%;
+      top: 38px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--green-500) 0 31%, transparent 31% 100%);
+      z-index: 0;
+    }
+
+    .timeline::after {
+      content: "";
+      position: absolute;
+      left: 36.3%;
+      right: 7.4%;
+      top: 38px;
+      border-top: 3px dashed #858b94;
+      z-index: 0;
+    }
+
+    .phase {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      min-height: 128px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .phase-dot {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #fff;
+      border: 3px solid #8f98a3;
+      display: grid;
+      place-items: center;
+      margin-bottom: 18px;
+    }
+
+    .phase.done .phase-dot {
+      border-color: var(--green-600);
+      background: var(--green-600);
+      color: #fff;
+    }
+
+    .phase.active .phase-dot {
+      border: 4px solid var(--green-600);
+      background: #e5f4e7;
+      box-shadow: inset 0 0 0 5px #ffffff;
+    }
+
+    .phase h3 {
+      margin: 0 0 4px;
+      font-size: 18px;
+      line-height: 1.1;
+      font-weight: 800;
+      color: var(--gray-900);
+    }
+
+    .phase.done .status,
+    .phase.active .status {
+      color: var(--green-600);
+      font-weight: 800;
+    }
+
+    .phase .status {
+      color: var(--gray-600);
+      font-size: 15px;
+      font-weight: 500;
+      margin-bottom: 10px;
+    }
+
+    .phase .date {
+      font-size: 14px;
+      color: var(--gray-800);
+      font-weight: 500;
+    }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: 1.05fr 1.03fr 1.02fr 1.10fr 0.96fr 0.92fr;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .kpi-card {
+      min-height: 132px;
+      border: 1px solid var(--gray-300);
+      background: rgba(255,255,255,0.86);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      padding: 22px 18px;
+      box-shadow: var(--shadow-card);
+    }
+
+    .kpi-icon {
+      width: 76px;
+      height: 76px;
+      flex: 0 0 76px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      border: 1px solid;
+    }
+
+    .kpi-icon.green {
+      background: #edf7ec;
+      border-color: #c9e2c9;
+      color: var(--green-800);
+    }
+
+    .kpi-icon.red {
+      background: var(--red-050);
+      border-color: #f5c7c7;
+      color: var(--red-700);
+    }
+
+    .kpi-icon.orange {
+      background: var(--orange-050);
+      border-color: #ffd3af;
+      color: var(--orange-700);
+    }
+
+    .kpi-body .label {
+      font-size: 18px;
+      color: var(--gray-800);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .kpi-body .value {
+      font-size: 30px;
+      color: var(--green-800);
+      font-weight: 900;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+    }
+
+    .kpi-body .value.small {
+      font-size: 25px;
+      line-height: 1.2;
+    }
+
+    .kpi-body .value .lead-red {
+      color: var(--red-700);
+      font-size: 30px;
+      margin-right: 6px;
+    }
+
+    .kpi-body .value.orange {
+      color: var(--orange-700);
+    }
+
+    .progress-kpi {
+      position: relative;
+      width: 76px;
+      height: 76px;
+      flex: 0 0 76px;
+      border-radius: 50%;
+      background: conic-gradient(var(--green-700) 0 42%, #dbe9d8 42% 100%);
+      display: grid;
+      place-items: center;
+    }
+
+    .progress-kpi::before {
+      content: "";
+      position: absolute;
+      inset: 10px;
+      background: #fff;
+      border-radius: 50%;
+    }
+
+    .progress-kpi span {
+      position: relative;
+      font-size: 26px;
+      font-weight: 900;
+      color: var(--gray-900);
+    }
+
+    .middle-grid {
+      display: grid;
+      grid-template-columns: 0.98fr 1.18fr 0.98fr;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .panel {
+      background: rgba(255,255,255,0.88);
+      border: 1px solid var(--gray-300);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+    }
+
+    .panel-title {
+      height: 62px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 18px;
+      font-size: 25px;
+      font-weight: 900;
+      letter-spacing: 0.01em;
+    }
+
+    .panel-title.green {
+      color: var(--green-900);
+    }
+
+    .panel-title.red {
+      color: var(--red-700);
+    }
+
+    .panel-title.blue {
+      color: var(--blue-900);
+    }
+
+    .title-badge {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: white;
+      flex: 0 0 38px;
+    }
+
+    .title-badge.green {
+      background: var(--green-800);
+    }
+
+    .title-badge.red {
+      background: var(--red-700);
+    }
+
+    .title-badge.blue {
+      background: var(--blue-900);
+    }
+
+    .panel-rule {
+      height: 2px;
+      margin: 0 22px;
+    }
+
+    .panel-rule.green {
+      background: var(--green-800);
+    }
+
+    .panel-rule.red {
+      background: var(--red-700);
+    }
+
+    .panel-rule.blue {
+      background: var(--blue-900);
+    }
+
+    .summary-list {
+      list-style: none;
+      margin: 12px 22px 18px;
+      padding: 0;
+    }
+
+    .summary-list li {
+      display: grid;
+      grid-template-columns: 36px 1fr;
+      align-items: center;
+      gap: 12px;
+      min-height: 52px;
+      font-size: 18px;
+      color: var(--gray-900);
+      font-weight: 500;
+    }
+
+    .status-dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: white;
+      background: var(--green-700);
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .status-dot.pending {
+      background: white;
+      border: 3px dashed var(--green-600);
+      color: var(--green-600);
+    }
+
+    .critical-table {
+      width: calc(100% - 20px);
+      margin: 9px 10px 12px;
+      border-collapse: collapse;
+      font-size: 14px;
+      overflow: hidden;
+    }
+
+    .critical-table th {
+      text-align: left;
+      color: var(--gray-800);
+      font-size: 13px;
+      padding: 10px 10px;
+      border-bottom: 1px solid var(--gray-300);
+      font-weight: 900;
+    }
+
+    .critical-table td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--gray-300);
+      border-right: 1px solid var(--gray-200);
+      vertical-align: middle;
+      color: var(--gray-900);
+      font-weight: 600;
+    }
+
+    .critical-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .priority-pill,
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 18px;
+      color: white;
+      font-weight: 900;
+      white-space: nowrap;
+      letter-spacing: 0.02em;
+    }
+
+    .priority-pill {
+      width: 70px;
+      height: 34px;
+      font-size: 18px;
+    }
+
+    .status-pill {
+      min-width: 106px;
+      height: 32px;
+      padding: 0 14px;
+      font-size: 13px;
+    }
+
+    .danger {
+      background: linear-gradient(180deg, #e71212, #bf0505);
+    }
+
+    .warning {
+      background: linear-gradient(180deg, #ff7d23, #e75109);
+    }
+
+    .success {
+      background: linear-gradient(180deg, #0a8438, #00652a);
+    }
+
+    .actions-list {
+      list-style: none;
+      padding: 9px 22px 12px;
+      margin: 0;
+    }
+
+    .actions-list li {
+      display: grid;
+      grid-template-columns: 36px 1fr;
+      align-items: center;
+      gap: 14px;
+      min-height: 52px;
+      border-bottom: 1px dashed var(--gray-300);
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--gray-800);
+    }
+
+    .actions-list li:last-child {
+      border-bottom: none;
+    }
+
+    .arrow-dot {
+      width: 31px;
+      height: 31px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #0a45a7, #062d72);
+      color: #fff;
+      font-weight: 900;
+      display: grid;
+      place-items: center;
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .lower-grid {
+      display: grid;
+      grid-template-columns: 1.08fr 1fr;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    .chart-panel {
+      min-height: 320px;
+    }
+
+    .chart-title {
+      height: 62px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 18px;
+      color: var(--blue-900);
+      font-size: 25px;
+      font-weight: 900;
+    }
+
+    .chart-wrap {
+      height: 248px;
+      padding: 2px 18px 18px;
+    }
+
+    .chart-wrap svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .chart-label {
+      font-size: 14px;
+      fill: var(--gray-700);
+      font-weight: 600;
+    }
+
+    .chart-axis {
+      stroke: #7c838d;
+      stroke-width: 1.5;
+    }
+
+    .grid-line {
+      stroke: #cfd3da;
+      stroke-width: 1;
+      stroke-dasharray: 3 5;
+    }
+
+    .planned-line {
+      fill: none;
+      stroke: var(--blue-800);
+      stroke-width: 3.5;
+      stroke-dasharray: 7 7;
+    }
+
+    .real-line {
+      fill: none;
+      stroke: var(--green-800);
+      stroke-width: 4;
+    }
+
+    .current-line {
+      stroke: #888f9a;
+      stroke-width: 2;
+      stroke-dasharray: 4 4;
+    }
+
+    .chart-bubble {
+      fill: #f8fff8;
+      stroke: var(--green-700);
+      stroke-width: 1.5;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.13));
+    }
+
+    .chart-bubble-text {
+      fill: var(--green-900);
+      font-weight: 900;
+      font-size: 22px;
+      text-anchor: middle;
+    }
+
+    .chart-bubble-text-small {
+      fill: var(--green-800);
+      font-weight: 800;
+      font-size: 14px;
+      text-anchor: middle;
+    }
+
+    .legend {
+      font-size: 14px;
+      fill: var(--gray-800);
+    }
+
+    .milestone-panel {
+      padding-bottom: 20px;
+    }
+
+    .milestone-body {
+      display: grid;
+      grid-template-columns: 70px 1fr;
+      gap: 0;
+      padding: 9px 42px 0 24px;
+    }
+
+    .vertical-road {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 18px;
+    }
+
+    .road-line {
+      width: 4px;
+      height: 162px;
+      background: linear-gradient(180deg, var(--green-600), #9aa2ad);
+      margin-top: -1px;
+    }
+
+    .road-node {
+      width: 31px;
+      height: 31px;
+      border-radius: 50%;
+      border: 4px solid #8e98a5;
+      background: #fff;
+      z-index: 2;
+      margin: 0 0 -2px 0;
+      display: grid;
+      place-items: center;
+    }
+
+    .road-node.done {
+      border-color: var(--green-600);
+      background: var(--green-600);
+      color: white;
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    .road-node.active {
+      border-color: var(--green-600);
+      box-shadow: inset 0 0 0 5px white;
+      background: #dff1e2;
+    }
+
+    .milestones {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .milestone-row {
+      display: grid;
+      grid-template-columns: 62px 1fr 178px 210px;
+      align-items: center;
+      min-height: 57px;
+      border: 1px solid var(--gray-300);
+      border-radius: 10px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .milestone-ico {
+      display: grid;
+      place-items: center;
+      color: var(--green-700);
+    }
+
+    .milestone-name {
+      font-size: 18px;
+      color: var(--gray-900);
+      font-weight: 700;
+    }
+
+    .milestone-date {
+      border-left: 1px solid var(--gray-300);
+      padding-left: 24px;
+      font-size: 14px;
+      color: var(--gray-800);
+      font-weight: 600;
+    }
+
+    .milestone-date small {
+      display: block;
+      color: var(--gray-600);
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+
+    .milestone-status {
+      border-left: 1px solid var(--gray-300);
+      padding-left: 24px;
+      font-size: 14px;
+      color: var(--gray-800);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .footer-strip {
+      min-height: 132px;
+      border: 1.5px solid var(--green-700);
+      border-radius: 16px;
+      background: rgba(255,255,255,0.92);
+      box-shadow: var(--shadow-card);
+      display: grid;
+      grid-template-columns: 1.18fr 0.9fr 1.1fr 1.05fr 1.55fr;
+      overflow: hidden;
+    }
+
+    .foot-card {
+      display: grid;
+      grid-template-columns: 86px 1fr;
+      align-items: center;
+      gap: 18px;
+      padding: 0 28px;
+      border-right: 1px solid #9db9a0;
+    }
+
+    .foot-card:last-child {
+      border-right: none;
+    }
+
+    .foot-icon {
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #0b7937, #00491f);
+      display: grid;
+      place-items: center;
+      color: #fff;
+      box-shadow: inset 0 0 0 4px rgba(255,255,255,0.08), 0 8px 16px rgba(0, 59, 25, 0.18);
+    }
+
+    .foot-icon.light {
+      background: #eef8ef;
+      border: 1px solid #c7dec8;
+      color: var(--green-800);
+      box-shadow: none;
+    }
+
+    .foot-text .foot-title {
+      color: var(--green-900);
+      font-size: 19px;
+      font-weight: 900;
+      margin-bottom: 8px;
+      white-space: nowrap;
+    }
+
+    .foot-text .foot-value {
+      color: var(--gray-800);
+      font-size: 18px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .foot-text .foot-value.strong {
+      color: var(--green-800);
+      font-size: 27px;
+      font-weight: 900;
+    }
+
+    .icon {
+      width: 36px;
+      height: 36px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2.3;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .icon.sm {
+      width: 26px;
+      height: 26px;
+    }
+
+    .icon.lg {
+      width: 48px;
+      height: 48px;
+    }
+
+    .hidden-print-note {
+      display: none;
+    }
+
+    @media (max-width: 1340px) {
+      body { padding: 8px; }
+      .page-shell { transform-origin: top center; }
+      .topbar {
+        grid-template-columns: 110px 1fr 210px 180px 160px 145px 175px;
+        padding: 0 20px;
+      }
+      .title-block h1 { font-size: 32px; }
+      .title-block p { font-size: 17px; }
+      .kpi-body .value { font-size: 25px; }
+      .panel-title, .chart-title { font-size: 21px; }
+    }
+
+    @media print {
+      @page {
+        size: A4 landscape;
+        margin: 0;
+      }
+
+      html, body {
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        background: #fff;
+      }
+
+      .toolbar {
+        display: none !important;
+      }
+
+      .page-shell {
+        width: 100vw;
+        min-height: 100vh;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+      }
+
+      .content {
+        padding-bottom: 16px;
+      }
+
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="toolbar">
+    <button onclick="window.print()">Imprimir / PDF</button>
+    <button onclick="alert('Exportação PPTX: conecte este HTML ao backend para gerar slide com screenshot em alta definição.')">Exportar PPTX</button>
+    <button onclick="document.documentElement.requestFullscreen?.()">Modo apresentação</button>
+  </div>
+
+  <main class="page-shell" id="onepage">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo-box">
+          <div class="logo-mark">
+            <svg viewBox="0 0 80 80" width="70" height="70" aria-hidden="true">
+              <path d="M40 6 67 21v30L40 67 13 51V21L40 6Z" fill="none" stroke="white" stroke-width="4"/>
+              <path d="M40 20v34M40 54 27 47M40 43 27 36M40 32 28 26M40 54 53 47M40 43l13-7M40 32l12-6" stroke="white" stroke-width="4" stroke-linecap="round"/>
+            </svg>
+          </div>
+          SUA LOGO
+        </div>
+      </div>
+
+      <div class="title-block">
+        <h1>Status Executivo do Projeto</h1>
+        <p>Project XYZ&nbsp;&nbsp;·&nbsp;&nbsp;Desenvolvimento de Software</p>
+      </div>
+
+      <div class="header-alert">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v5"/><path d="M12 17.4h.01"/></svg>
+        ATENÇÃO
+      </div>
+
+      <div class="top-info">
+        <svg class="big-icon icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+        <div><small>Data</small><strong>14/05/2026</strong></div>
+      </div>
+
+      <div class="top-info">
+        <svg class="big-icon icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 8-2.5 6.5L7 17l2.5-6.5L16 8Z"/></svg>
+        <div><small>Fase</small><strong>Explorer</strong></div>
+      </div>
+
+      <div class="top-info">
+        <svg class="big-icon icon" viewBox="0 0 24 24"><path d="M4 21V5"/><path d="M4 5c5-3 8 3 16 0v10c-8 3-11-3-16 0"/></svg>
+        <div><small>Dia</small><strong>7 de 46</strong></div>
+      </div>
+
+      <div class="top-info">
+        <div class="progress-ring-header"></div>
+        <div><small>Progresso</small><strong>42%</strong></div>
+      </div>
+    </header>
+
+    <section class="content">
+      <section class="timeline">
+        <div class="phase done">
+          <div class="phase-dot">✓</div>
+          <h3>Prepare</h3>
+          <div class="status">Concluído</div>
+          <div class="date">Data alvo: 01/04/2026</div>
+        </div>
+
+        <div class="phase active">
+          <div class="phase-dot"></div>
+          <h3>Explorer</h3>
+          <div class="status">Em andamento</div>
+          <div class="date">Data alvo: 14/05/2026</div>
+        </div>
+
+        <div class="phase">
+          <div class="phase-dot"></div>
+          <h3>Realize</h3>
+          <div class="status">Planejado</div>
+          <div class="date">Data alvo: 05/06/2026</div>
+        </div>
+
+        <div class="phase">
+          <div class="phase-dot"></div>
+          <h3>SIT</h3>
+          <div class="status">Planejado</div>
+          <div class="date">Data alvo: 20/06/2026</div>
+        </div>
+
+        <div class="phase">
+          <div class="phase-dot"></div>
+          <h3>UAT</h3>
+          <div class="status">Planejado</div>
+          <div class="date">Data alvo: 05/07/2026</div>
+        </div>
+
+        <div class="phase">
+          <div class="phase-dot"></div>
+          <h3>Deploy</h3>
+          <div class="status">Planejado</div>
+          <div class="date">Data alvo: 20/07/2026</div>
+        </div>
+
+        <div class="phase">
+          <div class="phase-dot"></div>
+          <h3>Hypercare</h3>
+          <div class="status">Planejado</div>
+          <div class="date">Data alvo: 31/07/2026</div>
+        </div>
+      </section>
+
+      <section class="kpis">
+        <article class="kpi-card">
+          <div class="kpi-icon green">
+            <svg class="icon lg" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+          </div>
+          <div class="kpi-body">
+            <div class="label">Data</div>
+            <div class="value">14/05/2026</div>
+          </div>
+        </article>
+
+        <article class="kpi-card">
+          <div class="kpi-icon green">
+            <svg class="icon lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 8-2.5 6.5L7 17l2.5-6.5L16 8Z"/></svg>
+          </div>
+          <div class="kpi-body">
+            <div class="label">Fase Atual</div>
+            <div class="value">Explorer</div>
+          </div>
+        </article>
+
+        <article class="kpi-card">
+          <div class="progress-kpi"><span>42%</span></div>
+          <div class="kpi-body">
+            <div class="label">Progresso</div>
+            <div class="value">42%</div>
+          </div>
+        </article>
+
+        <article class="kpi-card">
+          <div class="kpi-icon green">
+            <svg class="icon lg" viewBox="0 0 24 24"><path d="M4 21V5"/><path d="M4 5c5-3 8 3 16 0v10c-8 3-11-3-16 0"/></svg>
+          </div>
+          <div class="kpi-body">
+            <div class="label">Prazo</div>
+            <div class="value">Dia 7 de 46</div>
+          </div>
+        </article>
+
+        <article class="kpi-card">
+          <div class="kpi-icon red">
+            <svg class="icon lg" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v5"/><path d="M12 17.4h.01"/></svg>
+          </div>
+          <div class="kpi-body">
+            <div class="label">Risco Atual</div>
+            <div class="value small"><span class="lead-red">2</span> itens em<br>atenção</div>
+          </div>
+        </article>
+
+        <article class="kpi-card">
+          <div class="kpi-icon orange">
+            <svg class="icon lg" viewBox="0 0 24 24"><path d="M19.4 13.2c1.4-1.4 1.6-4.5-.3-6.1-1.9-1.7-4.8-1-6 .9-1.2-1.9-4.1-2.6-6-.9-1.9 1.6-1.7 4.7-.3 6.1L12 18.5l7.4-5.3Z"/><path d="M4 12h4l1.5-3 3 6 1.5-3h6"/></svg>
+          </div>
+          <div class="kpi-body">
+            <div class="label">Saúde Geral</div>
+            <div class="value orange">Atenção</div>
+          </div>
+        </article>
+      </section>
+
+      <section class="middle-grid">
+        <article class="panel">
+          <div class="panel-title green">
+            <span class="title-badge green">
+              <svg class="icon sm" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01"/></svg>
+            </span>
+            Resumo Executivo
+          </div>
+          <div class="panel-rule green"></div>
+          <ul class="summary-list">
+            <li><span class="status-dot">✓</span><span>Perfis SAP liberados para consultores</span></li>
+            <li><span class="status-dot">✓</span><span>Numeração PARA das novas contas definida</span></li>
+            <li><span class="status-dot">✓</span><span>Estrutura do PDD avançada nas frentes 1.1, 1.2 e 1.5</span></li>
+            <li><span class="status-dot pending"></span><span>Gate Explorer → Realize em preparação</span></li>
+          </ul>
+        </article>
+
+        <article class="panel">
+          <div class="panel-title red">
+            <span class="title-badge red">!</span>
+            Pendências Críticas
+          </div>
+          <div class="panel-rule red"></div>
+          <table class="critical-table">
+            <thead>
+              <tr>
+                <th style="width: 18%;">Prioridade</th>
+                <th>Item</th>
+                <th style="width: 24%;">Responsáveis</th>
+                <th style="width: 19%;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="priority-pill danger">P1</span></td>
+                <td>Impactos financeiros e<br>patrimoniais incompletos</td>
+                <td>Rodrigo / Bruna</td>
+                <td><span class="status-pill danger">ATRASADO</span></td>
+              </tr>
+              <tr>
+                <td><span class="priority-pill warning">P2</span></td>
+                <td>Análise de sistemas<br>legados incompleta</td>
+                <td>Marcelo / Adnan</td>
+                <td><span class="status-pill warning">EM ATENÇÃO</span></td>
+              </tr>
+              <tr>
+                <td><span class="priority-pill success">P3</span></td>
+                <td>Parametrização inicial<br>das novas contas</td>
+                <td>Time Contábil / TI</td>
+                <td><span class="status-pill success">NO PRAZO</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </article>
+
+        <article class="panel">
+          <div class="panel-title blue">
+            <span class="title-badge blue">›</span>
+            Próximas Ações
+          </div>
+          <div class="panel-rule blue"></div>
+          <ul class="actions-list">
+            <li><span class="arrow-dot">›</span><span>Receber impactos financeiros e<br>patrimoniais completos</span></li>
+            <li><span class="arrow-dot">›</span><span>Complementar análise de sistemas legados</span></li>
+            <li><span class="arrow-dot">›</span><span>Avançar parametrização inicial das<br>novas contas contábeis</span></li>
+            <li><span class="arrow-dot">›</span><span>Consolidar critérios de saída do Explorer</span></li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="lower-grid">
+        <article class="panel chart-panel">
+          <div class="chart-title">
+            <span class="title-badge blue">
+              <svg class="icon sm" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-7"/></svg>
+            </span>
+            Curva S — Avanço Planejado x Realizado
+          </div>
+          <div class="chart-wrap">
+            <svg viewBox="0 0 820 250" role="img" aria-label="Curva S">
+              <text x="0" y="13" class="chart-label">% Conclusão</text>
+
+              <line x1="56" y1="205" x2="796" y2="205" class="chart-axis"/>
+              <line x1="56" y1="35" x2="56" y2="205" class="chart-axis"/>
+
+              <line x1="56" y1="35" x2="796" y2="35" class="grid-line"/>
+              <line x1="56" y1="78" x2="796" y2="78" class="grid-line"/>
+              <line x1="56" y1="120" x2="796" y2="120" class="grid-line"/>
+              <line x1="56" y1="163" x2="796" y2="163" class="grid-line"/>
+
+              <text x="16" y="40" class="chart-label">100%</text>
+              <text x="25" y="83" class="chart-label">75%</text>
+              <text x="25" y="125" class="chart-label">50%</text>
+              <text x="25" y="168" class="chart-label">25%</text>
+              <text x="34" y="208" class="chart-label">0%</text>
+
+              <polyline class="planned-line" points="56,205 166,176 282,138 404,104 520,69 634,48 748,24"/>
+              <polyline class="real-line" points="56,205 166,187 282,154 404,130 520,94 634,72 748,36"/>
+
+              <line x1="282" y1="205" x2="282" y2="120" class="current-line"/>
+              <circle cx="282" cy="130" r="8" fill="#0b7a37" stroke="#ffffff" stroke-width="3"/>
+
+              <rect x="252" y="24" width="82" height="63" rx="7" class="chart-bubble"/>
+              <text x="293" y="48" class="chart-bubble-text-small">Atual</text>
+              <text x="293" y="76" class="chart-bubble-text">42%</text>
+
+              <circle cx="166" cy="224" r="10" fill="#006b2d"/>
+              <text x="166" y="229" text-anchor="middle" font-size="12" font-weight="900" fill="white">7</text>
+              <text x="50" y="228" class="chart-label">0</text>
+              <text x="274" y="228" class="chart-label">14</text>
+              <text x="395" y="228" class="chart-label">21</text>
+              <text x="511" y="228" class="chart-label">28</text>
+              <text x="626" y="228" class="chart-label">35</text>
+              <text x="740" y="228" class="chart-label">42</text>
+              <text x="789" y="228" class="chart-label">46</text>
+
+              <text x="380" y="246" class="chart-label">Dias do Projeto</text>
+
+              <line x1="760" y1="120" x2="802" y2="120" class="planned-line"/>
+              <text x="810" y="124" class="legend">Planejado</text>
+
+              <line x1="760" y1="154" x2="802" y2="154" class="real-line"/>
+              <text x="810" y="158" class="legend">Realizado</text>
+            </svg>
+          </div>
+        </article>
+
+        <article class="panel milestone-panel">
+          <div class="chart-title">
+            <span class="title-badge blue">
+              <svg class="icon sm" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+            </span>
+            Marcos e Datas-Alvo
+          </div>
+
+          <div class="milestone-body">
+            <div class="vertical-road">
+              <div class="road-node done">✓</div>
+              <div class="road-line"></div>
+              <div class="road-node active"></div>
+              <div class="road-line" style="height: 58px;"></div>
+              <div class="road-node"></div>
+              <div class="road-line" style="height: 50px;"></div>
+              <div class="road-node"></div>
+            </div>
+
+            <div class="milestones">
+              <div class="milestone-row">
+                <div class="milestone-ico">
+                  <svg class="icon" viewBox="0 0 24 24"><path d="M4 21V5"/><path d="M4 5c5-3 8 3 16 0v10c-8 3-11-3-16 0"/></svg>
+                </div>
+                <div class="milestone-name">1.&nbsp; Kick-off concluído</div>
+                <div class="milestone-date"><small>Data alvo:</small>01/04/2026</div>
+                <div class="milestone-status">Status: <span class="status-pill success">CONCLUÍDO</span></div>
+              </div>
+
+              <div class="milestone-row">
+                <div class="milestone-ico">
+                  <svg class="icon" viewBox="0 0 24 24"><path d="M5 15c3-6 8-9 15-10-1 7-4 12-10 15l-5-5Z"/><path d="M7 17 4 20"/><circle cx="14" cy="10" r="1.6"/></svg>
+                </div>
+                <div class="milestone-name">2.&nbsp; Gate Explorer → Realize</div>
+                <div class="milestone-date"><small>Data alvo:</small>14/05/2026</div>
+                <div class="milestone-status">Status: <span class="status-pill success">EM ANDAMENTO</span></div>
+              </div>
+
+              <div class="milestone-row">
+                <div class="milestone-ico" style="color:#5d6874">
+                  <svg class="icon" viewBox="0 0 24 24"><path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3.1V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+                </div>
+                <div class="milestone-name">3.&nbsp; Início do SIT</div>
+                <div class="milestone-date"><small>Data alvo:</small>20/06/2026</div>
+                <div class="milestone-status">Status: <span class="status-pill" style="background:#7c8490;">PLANEJADO</span></div>
+              </div>
+
+              <div class="milestone-row">
+                <div class="milestone-ico" style="color:#5d6874">
+                  <svg class="icon" viewBox="0 0 24 24"><path d="M5 15c3-6 8-9 15-10-1 7-4 12-10 15l-5-5Z"/><path d="M7 17 4 20"/><circle cx="14" cy="10" r="1.6"/></svg>
+                </div>
+                <div class="milestone-name">4.&nbsp; Go-Live</div>
+                <div class="milestone-date"><small>Data alvo:</small>20/07/2026</div>
+                <div class="milestone-status">Status: <span class="status-pill" style="background:#7c8490;">PLANEJADO</span></div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <footer class="footer-strip">
+        <div class="foot-card">
+          <div class="foot-icon">
+            <svg class="icon lg" viewBox="0 0 24 24"><path d="M4 21V5"/><path d="M4 5c5-3 8 3 16 0v10c-8 3-11-3-16 0"/></svg>
+          </div>
+          <div class="foot-text">
+            <div class="foot-title">Milestone Alvo</div>
+            <div class="foot-value">Gate Explorer → Realize</div>
+          </div>
+        </div>
+
+        <div class="foot-card">
+          <div class="foot-icon light">
+            <svg class="icon lg" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01"/></svg>
+          </div>
+          <div class="foot-text">
+            <div class="foot-title">Data Alvo</div>
+            <div class="foot-value strong">14/05/2026</div>
+          </div>
+        </div>
+
+        <div class="foot-card">
+          <div class="foot-icon light">
+            <svg class="icon lg" viewBox="0 0 24 24"><path d="M5 15c3-6 8-9 15-10-1 7-4 12-10 15l-5-5Z"/><path d="M7 17 4 20"/><circle cx="14" cy="10" r="1.6"/></svg>
+          </div>
+          <div class="foot-text">
+            <div class="foot-title">Go-Live Previsto</div>
+            <div class="foot-value strong">20/07/2026</div>
+          </div>
+        </div>
+
+        <div class="foot-card">
+          <div class="foot-icon">
+            <svg class="icon lg" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 22c1.4-4 4.2-6 8-6s6.6 2 8 6"/></svg>
+          </div>
+          <div class="foot-text">
+            <div class="foot-title">Owner do Relatório</div>
+            <div class="foot-value">Jane McKenna</div>
+          </div>
+        </div>
+
+        <div class="foot-card">
+          <div class="foot-icon">
+            <svg class="icon lg" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v6h5"/><path d="M10 13h6M10 17h6"/></svg>
+          </div>
+          <div class="foot-text">
+            <div class="foot-title">Relatório</div>
+            <div class="foot-value">Status Executivo · 14/05/2026</div>
+          </div>
+        </div>
+      </footer>
+    </section>
+  </main>
+
+  <script>
+    // Ponto preparado para futura conexão com Excel/FastAPI:
+    // fetch('/api/status').then(r => r.json()).then(renderStatus)
+    // WebSocket: ws://127.0.0.1:8000/ws/status
+    window.addEventListener("keydown", (event) => {
+      if (event.key.toLowerCase() === "p" && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        window.print();
+      }
+    });
+  </script>
+</body>
+</html>

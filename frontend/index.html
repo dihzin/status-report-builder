@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Status Executivo do Projeto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+<style>body { opacity: 0; }</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button onclick="loadData()">&#8635; Atualizar</button>
+  <button id="btnEdit" onclick="toggleEditMode()" title="Editar dados do relatório diretamente na tela">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:-2px;margin-right:4px"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg>Editar
+  </button>
+  <button onclick="exportPDF(event)">Exportar PDF</button>
+  <button onclick="exportPPTX(event)">Exportar PPTX</button>
+  <button onclick="prevSlide()" aria-label="Slide anterior">&#9664;</button>
+  <button id="slideIndicator" disabled>Slide 2/5</button>
+  <button onclick="nextSlide()" aria-label="Próximo slide">&#9654;</button>
+  <button onclick="safePrint()">Imprimir / PDF</button>
+  <button onclick="requestPresentationMode()">Modo apresentação</button>
+</div>
+
+<div id="editModeBar" class="edit-mode-bar" style="display:none" role="complementary" aria-label="Barra de edição">
+  <div class="edit-mode-bar-inner">
+    <span class="edit-mode-label">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg>
+      Modo Edição ativo
+    </span>
+    <button class="edit-cfg-btn" type="button" onclick="openConfigDrawer()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Configurações do Projeto
+    </button>
+    <span class="edit-bar-hint">Clique em qualquer texto para editar diretamente</span>
+    <div class="edit-mode-actions">
+      <button id="btnSaveEdits" onclick="saveEdits()">&#10003; Salvar alterações</button>
+      <button id="btnCancelEdits" onclick="cancelEditMode()">&#10005; Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Drawer de configurações (desliza da direita) -->
+<div id="configDrawer" class="config-drawer" aria-hidden="true">
+  <div class="config-drawer-header">
+    <h3 class="config-drawer-title">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Configurações do Projeto
+    </h3>
+    <button class="config-drawer-close" type="button" onclick="closeConfigDrawer()" aria-label="Fechar">&#10005;</button>
+  </div>
+  <div class="config-drawer-body" id="configDrawerBody"></div>
+</div>
+<div id="configDrawerBackdrop" class="config-drawer-backdrop" style="display:none" onclick="closeConfigDrawer()"></div>
+
+<!-- Banner de alertas de validação do schema -->
+<div id="validationBanner" class="validation-banner" style="display:none"></div>
+
+<main class="page-shell deck-slide" id="slide1">
+  <section class="deck-cover">
+    <div class="deck-cover-accent" aria-hidden="true"></div>
+    <div class="deck-cover-top">
+      <div class="deck-brand-left">
+        <div class="deck-cover-logo"><img id="coverLogo" src="assets/logo.svg" alt="Logo"/></div>
+      </div>
+      <div class="deck-brand-right" id="coverPartner">Stratesys</div>
+    </div>
+    <div class="deck-cover-main">
+      <p class="deck-eyebrow" id="coverEyebrow">STATUS REPORT DO PROJETO · FASE</p>
+      <h1 id="coverMainTitle">Implementação<br/>SAP Ariba na <em>EDF</em></h1>
+      <p id="coverSubtitle">Procurement digital integrado ao S/4HANA.</p>
+    </div>
+    <div class="deck-cover-meta">
+      <div><small>CLIENTE</small><strong id="coverClient">-</strong></div>
+      <div><small>APRESENTADOR</small><strong id="coverOwner">-</strong></div>
+      <div><small>DATA</small><strong id="coverDate">-</strong></div>
+      <div><small>DURAÇÃO</small><strong id="coverDuration">30 minutos</strong></div>
+    </div>
+    <div class="deck-cover-bottom">
+      <span id="coverTagline">EDF × Stratesys, parceria estratégica</span>
+      <span id="coverRestriction">USO RESTRITO</span>
+    </div>
+    <div class="deck-cover-bottomline">
+      <span id="coverFooterLeft">Implementação SAP Ariba</span>
+      <span id="coverFooterRight">EDF × Stratesys</span>
+    </div>
+  </section>
+</main>
+
+<main class="page-shell deck-slide active" id="slide2">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo-box">
+        <div class="logo-mark" id="logoMark">
+          <img id="logoImg" src="assets/logo.svg" alt="Logo" style="width:100%;height:100%;object-fit:contain;"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="title-block">
+      <h1 id="projectTitle">Carregando...</h1>
+      <p id="projectSubtitle"></p>
+    </div>
+
+    <div class="header-alert" id="alertBar" role="alert">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v5"/><path d="M12 17.4h.01"/></svg>
+      <span id="alertText">ATENÇÃO</span>
+    </div>
+
+    <div class="top-kpis">
+      <div class="hkpi">
+        <span class="hkpi-label">Plano</span>
+        <div id="infoPlanoRing" class="hkpi-svg"></div>
+      </div>
+      <div class="hkpi">
+        <span class="hkpi-label">Real</span>
+        <div id="infoRealRing" class="hkpi-svg"></div>
+      </div>
+      <div class="hkpi hkpi-spi">
+        <span class="hkpi-label">SPI<sup>*</sup></span>
+        <div id="spiGauge" class="hkpi-svg"></div>
+      </div>
+    </div>
+  </header>
+
+  <section class="content">
+
+    <section class="timeline" id="timeline" aria-label="Timeline de fases">
+    </section>
+
+    <section class="kpis" id="kpis" aria-label="Indicadores-chave">
+    </section>
+
+    <section class="middle-grid">
+      <article class="panel">
+        <div class="panel-title green">
+          <span class="title-badge green" aria-hidden="true">
+            <svg class="icon sm" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+          </span>
+          Resumo Executivo
+        </div>
+        <div class="panel-rule green"></div>
+        <ul class="summary-list" id="resumo" aria-label="Resumo executivo"></ul>
+      </article>
+
+      <article class="panel">
+        <div class="panel-title red">
+          <span class="title-badge red" aria-hidden="true">!</span>
+          Pendências Críticas
+        </div>
+        <div class="panel-rule red"></div>
+        <table class="critical-table">
+          <caption class="sr-only">Pendências críticas do projeto</caption>
+          <thead>
+            <tr>
+              <th scope="col">Prioridade</th>
+              <th scope="col">Item</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody id="pendencias"></tbody>
+        </table>
+      </article>
+
+      <article class="panel">
+        <div class="panel-title blue">
+          <span class="title-badge blue" aria-hidden="true">›</span>
+          Próximas Ações
+        </div>
+        <div class="panel-rule blue"></div>
+        <ul class="actions-list" id="acoes" aria-label="Próximas ações"></ul>
+      </article>
+    </section>
+
+    <section class="lower-grid">
+      <article class="panel chart-panel">
+        <div class="chart-title">
+          <span class="title-badge blue" aria-hidden="true">
+            <svg class="icon sm" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-7"/></svg>
+          </span>
+          Curva S — Avanço Planejado x Realizado
+        </div>
+        <div class="chart-wrap">
+          <svg id="curvaSvg" viewBox="0 0 820 370" role="img" aria-label="Curva S de avanço" shape-rendering="geometricPrecision"></svg>
+        </div>
+      </article>
+
+      <article class="panel milestone-panel">
+        <div class="chart-title">
+          <span class="title-badge blue" aria-hidden="true">
+            <svg class="icon sm" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+          </span>
+          Marcos e Datas-Alvo
+        </div>
+        <div class="milestone-body" id="marcosBody"></div>
+      </article>
+    </section>
+
+    <footer class="footer-strip" id="footerStrip" role="contentinfo">
+    </footer>
+
+  </section>
+</main>
+
+<main class="page-shell deck-slide" id="slide3">
+  <section class="deck-gantt">
+    <div class="gantt-header">
+      <h2 id="ganttTitle">Cronograma &amp; Marcos Críticos</h2>
+      <p id="ganttSubtitle">-</p>
+    </div>
+
+    <div class="gantt-wrap" id="ganttWrap" style="display:none">
+      <div class="gantt-canvas" id="ganttCanvas">
+        <svg id="ganttSvg" viewBox="0 0 1200 420" role="img" aria-label="Cronograma Gantt" shape-rendering="geometricPrecision"></svg>
+      </div>
+    </div>
+
+    <div class="gantt-phase-cards" id="ganttPhaseCards"></div>
+
+    <div class="gantt-empty" id="ganttEmpty" style="display:none">
+      <svg class="icon lg" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+      <p>Nenhuma fase ou marco cadastrado para exibição no Gantt.</p>
+    </div>
+
+    <div class="gantt-legend" id="ganttLegend"></div>
+  </section>
+</main>
+
+<main class="page-shell deck-slide" id="slide4">
+  <section class="deck-closing">
+    <h2 id="closingTitle">STATUS REPORT</h2>
+    <h3>Obrigado.</h3>
+    <p id="closingMilestone">Próximo marco: -</p>
+    <p id="closingDates">Data alvo: - | Go-Live: -</p>
+  </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

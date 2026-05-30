@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Artefatos gerados — não versionar PDFs/PPTX de saída
+exports/pdf/
+exports/pptx/
+
+# Backup do Excel criado pelo importador
+*.bak
+
+# Dados de entrada sensíveis (PMAR real com dados do projeto)
+# Descomente se não quiser versionar o RAID Log:
+# docs/*.xlsm
+# docs/*.xlsx
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Playwright
+.playwright/
+playwright-report/

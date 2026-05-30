@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Status Executivo do Projeto — Pixel Map v3</title>
+
+<style>
+:root{
+  --green-950:#002a11;
+  --green-900:#003817;
+  --green-850:#00461d;
+  --green-800:#005c26;
+  --green-700:#006f2e;
+  --green-600:#087e38;
+  --green-soft:#eef8ef;
+  --blue:#073987;
+  --red:#cc0808;
+  --orange:#f06b15;
+  --yellow:#ffd11f;
+  --ink:#20242b;
+  --muted:#606873;
+  --line:#d7dbe0;
+  --panel:#ffffff;
+  --shadow:0 4px 12px rgba(20,34,24,.075);
+  --font:"Segoe UI", Arial, sans-serif;
+}
+
+*{box-sizing:border-box}
+
+html,body{
+  margin:0;
+  min-height:100%;
+  background:#e8eeeb;
+  font-family:var(--font);
+  color:var(--ink);
+}
+
+body{
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+}
+
+.toolbar{
+  position:fixed;
+  top:12px;
+  right:14px;
+  z-index:50;
+  display:flex;
+  gap:8px;
+  opacity:.18;
+  transition:.15s ease;
+}
+.toolbar:hover{opacity:1}
+.toolbar button{
+  border:1px solid #b9cec0;
+  background:rgba(255,255,255,.96);
+  color:var(--green-900);
+  font-weight:850;
+  font-size:12px;
+  border-radius:8px;
+  padding:7px 10px;
+  cursor:pointer;
+  box-shadow:0 5px 14px rgba(0,0,0,.13);
+}
+
+.sheet{
+  width:1491px;
+  height:1055px;
+  position:relative;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 20% 22%, rgba(0,96,40,.035), transparent 26%),
+    radial-gradient(circle at 82% 78%, rgba(7,57,135,.035), transparent 24%),
+    linear-gradient(180deg,#ffffff 0%,#fbfcfb 100%);
+  border-radius:0 0 16px 16px;
+  box-shadow:0 12px 30px rgba(0,0,0,.18);
+}
+
+/* ---------- HEADER ---------- */
+.topbar{
+  position:absolute;
+  left:0;
+  top:0;
+  width:1491px;
+  height:105px;
+  background:
+    radial-gradient(circle at 7% 20%, rgba(255,255,255,.07), transparent 14%),
+    linear-gradient(90deg,#00280f 0%,#003819 43%,#002b12 100%);
+  color:#fff;
+  overflow:hidden;
+}
+
+.logo{
+  position:absolute;
+  left:37px;
+  top:17px;
+  width:66px;
+  text-align:center;
+  color:#fff;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.045em;
+}
+.logo svg{
+  width:55px;
+  height:55px;
+  display:block;
+  margin:0 auto 3px;
+}
+
+.title{
+  position:absolute;
+  left:128px;
+  top:20px;
+  width:455px;
+}
+.title h1{
+  margin:0;
+  color:#fff;
+  font-size:31px;
+  line-height:1.02;
+  font-weight:950;
+  letter-spacing:.055em;
+  text-shadow:0 1px rgba(0,0,0,.18);
+}
+.title p{
+  margin:14px 0 0;
+  color:#f3fff4;
+  font-size:16px;
+  font-weight:700;
+  letter-spacing:.03em;
+  white-space:nowrap;
+}
+
+.alert{
+  position:absolute;
+  left:626px;
+  top:24px;
+  width:185px;
+  height:58px;
+  border-radius:7px;
+  background:linear-gradient(180deg,#ffdc29 0%,#f1b900 100%);
+  box-shadow:inset 0 -3px rgba(0,0,0,.12), 0 4px 8px rgba(0,0,0,.12);
+  color:#334107;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:13px;
+  font-size:20px;
+  font-weight:950;
+}
+
+.head-card{
+  position:absolute;
+  top:24px;
+  height:58px;
+  border-left:2px solid rgba(255,255,255,.35);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+}
+.head-card .hicon{
+  width:36px;
+  height:36px;
+  flex:0 0 36px;
+  color:#fff;
+}
+.head-card small{
+  display:block;
+  color:rgba(255,255,255,.80);
+  font-size:12px;
+  font-weight:800;
+  line-height:1;
+  margin-bottom:5px;
+}
+.head-card strong{
+  display:block;
+  color:#fff;
+  font-size:15px;
+  line-height:1.1;
+  font-weight:850;
+}
+.h-date{left:828px;width:164px}
+.h-phase{left:992px;width:154px}
+.h-day{left:1147px;width:136px}
+.h-progress{left:1284px;width:181px}
+
+.ring-top{
+  width:52px;
+  height:52px;
+  border-radius:50%;
+  background:conic-gradient(#fff 0 42%,rgba(255,255,255,.25) 42% 100%);
+  position:relative;
+  flex:0 0 52px;
+}
+.ring-top:after{
+  content:"";
+  position:absolute;
+  inset:8px;
+  border-radius:50%;
+  background:#003315;
+}
+
+/* ---------- SHARED ---------- */
+.card{
+  position:absolute;
+  background:rgba(255,255,255,.94);
+  border:1px solid var(--line);
+  border-radius:10px;
+  box-shadow:var(--shadow);
+}
+svg.icon{
+  stroke:currentColor;
+  fill:none;
+  stroke-width:2.25;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+/* ---------- TIMELINE ---------- */
+.timeline{
+  position:absolute;
+  left:22px;
+  top:106px;
+  width:1446px;
+  height:125px;
+}
+.timeline .solid-line{
+  position:absolute;
+  left:66px;
+  top:32px;
+  width:437px;
+  height:2px;
+  background:var(--green-700);
+}
+.timeline .dash-line{
+  position:absolute;
+  left:503px;
+  top:32px;
+  width:851px;
+  height:2px;
+  border-top:2px dashed #868c95;
+}
+.phase{
+  position:absolute;
+  top:0;
+  width:170px;
+  text-align:center;
+}
+.phase .dot{
+  width:29px;
+  height:29px;
+  margin:16px auto 14px;
+  border-radius:50%;
+  border:2px solid #9099a2;
+  background:#fff;
+  display:grid;
+  place-items:center;
+  font-size:15px;
+  font-weight:950;
+  color:#fff;
+}
+.phase.done .dot{
+  background:var(--green-700);
+  border-color:var(--green-700);
+}
+.phase.active .dot{
+  border:3px solid var(--green-700);
+  background:#e8f6e9;
+  box-shadow:inset 0 0 0 5px #fff;
+}
+.phase h3{
+  margin:0 0 3px;
+  font-size:14px;
+  line-height:1.05;
+  font-weight:850;
+}
+.phase .status{
+  font-size:13px;
+  line-height:1.05;
+  color:#5f6670;
+  margin-bottom:8px;
+}
+.phase.done .status,.phase.active .status{
+  color:var(--green-700);
+  font-weight:850;
+}
+.phase .date{
+  font-size:11px;
+  color:#3d4249;
+  font-weight:500;
+}
+.p1{left:0}.p2{left:254px}.p3{left:494px}.p4{left:702px}.p5{left:908px}.p6{left:1092px}.p7{left:1290px}
+
+/* ---------- KPI ROW ---------- */
+.kpi{
+  height:109px;
+  display:flex;
+  align-items:center;
+  gap:17px;
+  padding:15px 13px;
+}
+.kpi1{left:23px;top:238px;width:240px}
+.kpi2{left:276px;top:238px;width:235px}
+.kpi3{left:522px;top:238px;width:229px}
+.kpi4{left:764px;top:238px;width:248px}
+.kpi5{left:1026px;top:238px;width:217px}
+.kpi6{left:1256px;top:238px;width:211px}
+
+.kpi-ico{
+  width:63px;
+  height:63px;
+  border-radius:11px;
+  display:grid;
+  place-items:center;
+  flex:0 0 63px;
+  color:var(--green-800);
+  background:#edf8ee;
+  border:1px solid #c8dfc9;
+}
+.kpi-ico.red{color:var(--red);background:#fff1f1;border-color:#f3c7c7}
+.kpi-ico.orange{color:var(--orange);background:#fff6ed;border-color:#ffd2ae}
+.kpi-ico svg{width:38px;height:38px}
+.kpi label{
+  display:block;
+  font-size:14px;
+  font-weight:650;
+  color:#2c3138;
+  margin-bottom:8px;
+}
+.kpi b{
+  display:block;
+  color:var(--green-800);
+  font-size:24px;
+  line-height:1.08;
+  font-weight:950;
+  white-space:nowrap;
+}
+.kpi b.orange{color:var(--orange)}
+.kpi b.risk{
+  font-size:17px;
+  line-height:1.16;
+  white-space:normal;
+}
+.kpi b.risk span{
+  color:var(--red);
+  font-size:26px;
+  margin-right:5px;
+}
+.ring{
+  width:68px;
+  height:68px;
+  border-radius:50%;
+  position:relative;
+  display:grid;
+  place-items:center;
+  flex:0 0 68px;
+  background:conic-gradient(var(--green-700) 0 42%,#dcebdd 42% 100%);
+}
+.ring:after{
+  content:"";
+  position:absolute;
+  inset:9px;
+  border-radius:50%;
+  background:#fff;
+}
+.ring span{
+  position:relative;
+  z-index:1;
+  color:#20242b;
+  font-size:20px;
+  font-weight:950;
+}
+
+/* ---------- MIDDLE PANELS ---------- */
+.panel-title{
+  position:absolute;
+  left:16px;
+  top:14px;
+  height:31px;
+  display:flex;
+  align-items:center;
+  gap:13px;
+  font-size:20px;
+  line-height:1;
+  font-weight:950;
+  letter-spacing:.01em;
+}
+.panel-title.green{color:var(--green-850)}
+.panel-title.red{color:var(--red)}
+.panel-title.blue{color:var(--blue)}
+.badge{
+  width:30px;
+  height:30px;
+  border-radius:50%;
+  color:#fff;
+  display:grid;
+  place-items:center;
+  font-size:18px;
+  font-weight:950;
+  flex:0 0 30px;
+}
+.bg-green{background:var(--green-800)}
+.bg-red{background:var(--red)}
+.bg-blue{background:var(--blue)}
+.rule{
+  position:absolute;
+  left:19px;
+  right:19px;
+  top:51px;
+  height:2px;
+}
+.rule.green{background:var(--green-850)}
+.rule.red{background:var(--red)}
+.rule.blue{background:var(--blue)}
+
+.mid1{left:23px;top:362px;width:444px;height:238px}
+.mid2{left:480px;top:362px;width:532px;height:238px}
+.mid3{left:1024px;top:362px;width:443px;height:238px}
+
+.summary{
+  position:absolute;
+  left:18px;
+  top:64px;
+  width:405px;
+  list-style:none;
+  margin:0;
+  padding:0;
+}
+.summary li{
+  display:grid;
+  grid-template-columns:28px 1fr;
+  align-items:center;
+  gap:11px;
+  min-height:42px;
+  font-size:14px;
+  line-height:1.18;
+  font-weight:550;
+}
+.check{
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  background:var(--green-700);
+  color:#fff;
+  display:grid;
+  place-items:center;
+  font-size:12px;
+  font-weight:950;
+}
+.check.pending{
+  background:#fff;
+  color:var(--green-700);
+  border:2px dashed var(--green-700);
+}
+
+.crit{
+  position:absolute;
+  left:10px;
+  top:60px;
+  width:512px;
+  border-collapse:collapse;
+  font-size:11px;
+}
+.crit th{
+  text-align:left;
+  padding:7px 8px;
+  font-size:11px;
+  color:#20242b;
+  font-weight:950;
+  border-bottom:1px solid var(--line);
+}
+.crit td{
+  padding:8px 8px;
+  height:47px;
+  border-bottom:1px solid var(--line);
+  border-right:1px solid #e6e9ed;
+  vertical-align:middle;
+  font-weight:700;
+}
+.crit tr:last-child td{border-bottom:none}
+.pill-prio,.pill-status{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:15px;
+  color:#fff;
+  font-weight:950;
+  white-space:nowrap;
+}
+.pill-prio{width:58px;height:28px;font-size:15px}
+.pill-status{min-width:82px;height:25px;padding:0 9px;font-size:10px}
+.danger{background:linear-gradient(#e81919,#bf0505)}
+.warn{background:linear-gradient(#ff7b22,#ef5708)}
+.ok{background:linear-gradient(#0b8438,#00682b)}
+.gray{background:#777f89}
+
+.actions{
+  position:absolute;
+  left:18px;
+  top:62px;
+  width:407px;
+  margin:0;
+  padding:0;
+  list-style:none;
+}
+.actions li{
+  min-height:42px;
+  display:grid;
+  grid-template-columns:27px 1fr;
+  align-items:center;
+  gap:12px;
+  border-bottom:1px dashed var(--line);
+  font-size:14px;
+  font-weight:550;
+  line-height:1.22;
+}
+.actions li:last-child{border-bottom:none}
+.arrow{
+  width:24px;
+  height:24px;
+  border-radius:50%;
+  background:var(--blue);
+  color:#fff;
+  display:grid;
+  place-items:center;
+  font-size:22px;
+  font-weight:950;
+  line-height:1;
+}
+
+/* ---------- LOWER PANELS ---------- */
+.low1{left:23px;top:612px;width:718px;height:266px}
+.low2{left:755px;top:612px;width:712px;height:266px}
+
+.chart-title{
+  position:absolute;
+  left:17px;
+  top:14px;
+  height:31px;
+  display:flex;
+  align-items:center;
+  gap:13px;
+  color:var(--blue);
+  font-size:19px;
+  font-weight:950;
+}
+.chart-title .badge svg{width:20px;height:20px}
+.chart-box{
+  position:absolute;
+  left:18px;
+  top:50px;
+  width:680px;
+  height:205px;
+}
+.chart-box svg{width:100%;height:100%;display:block}
+.axis{stroke:#6f7781;stroke-width:1.3}
+.grid{stroke:#cfd4db;stroke-width:1;stroke-dasharray:3 5}
+.planned{fill:none;stroke:#0b3f96;stroke-width:2.6;stroke-dasharray:6 6}
+.actual{fill:none;stroke:var(--green-800);stroke-width:3.4}
+.txt{font-size:11px;fill:#3d434b;font-weight:650}
+.legend{font-size:11px;fill:#262b33}
+.bubble{fill:#f8fff8;stroke:var(--green-700);stroke-width:1.2;filter:drop-shadow(0 3px 5px rgba(0,0,0,.16))}
+.bubble-small{font-size:12px;fill:var(--green-800);font-weight:900;text-anchor:middle}
+.bubble-big{font-size:22px;fill:var(--green-850);font-weight:950;text-anchor:middle}
+.current{stroke:#8c929b;stroke-width:1.5;stroke-dasharray:4 4}
+
+.milestone-body{
+  position:absolute;
+  left:17px;
+  top:56px;
+  width:663px;
+  height:198px;
+  display:grid;
+  grid-template-columns:54px 1fr;
+}
+.road{
+  padding-top:6px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+.road-dot{
+  width:24px;
+  height:24px;
+  border-radius:50%;
+  border:3px solid #8f98a2;
+  background:#fff;
+  color:#fff;
+  display:grid;
+  place-items:center;
+  font-size:10px;
+  font-weight:950;
+  z-index:2;
+}
+.road-dot.done{background:var(--green-700);border-color:var(--green-700)}
+.road-dot.active{
+  background:#e4f5e7;
+  border-color:var(--green-700);
+  box-shadow:inset 0 0 0 4px #fff;
+}
+.road-line{width:4px;height:39px;background:#9aa2aa}
+.road-line.first{height:35px;background:var(--green-700)}
+.rows{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.mrow{
+  height:45px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#fff;
+  display:grid;
+  grid-template-columns:55px 1fr 146px 172px;
+  align-items:center;
+  overflow:hidden;
+}
+.mico{
+  display:grid;
+  place-items:center;
+  color:var(--green-700);
+}
+.mico svg{width:29px;height:29px}
+.mname{
+  font-size:14px;
+  font-weight:750;
+}
+.mdate{
+  height:100%;
+  border-left:1px solid var(--line);
+  padding-left:18px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  font-size:11px;
+  font-weight:700;
+}
+.mdate small{
+  display:block;
+  color:#69707a;
+  font-size:10px;
+  margin-bottom:1px;
+}
+.mstat{
+  height:100%;
+  border-left:1px solid var(--line);
+  padding-left:18px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size:11px;
+  font-weight:700;
+}
+.mstat .pill-status{height:21px;font-size:9px;min-width:78px}
+
+/* ---------- FOOTER ---------- */
+.footer{
+  position:absolute;
+  left:23px;
+  top:899px;
+  width:1444px;
+  height:109px;
+  border:1px solid var(--green-700);
+  border-radius:12px;
+  background:rgba(255,255,255,.95);
+  box-shadow:var(--shadow);
+  overflow:hidden;
+  display:grid;
+  grid-template-columns:300px 276px 281px 273px 1fr;
+}
+.fcard{
+  display:grid;
+  grid-template-columns:72px 1fr;
+  align-items:center;
+  gap:17px;
+  padding:0 22px;
+  border-right:1px solid #acc2af;
+}
+.fcard:last-child{border-right:none}
+.fico{
+  width:62px;
+  height:62px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  color:#fff;
+  background:radial-gradient(circle at 45% 30%,#0a8238,#004c20);
+}
+.fico.light{
+  color:var(--green-800);
+  background:#eff8ef;
+  border:1px solid #c9dec9;
+}
+.fico svg{width:38px;height:38px}
+.ftitle{
+  color:var(--green-850);
+  font-size:15px;
+  font-weight:950;
+  margin-bottom:7px;
+  white-space:nowrap;
+}
+.fvalue{
+  color:#2d333a;
+  font-size:14px;
+  font-weight:550;
+  white-space:nowrap;
+}
+.fvalue.strong{
+  color:var(--green-800);
+  font-size:22px;
+  font-weight:950;
+}
+
+@media print{
+  @page{size:1491px 1055px;margin:0}
+  html,body{width:1491px;height:1055px;background:#fff}
+  .toolbar{display:none!important}
+  .sheet{box-shadow:none;border-radius:0}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+}
+</style>
+</head>
+
+<body>
+<div class="toolbar">
+  <button onclick="window.print()">Imprimir / PDF</button>
+  <button onclick="document.documentElement.requestFullscreen?.()">Modo apresentação</button>
+</div>
+
+<main class="sheet">
+  <header class="topbar">
+    <div class="logo">
+      <svg viewBox="0 0 80 80" aria-hidden="true">
+        <path d="M40 6 66 21v31L40 68 14 52V21L40 6Z" fill="none" stroke="white" stroke-width="4"/>
+        <path d="M40 19v35M40 54 27 47M40 43 27 36M40 32 28 26M40 54 53 47M40 43l13-7M40 32l12-6" stroke="white" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+      SUA LOGO
+    </div>
+
+    <div class="title">
+      <h1>Status Executivo do Projeto</h1>
+      <p>Project XYZ&nbsp;&nbsp;•&nbsp;&nbsp;Desenvolvimento de Software</p>
+    </div>
+
+    <div class="alert">
+      <svg class="icon hicon" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v5"/><path d="M12 17.3h.01"/></svg>
+      ATENÇÃO
+    </div>
+
+    <div class="head-card h-date">
+      <svg class="icon hicon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+      <div><small>Data</small><strong>14/05/2026</strong></div>
+    </div>
+
+    <div class="head-card h-phase">
+      <svg class="icon hicon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 8-2.5 6.5L7 17l2.5-6.5L16 8Z"/></svg>
+      <div><small>Fase</small><strong>Explorer</strong></div>
+    </div>
+
+    <div class="head-card h-day">
+      <svg class="icon hicon" viewBox="0 0 24 24"><path d="M4 21V5"/><path d="M4 5c5-3 8 3 16 0v10c-8 3-11-3-16 0"/></svg>
+      <div><small>Dia</small><strong>7 de 46</strong></div>
+    </div>
+
+    <div class="head-card h-progress">
+      <div class="ring-top"></div>
+      <div><small>Progresso</small><strong>42%</strong></div>
+    </div>
+  </header>
+
+  <section class="timeline">
+    <div class="solid-line"></div>
+    <div class="dash-line"></div>
+    <div class="phase done p1"><div class="dot">✓</div><h3>Prepare</h3><div class="status">Concluído</div><div class="date">Data alvo: 01/04/2026</div></div>
+    <div class="phase active p2"><div class="dot"></div><h3>Explorer</h3><div class="status">Em andamento</div><div class="date">Data alvo: 14/05/2026</div></div>
+    <div class="phase p3"><div class="dot"></div><h3>Realize</h3><div class="status">Planejado</div><div class="date">Data alvo: 05/06/2026</div></div>
+    <div class="phase p4"><div class="dot"></div><h3>SIT</h3><div class="status">Planejado</div><div class="date">Data alvo: 20/06/2026</div></div>
+    <div class="phase p5"><div class="dot"></div><h3>UAT</h3><div class="status">Planejado</div><div class="date">Data alvo: 05/07/2026</div></div>
+    <div class="phase p6"><div class="dot"></div><h3>Deploy</h3><div class="status">Planejado</div><div class="date">Data alvo: 20/07/2026</div></div>
+    <div class="phase p7"><div class="dot"></div><h3>Hypercare</h3><div class="status">Planejado</div><div class="date">Data alvo: 31/07/2026</div></div>
+  </section>
+
+  <article class="card kpi kpi1">
+    <div class="kpi-ico"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg></div>
+    <div><label>Data</label><b>14/05/2026</b></div>
+  </article>
+
+  <article class="card kpi kpi2">
+    <div class="kpi-ico"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 8-2.5 6.5L7 17l2.5-6.5L16 8Z"/></svg></div>
+    <div><label>Fase Atual</label><b>Explorer</b></div>
+  </article>
+
+  <article class="card kpi kpi3">
+    <div class="ring"><span>42%</span></div>
+    <div><label>Progresso</label><b>42%</b></div>
+  </article>
+
+  <article class="card kpi kpi4">
+    <div class="kpi-ico"><svg class="icon" viewBox="0 0 24 24"><path d="M4 21V5"/><path d="M4 5c5-3 8 3 16 0v10c-8 3-11-3-16 0"/></svg></div>
+    <div><label>Prazo</label><b>Dia 7 de 46</b></div>
+  </article>
+
+  <article class="card kpi kpi5">
+    <div class="kpi-ico red"><svg class="icon" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v5"/><path d="M12 17.3h.01"/></svg></div>
+    <div><label>Risco Atual</label><b class="risk"><span>2</span> itens em<br>atenção</b></div>
+  </article>
+
+  <article class="card kpi kpi6">
+    <div class="kpi-ico orange"><svg class="icon" viewBox="0 0 24 24"><path d="M19.4 13.2c1.4-1.4 1.6-4.5-.3-6.1-1.9-1.7-4.8-1-6 .9-1.2-1.9-4.1-2.6-6-.9-1.9 1.6-1.7 4.7-.3 6.1L12 18.5l7.4-5.3Z"/><path d="M4 12h4l1.5-3 3 6 1.5-3h6"/></svg></div>
+    <div><label>Saúde Geral</label><b class="orange">Atenção</b></div>
+  </article>
+
+  <article class="card mid1">
+    <div class="panel-title green"><span class="badge bg-green"><svg class="icon" viewBox="0 0 24 24" style="width:20px;height:20px"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg></span>Resumo Executivo</div>
+    <div class="rule green"></div>
+    <ul class="summary">
+      <li><span class="check">✓</span><span>Perfis SAP liberados para consultores</span></li>
+      <li><span class="check">✓</span><span>Numeração PARA das novas contas definida</span></li>
+      <li><span class="check">✓</span><span>Estrutura do PDD avançada nas frentes 1.1, 1.2 e 1.5</span></li>
+      <li><span class="check pending"></span><span>Gate Explorer → Realize em preparação</span></li>
+    </ul>
+  </article>
+
+  <article class="card mid2">
+    <div class="panel-title red"><span class="badge bg-red">!</span>Pendências Críticas</div>
+    <div class="rule red"></div>
+    <table class="crit">
+      <thead><tr><th style="width:17%">Prioridade</th><th>Item</th><th style="width:24%">Responsáveis</th><th style="width:18%">Status</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill-prio danger">P1</span></td><td>Impactos financeiros e<br>patrimoniais incompletos</td><td>Rodrigo / Bruna</td><td><span class="pill-status danger">ATRASADO</span></td></tr>
+        <tr><td><span class="pill-prio warn">P2</span></td><td>Análise de sistemas<br>legados incompleta</td><td>Marcelo / Adnan</td><td><span class="pill-status warn">EM ATENÇÃO</span></td></tr>
+        <tr><td><span class="pill-prio ok">P3</span></td><td>Parametrização inicial<br>das novas contas</td><td>Time Contábil / TI</td><td><span class="pill-status ok">NO PRAZO</span></td></tr>
+      </tbody>
+    </table>
+  </article>
+
+  <article class="card mid3">
+    <div class="panel-title blue"><span class="badge bg-blue">›</span>Próximas Ações</div>
+    <div class="rule blue"></div>
+    <ul class="actions">
+      <li><span class="arrow">›</span><span>Receber impactos financeiros e<br>patrimoniais completos</span></li>
+      <li><span class="arrow">›</span><span>Complementar análise de sistemas legados</span></li>
+      <li><span class="arrow">›</span><span>Avançar parametrização inicial das<br>novas contas contábeis</span></li>
+      <li><span class="arrow">›</span><span>Consolidar critérios de saída do Explorer</span></li>
+    </ul>
+  </article>
+
+  <article class="card low1">
+    <div class="chart-title"><span class="badge bg-blue"><svg class="icon" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-7"/></svg></span>Curva S — Avanço Planejado x Realizado</div>
+    <div class="chart-box">
+      <svg viewBox="0 0 680 202" aria-label="Curva S">
+        <text x="0" y="13" class="txt">% Conclusão</text>
+        <line x1="50" y1="170" x2="632" y2="170" class="axis"/>
+        <line x1="50" y1="35" x2="50" y2="170" class="axis"/>
+        <line x1="50" y1="35" x2="632" y2="35" class="grid"/>
+        <line x1="50" y1="69" x2="632" y2="69" class="grid"/>
+        <line x1="50" y1="102" x2="632" y2="102" class="grid"/>
+        <line x1="50" y1="136" x2="632" y2="136" class="grid"/>
+        <text x="11" y="39" class="txt">100%</text>
+        <text x="22" y="73" class="txt">75%</text>
+        <text x="22" y="106" class="txt">50%</text>
+        <text x="22" y="140" class="txt">25%</text>
+        <text x="31" y="173" class="txt">0%</text>
+
+        <polyline class="planned" points="50,170 128,148 220,118 315,93 410,61 520,39 600,20"/>
+        <polyline class="actual" points="50,170 128,158 220,132 315,116 410,88 520,72 600,45"/>
+        <line x1="220" y1="170" x2="220" y2="102" class="current"/>
+        <circle cx="220" cy="116" r="6.5" fill="#057235" stroke="#fff" stroke-width="2"/>
+        <rect x="193" y="26" width="66" height="50" rx="5" class="bubble"/>
+        <text x="226" y="44" class="bubble-small">Atual</text>
+        <text x="226" y="68" class="bubble-big">42%</text>
+
+        <circle cx="128" cy="188" r="8.5" fill="#005b26"/>
+        <text x="128" y="192" text-anchor="middle" font-size="10" font-weight="900" fill="#fff">7</text>
+        <text x="46" y="190" class="txt">0</text>
+        <text x="213" y="190" class="txt">14</text>
+        <text x="307" y="190" class="txt">21</text>
+        <text x="402" y="190" class="txt">28</text>
+        <text x="512" y="190" class="txt">42</text>
+        <text x="594" y="190" class="txt">46</text>
+        <text x="298" y="201" class="txt">Dias do Projeto</text>
+
+        <line x1="607" y1="85" x2="648" y2="85" class="planned"/>
+        <text x="653" y="89" class="legend">Planejado</text>
+        <line x1="607" y1="114" x2="648" y2="114" class="actual"/>
+        <text x="653" y="118" class="legend">Realizado</text>
+      </svg>
+    </div>
+  </article>
+
+  <article class="card low2">
+    <div class="chart-title"><span class="badge bg-blue"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg></span>Marcos e Datas-Alvo</div>
+    <div class="milestone-body">
+      <div class="road">
+        <div class="road-dot done">✓</div><div class="road-line first"></div>
+        <div class="road-dot active"></div><div class="road-line"></div>
+        <div class="road-dot"></div><div class="road-line"></div>
+        <div class="road-dot"></div>
+      </div>
+      <div class="rows">
+        <div class="mrow"><div class="mico"><svg class="icon" viewBox="0 0 24 24"><path d="M4 21V5"/><path d="M4 5c5-3 8 3 16 0v10c-8 3-11-3-16 0"/></svg></div><div class="mname">1.&nbsp; Kick-off concluído</div><div class="mdate"><small>Data alvo:</small>01/04/2026</div><div class="mstat">Status: <span class="pill-status ok">CONCLUÍDO</span></div></div>
+        <div class="mrow"><div class="mico"><svg class="icon" viewBox="0 0 24 24"><path d="M5 15c3-6 8-9 15-10-1 7-4 12-10 15l-5-5Z"/><path d="M7 17 4 20"/><circle cx="14" cy="10" r="1.5"/></svg></div><div class="mname">2.&nbsp; Gate Explorer → Realize</div><div class="mdate"><small>Data alvo:</small>14/05/2026</div><div class="mstat">Status: <span class="pill-status ok">EM ANDAMENTO</span></div></div>
+        <div class="mrow"><div class="mico" style="color:#5e6874"><svg class="icon" viewBox="0 0 24 24"><path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z"/><path d="M19 15a1.7 1.7 0 0 0 .3 1.9l.1.1A2 2 0 1 1 17 19.4l-.1-.1A1.7 1.7 0 0 0 15 19a1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.5A1.7 1.7 0 0 0 9 19a1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.6 17l.1-.1A1.7 1.7 0 0 0 5 15a1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.5A1.7 1.7 0 0 0 5 9a1.7 1.7 0 0 0-.3-1.9L4.6 7A2 2 0 1 1 7 4.6l.1.1A1.7 1.7 0 0 0 9 5a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.5A1.7 1.7 0 0 0 15 5a1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.4 7l-.1.1A1.7 1.7 0 0 0 19 9a1.7 1.7 0 0 0 1.5 1h.5a2 2 0 1 1 0 4h-.5A1.7 1.7 0 0 0 19 15Z"/></svg></div><div class="mname">3.&nbsp; Início do SIT</div><div class="mdate"><small>Data alvo:</small>20/06/2026</div><div class="mstat">Status: <span class="pill-status gray">PLANEJADO</span></div></div>
+        <div class="mrow"><div class="mico" style="color:#5e6874"><svg class="icon" viewBox="0 0 24 24"><path d="M5 15c3-6 8-9 15-10-1 7-4 12-10 15l-5-5Z"/><path d="M7 17 4 20"/><circle cx="14" cy="10" r="1.5"/></svg></div><div class="mname">4.&nbsp; Go-Live</div><div class="mdate"><small>Data alvo:</small>20/07/2026</div><div class="mstat">Status: <span class="pill-status gray">PLANEJADO</span></div></div>
+      </div>
+    </div>
+  </article>
+
+  <footer class="footer">
+    <div class="fcard">
+      <div class="fico"><svg class="icon" viewBox="0 0 24 24"><path d="M4 21V5"/><path d="M4 5c5-3 8 3 16 0v10c-8 3-11-3-16 0"/></svg></div>
+      <div><div class="ftitle">Milestone Alvo</div><div class="fvalue">Gate Explorer → Realize</div></div>
+    </div>
+    <div class="fcard">
+      <div class="fico light"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01"/></svg></div>
+      <div><div class="ftitle">Data Alvo</div><div class="fvalue strong">14/05/2026</div></div>
+    </div>
+    <div class="fcard">
+      <div class="fico light"><svg class="icon" viewBox="0 0 24 24"><path d="M5 15c3-6 8-9 15-10-1 7-4 12-10 15l-5-5Z"/><path d="M7 17 4 20"/><circle cx="14" cy="10" r="1.5"/></svg></div>
+      <div><div class="ftitle">Go-Live Previsto</div><div class="fvalue strong">20/07/2026</div></div>
+    </div>
+    <div class="fcard">
+      <div class="fico"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 22c1.4-4 4.2-6 8-6s6.6 2 8 6"/></svg></div>
+      <div><div class="ftitle">Owner do Relatório</div><div class="fvalue">Jane McKenna</div></div>
+    </div>
+    <div class="fcard">
+      <div class="fico"><svg class="icon" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v6h5"/><path d="M10 13h6M10 17h6"/></svg></div>
+      <div><div class="ftitle">Relatório</div><div class="fvalue">Status Executivo · 14/05/2026</div></div>
+    </div>
+  </footer>
+</main>
+</body>
+</html>

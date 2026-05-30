@@ -1,0 +1,110 @@
+:root {
+  --green-950: #143e2a;
+  --green-900: #1a4f35;
+  --green-800: #2a7249;
+  --green-700: #388654;
+  --gray-900: #1e2228;
+  --gray-700: #454b54;
+  --gray-500: #8a909a;
+  --gray-200: #e6e9ee;
+  --white: #ffffff;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 20px;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--gray-900);
+  background: linear-gradient(135deg, #f4f7f5, #eef2f7);
+}
+
+.top-actions {
+  width: min(1280px, 100%);
+  margin: 0 auto 14px;
+  display: flex;
+  gap: 10px;
+}
+
+.top-actions button {
+  border: 1px solid var(--gray-200);
+  border-radius: 10px;
+  background: var(--white);
+  padding: 9px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#slidesRoot {
+  width: min(1280px, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.slide {
+  aspect-ratio: 16/9;
+  border-radius: 14px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.08);
+  overflow: hidden;
+  position: relative;
+  padding: 34px 40px;
+}
+
+.slide h2 { margin: 0 0 10px; font-size: 34px; line-height: 1.1; }
+.slide h3 { margin: 0 0 8px; font-size: 20px; color: var(--green-900); }
+.slide p { margin: 0; color: var(--gray-700); }
+
+.cover, .closing {
+  background: linear-gradient(160deg, var(--green-950), var(--green-900));
+  color: var(--white);
+}
+
+.cover p, .closing p { color: #eaf0f6; }
+
+.cover-band {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 90px;
+  background: var(--green-800);
+  display: flex;
+  align-items: center;
+  padding: 0 40px;
+  font-weight: 700;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.box {
+  background: #fafcfd;
+  border: 1px solid var(--gray-200);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.box ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--gray-700);
+}
+
+.onepage-frame {
+  width: 100%;
+  height: calc(100% - 8px);
+  border: 0;
+  border-radius: 10px;
+}
+
+@media (max-width: 900px) {
+  body { padding: 10px; }
+  .slide { padding: 16px; }
+  .slide h2 { font-size: 24px; }
+  .grid-2 { grid-template-columns: 1fr; }
+}

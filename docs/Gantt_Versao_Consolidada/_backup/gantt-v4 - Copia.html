@@ -1,0 +1,3704 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>H2R Program Roadmap – Gantt Chart</title>
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --panel: #ffffff;
+    --panel-2: #fafbfc;
+    --border: #e3e6eb;
+    --border-strong: #c8ccd4;
+    --text: #1f2430;
+    --text-muted: #6b7280;
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --primary-light: #dbeafe;
+    --success: #16a34a;
+    --warning: #f59e0b;
+    --danger: #dc2626;
+    --very-high: #b91c1c;
+    --high: #ea580c;
+    --medium: #ca8a04;
+    --low: #16a34a;
+    --phase-bar: #475569;
+    --grid-line: #eef0f3;
+    --grid-line-strong: #d8dce2;
+    --weekend: #f3f4f6;
+    --today: #fee2e2;
+    --row-hover: #f1f5f9;
+    --row-h: 30px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg);
+    height: 100%;
+    overflow: hidden;
+  }
+  .app { display: flex; flex-direction: column; height: 100vh; }
+
+  .toolbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; background: var(--panel);
+    border-bottom: 1px solid var(--border); flex-wrap: wrap;
+  }
+  .toolbar h1 { margin: 0; font-size: 16px; font-weight: 600; margin-right: auto; }
+  .tb-group {
+    display: flex; align-items: center; gap: 4px;
+    padding: 0 6px; border-right: 1px solid var(--border);
+  }
+  .tb-group:last-child { border-right: none; }
+  .tb-label {
+    font-size: 11px; color: var(--text-muted); margin-right: 4px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  button.tb-btn {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    padding: 6px 10px; border-radius: 5px; font-size: 12px; cursor: pointer;
+    transition: all 0.12s; white-space: nowrap;
+  }
+  button.tb-btn:hover { background: var(--primary-light); border-color: var(--primary); }
+  button.tb-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+  button.tb-btn.primary { background: var(--primary); color: white; border-color: var(--primary); }
+  button.tb-btn.primary:hover { background: var(--primary-hover); }
+  button.tb-btn.ghost { background: transparent; }
+  button.tb-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  select.lang-select {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    padding: 6px 10px; border-radius: 5px; font-size: 12px; cursor: pointer;
+  }
+  .search-input {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 12px;
+    width: 160px;
+    background: var(--panel-2);
+    color: var(--text);
+  }
+  .search-input:focus {
+    border-color: var(--primary);
+    outline: none;
+    background: white;
+  }
+  @keyframes search-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
+    50% { box-shadow: 0 0 0 4px rgba(245,158,11,0.45); }
+  }
+  .row.search-match {
+    background: #fef3c7 !important;
+    position: relative;
+    animation: search-pulse 1.6s ease-in-out infinite;
+  }
+  .row.search-match::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--warning);
+    z-index: 1;
+  }
+  .bar-task.search-match rect {
+    stroke: var(--warning) !important;
+    stroke-width: 2.2 !important;
+  }
+  .bar-task.search-match.milestone-shape polygon {
+    stroke: var(--warning) !important;
+    stroke-width: 2.5 !important;
+  }
+
+  .main {
+    flex: 1; display: grid;
+    grid-template-columns: var(--side-w, 586px) 1fr;
+    overflow: hidden; background: var(--panel);
+  }
+
+  .side {
+    display: flex; flex-direction: column;
+    border-right: 1px solid var(--border);
+    overflow: hidden; background: var(--panel); min-width: 0;
+  }
+  .side-header {
+    display: grid; grid-template-columns: var(--col-template);
+    border-bottom: 1px solid var(--border-strong); background: var(--panel-2);
+    font-weight: 600; font-size: 12px; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.4px;
+    height: 56px; align-items: center; flex-shrink: 0;
+  }
+  .side-header .col {
+    padding: 6px 8px; border-right: 1px solid var(--border);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    position: relative; user-select: none;
+  }
+  .side-header .col .toggle-col {
+    cursor: pointer; margin-left: 4px; color: var(--text-muted); font-size: 10px;
+  }
+  .side-body { flex: 1; overflow-y: auto; overflow-x: auto; }
+  .side-body::-webkit-scrollbar { width: 10px; height: 10px; }
+  .side-body::-webkit-scrollbar-thumb { background: #cdd1d8; border-radius: 5px; }
+
+  .row {
+    display: grid; grid-template-columns: var(--col-template);
+    height: var(--row-h); align-items: center;
+    border-bottom: 1px solid var(--grid-line); cursor: default;
+  }
+  .row:hover { background: var(--row-hover); }
+  .row.phase-row { background: #eef2f7; font-weight: 600; cursor: pointer; }
+  .row.phase-row:hover { background: #e2e8f0; }
+  .row .cell {
+    padding: 4px 8px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+    border-right: 1px solid var(--grid-line); font-size: 12px;
+  }
+  .row .cell.col-task { padding-left: 24px; }
+  .row.phase-row .cell.col-task { padding-left: 8px; }
+  .row .phase-caret {
+    display: inline-block; width: 14px; text-align: center; margin-right: 4px;
+    transition: transform 0.18s; color: var(--text-muted);
+  }
+  .row.collapsed .phase-caret { transform: rotate(-90deg); }
+  .row .status-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    margin-right: 6px; vertical-align: middle;
+  }
+  .status-VeryHigh { background: var(--very-high); }
+  .status-High { background: var(--high); }
+  .status-Medium { background: var(--medium); }
+  .status-Low { background: var(--low); }
+  .status-empty { background: #cbd5e1; }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0;
+    box-shadow: 0 0 0 2px white inset;
+    border: 1px solid rgba(0,0,0,0.05);
+  }
+  .status-badge.empty { background: #cbd5e1; color: transparent; }
+  .status-badge.VeryHigh { background: var(--very-high); }
+  .status-badge.High { background: var(--high); }
+  .status-badge.Medium { background: var(--medium); }
+  .status-badge.Low { background: var(--low); }
+
+  .cell.col-progress, .cell.col-status, .cell.col-days {
+    padding: 0 8px;
+  }
+  .cell.col-id-cell {
+    text-align: center;
+    font-family: ui-monospace, Consolas, "SF Mono", monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .cell.col-wbs-cell {
+    text-align: center;
+    font-family: ui-monospace, Consolas, "SF Mono", monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .cell.col-status { text-align: center; }
+  .cell.col-days { text-align: right; font-variant-numeric: tabular-nums; }
+  .progress-bar {
+    display: flex; align-items: center; gap: 6px; height: 100%;
+  }
+  .progress-track {
+    flex: 1;
+    height: 12px;
+    background: #f1f5f9;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    min-width: 30px;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    background: linear-gradient(90deg, currentColor 0%, currentColor 100%);
+  }
+  .progress-fill.VeryHigh { color: var(--very-high); }
+  .progress-fill.High { color: var(--high); }
+  .progress-fill.Medium { color: var(--medium); }
+  .progress-fill.Low { color: var(--low); }
+  .progress-fill.empty { color: #94a3b8; }
+  .progress-fill.phase { color: #475569; }
+  .progress-text {
+    font-size: 11px;
+    color: var(--text);
+    min-width: 30px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+
+  .bar-label-pct {
+    fill: white;
+    font-size: 10px;
+    font-weight: 700;
+    pointer-events: none;
+    paint-order: stroke;
+    stroke: rgba(0,0,0,0.25);
+    stroke-width: 0.5px;
+  }
+  .bar-label-name {
+    fill: var(--text);
+    font-size: 11px;
+    pointer-events: none;
+    font-weight: 500;
+  }
+
+  .chart {
+    display: flex; flex-direction: column;
+    overflow: hidden; background: var(--panel); min-width: 0;
+  }
+  .chart-header {
+    height: 56px; border-bottom: 1px solid var(--border-strong);
+    background: var(--panel-2); overflow: hidden; position: relative; flex-shrink: 0;
+  }
+  .chart-body { flex: 1; overflow: auto; position: relative; cursor: grab; }
+  .chart-body.panning { cursor: grabbing; user-select: none; }
+  .chart-body::-webkit-scrollbar { width: 10px; height: 10px; }
+  .chart-body::-webkit-scrollbar-thumb { background: #cdd1d8; border-radius: 5px; }
+
+  svg.timeline { display: block; }
+  svg.timeline-header { display: block; }
+
+  .bar-task { cursor: pointer; transition: filter 0.15s; }
+  .bar-task:hover { filter: brightness(1.1); }
+  .bar-task.dimmed { opacity: 0.25; }
+  .bar-task.highlight { filter: drop-shadow(0 0 4px rgba(37,99,235,0.6)); }
+  .dep-line { stroke: #cbd5e1; stroke-width: 0.9; fill: none; transition: stroke 0.15s, stroke-width 0.15s; }
+  .dep-line.highlight { stroke: var(--primary); stroke-width: 2.2; }
+  .dep-line.dimmed { opacity: 0.15; }
+  .milestone-shape { cursor: pointer; }
+  .gridline-day { stroke: var(--grid-line); stroke-width: 1; }
+  .gridline-week { stroke: var(--grid-line-strong); stroke-width: 1; }
+  .gridline-month { stroke: var(--grid-line-strong); stroke-width: 1.4; }
+  .today-line { stroke: var(--danger); stroke-width: 1.5; stroke-dasharray: 3,3; }
+  .golive-line { stroke: var(--primary); stroke-width: 1.8; opacity: 0.75; }
+  .decision-line { stroke: var(--danger); stroke-width: 1.5; stroke-dasharray: 6,3; opacity: 0.85; }
+  .marker-label { font-size: 9px; font-weight: 700; pointer-events: none; }
+  .row-band.phase { fill: #eef2f7; }
+  .weekend-band { fill: var(--weekend); opacity: 0.5; }
+  .baseline-bar { fill: #94a3b8; opacity: 0.30; }
+  .baseline-bar-outline { fill: none; stroke: #64748b; stroke-width: 1; stroke-dasharray: 3,2; opacity: 0.55; }
+  .badge-delay-bg { fill: #f59e0b; }
+  .badge-delay-txt { font-size: 9px; font-weight: 700; fill: white; pointer-events: none; }
+
+  .header-tick { font-size: 10px; fill: var(--text-muted); }
+  .header-tick.major { font-size: 11px; fill: var(--text); font-weight: 600; }
+
+  .tooltip {
+    position: fixed; background: rgba(15,23,42,0.95); color: white;
+    padding: 8px 12px; border-radius: 5px; font-size: 12px;
+    pointer-events: none; z-index: 200; max-width: 280px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25); line-height: 1.4;
+  }
+  .tooltip b { color: #fff; }
+  .tooltip .tt-row { display: flex; justify-content: space-between; gap: 12px; }
+  .tooltip .tt-label { color: #cbd5e1; }
+
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.5);
+    z-index: 100; display: none; align-items: center; justify-content: center;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: white; border-radius: 8px;
+    max-width: 95vw; max-height: 92vh; width: 1200px;
+    display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  }
+  .modal-header {
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .modal-header h2 { margin: 0; font-size: 16px; flex: 1; }
+  .modal-body { flex: 1; overflow: auto; padding: 12px 18px; }
+  .modal-footer {
+    padding: 12px 18px; border-top: 1px solid var(--border);
+    display: flex; gap: 8px; align-items: center; justify-content: flex-end;
+    background: var(--panel-2); flex-wrap: wrap;
+  }
+  .modal-close {
+    background: transparent; border: none; font-size: 22px;
+    cursor: pointer; color: var(--text-muted); line-height: 1;
+  }
+
+  table.data-grid { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.data-grid th, table.data-grid td {
+    border: 1px solid var(--border); padding: 4px 6px;
+    text-align: left; vertical-align: middle;
+  }
+  table.data-grid th {
+    background: var(--panel-2); font-weight: 600; position: sticky; top: 0; z-index: 2;
+    color: var(--text-muted); text-transform: uppercase;
+    font-size: 10px; letter-spacing: 0.4px;
+  }
+  table.data-grid tr.dragging { opacity: 0.4; }
+  table.data-grid tr.drop-target td { border-top: 2px solid var(--primary); }
+  table.data-grid td input, table.data-grid td select {
+    width: 100%; border: 1px solid transparent; background: transparent;
+    padding: 3px 4px; font-size: 12px; font-family: inherit; border-radius: 3px;
+  }
+  table.data-grid td input:focus, table.data-grid td select:focus {
+    border-color: var(--primary); outline: none; background: white;
+  }
+  table.data-grid td input[type="checkbox"] { width: auto; }
+  table.data-grid td input[type="range"] { padding: 0; }
+  table.data-grid td.col-id { background: var(--panel-2); color: var(--text-muted); text-align: center; }
+  table.data-grid td.col-actions { white-space: nowrap; text-align: center; }
+  table.data-grid td.col-drag { width: 24px; text-align: center; cursor: grab; color: var(--text-muted); }
+  table.data-grid td.completion-cell { white-space: nowrap; }
+  table.data-grid td.completion-cell input[type="range"] { width: 70%; vertical-align: middle; }
+  table.data-grid td.completion-cell .pct { font-size: 11px; color: var(--text-muted); margin-left: 4px; }
+  .row-action-btn {
+    background: var(--panel-2); border: 1px solid var(--border);
+    padding: 2px 6px; border-radius: 3px; cursor: pointer; font-size: 11px; margin: 0 1px;
+  }
+  .row-action-btn:hover { background: var(--primary-light); }
+  .row-action-btn.danger:hover { background: #fee2e2; }
+
+  .import-preview {
+    border: 1px solid var(--border); border-radius: 5px;
+    overflow: auto; max-height: 280px; margin: 12px 0;
+  }
+  .import-options { display: flex; gap: 16px; margin: 8px 0; align-items: center; flex-wrap: wrap; }
+  .errors-list {
+    background: #fef2f2; border: 1px solid #fecaca; border-radius: 5px;
+    padding: 10px 14px; color: #991b1b; max-height: 180px; overflow: auto; margin: 10px 0;
+  }
+  .errors-list ul { margin: 4px 0 0 0; padding-left: 20px; }
+  .info-box {
+    background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af;
+    border-radius: 5px; padding: 10px 14px; margin: 10px 0; font-size: 12px;
+  }
+  .field-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
+  .field-row label { font-weight: 500; min-width: 120px; }
+
+  .toast {
+    position: fixed; bottom: 22px; right: 22px;
+    background: var(--text); color: white; padding: 10px 16px;
+    border-radius: 5px; z-index: 300; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    font-size: 13px; opacity: 0; transform: translateY(8px);
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.success { background: var(--success); }
+  .toast.error { background: var(--danger); }
+
+  .theme-popover {
+    position: fixed;
+    z-index: 150;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    padding: 14px;
+    width: 320px;
+    display: none;
+  }
+  .theme-popover.show { display: block; }
+  .theme-popover h3 {
+    margin: 0 0 10px 0;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+  }
+  .theme-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .theme-card {
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.1s;
+    background: white;
+  }
+  .theme-card:hover { border-color: #94a3b8; transform: translateY(-1px); }
+  .theme-card.active { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+  .theme-card { position: relative; }
+  .theme-card-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+    padding-right: 16px;
+  }
+  .theme-swatches {
+    display: flex;
+    gap: 2px;
+    height: 12px;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .theme-swatches span { flex: 1; }
+  .theme-card-delete {
+    position: absolute;
+    top: 2px; right: 2px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.06);
+    border: none;
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+  }
+  .theme-card-delete:hover { background: #fee2e2; color: var(--danger); }
+  .theme-card-user-badge {
+    display: inline-block;
+    font-size: 9px;
+    background: var(--primary-light);
+    color: var(--primary);
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-left: 4px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .custom-section {
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+  }
+  .color-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+  .color-row label { color: var(--text); }
+  .color-row input[type="color"] {
+    width: 36px;
+    height: 24px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 0;
+  }
+  .theme-popover-footer {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+    justify-content: flex-end;
+  }
+
+  /* View Manager modal */
+  .view-modal-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  .view-section {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    background: var(--panel-2);
+  }
+  .view-section h3 {
+    margin: 0 0 10px 0;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .view-section h3 button {
+    font-size: 10px;
+    padding: 3px 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text-muted);
+  }
+  .view-section h3 button:hover { background: white; color: var(--primary); }
+  .checkbox-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 0;
+  }
+  .checkbox-row input[type="checkbox"] { cursor: pointer; }
+  .checkbox-row .col-name { flex: 1; }
+  .checkbox-row .status-dot-small {
+    display: inline-block; width: 10px; height: 10px;
+    border-radius: 50%; vertical-align: middle;
+  }
+  .density-toggle {
+    display: flex;
+    gap: 4px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 3px;
+  }
+  .density-toggle button {
+    flex: 1;
+    padding: 6px 10px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .density-toggle button.active {
+    background: var(--primary);
+    color: white;
+  }
+  .saved-views-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 180px;
+    overflow-y: auto;
+    margin-bottom: 8px;
+  }
+  .saved-view-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .saved-view-item.active { border-color: var(--primary); background: var(--primary-light); }
+  .saved-view-item-name { flex: 1; font-weight: 500; }
+  .saved-view-item button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 14px;
+    padding: 2px 4px;
+  }
+  .saved-view-item button:hover { color: var(--danger); }
+  .saved-view-item .apply-btn { color: var(--primary); }
+  .saved-view-item .apply-btn:hover { color: var(--primary-hover); }
+  .save-view-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .save-view-row input {
+    flex: 1;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .col-width-input {
+    width: 56px;
+    padding: 2px 4px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 11px;
+    text-align: right;
+  }
+  .col-width-input:focus { border-color: var(--primary); outline: none; }
+  .range-filter-block {
+    border-top: 1px solid var(--border);
+    margin-top: 10px;
+    padding-top: 10px;
+  }
+  .range-filter-block label {
+    display: block;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .range-inputs {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    font-size: 12px;
+  }
+  .range-inputs input[type="number"] {
+    width: 56px;
+    padding: 4px 6px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 12px;
+    text-align: right;
+  }
+  .range-inputs input[type="text"] {
+    flex: 1;
+    padding: 4px 6px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 12px;
+  }
+  .range-inputs input:focus { border-color: var(--primary); outline: none; }
+  .palette-section { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 6px; }
+  .palette-grid { display: flex; flex-direction: column; gap: 5px; margin-top: 6px; }
+  .palette-card {
+    border: 2px solid var(--border); border-radius: 6px;
+    padding: 5px 8px; cursor: pointer;
+    transition: border-color 0.15s, transform 0.1s; background: white;
+  }
+  .palette-card:hover { border-color: #94a3b8; transform: translateY(-1px); }
+  .palette-card.active { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+  .palette-card-name { font-size: 11px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .palette-swatches { display: flex; gap: 2px; height: 12px; }
+  .palette-swatches span { flex: 1; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="toolbar">
+    <h1 id="app-title">Gantt Chart</h1>
+
+    <div class="tb-group">
+      <span class="tb-label" data-i18n="zoom_label">Zoom</span>
+      <button class="tb-btn" data-zoom="days" data-i18n="zoom_days">Dias</button>
+      <button class="tb-btn" data-zoom="weeks" data-i18n="zoom_weeks">Semanas</button>
+      <button class="tb-btn" data-zoom="months" data-i18n="zoom_months">Meses</button>
+      <button class="tb-btn" data-zoom="years" data-i18n="zoom_years">Anos</button>
+      <button class="tb-btn" data-zoom="all" data-i18n="zoom_all">Tudo</button>
+    </div>
+
+    <div class="tb-group">
+      <button class="tb-btn ghost" id="btn-expand-all" data-i18n="expand_all">Expandir</button>
+      <button class="tb-btn ghost" id="btn-collapse-all" data-i18n="collapse_all">Colapsar</button>
+    </div>
+
+    <div class="tb-group">
+      <button class="tb-btn ghost" id="btn-toggle-labels" title="Mostrar/Ocultar nomes nas barras">A▾</button>
+      <button class="tb-btn ghost" id="btn-theme" title="Tema de cores">🎨</button>
+    </div>
+
+    <div class="tb-group">
+      <input type="search" id="search-input" class="search-input" placeholder="🔍 Buscar...">
+    </div>
+
+    <div class="tb-group">
+      <button class="tb-btn" id="btn-view-manager" data-i18n="view_manager">👁 Visualização</button>
+      <button class="tb-btn primary" id="btn-manage-data" data-i18n="manage_data">Gerenciar Dados</button>
+      <button class="tb-btn" id="btn-import-toolbar" data-i18n="import_btn">Importar</button>
+      <button class="tb-btn" id="btn-export-toolbar" data-i18n="export_btn">Exportar</button>
+    </div>
+
+    <div class="tb-group">
+      <span class="tb-label" data-i18n="lang_label">Idioma</span>
+      <select class="lang-select" id="lang-select">
+        <option value="pt-BR">PT-BR</option>
+        <option value="es">ES</option>
+        <option value="en">EN</option>
+      </select>
+    </div>
+  </header>
+
+  <div class="main" id="main">
+    <div class="side">
+      <div class="side-header" id="side-header"></div>
+      <div class="side-body" id="side-body"></div>
+    </div>
+    <div class="chart">
+      <div class="chart-header" id="chart-header"></div>
+      <div class="chart-body" id="chart-body">
+        <svg class="timeline" id="timeline-svg"></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip" style="display:none"></div>
+<div class="toast" id="toast"></div>
+
+<div class="modal-backdrop" id="modal-view">
+  <div class="modal" style="width: 800px;">
+    <div class="modal-header">
+      <h2 data-i18n="view_manager_title">👁 Visualização</h2>
+      <button class="modal-close" data-close="modal-view">x</button>
+    </div>
+    <div class="modal-body view-modal-body">
+      <div class="view-section">
+        <h3>
+          <span data-i18n="view_columns">Colunas</span>
+          <button id="btn-columns-reset" data-i18n="view_reset">Resetar</button>
+        </h3>
+        <div class="checkbox-list" id="view-columns-list"></div>
+      </div>
+
+      <div class="view-section">
+        <h3 data-i18n="view_filters">Filtros</h3>
+        <label class="checkbox-row">
+          <input type="checkbox" data-filter="hideMilestones">
+          <span class="col-name" data-i18n="view_hide_milestones">Ocultar marcos</span>
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" data-filter="hideCompleted">
+          <span class="col-name" data-i18n="view_hide_completed">Ocultar tarefas 100%</span>
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" data-filter="hideWeekends">
+          <span class="col-name" data-i18n="view_hide_weekends">Ocultar fins de semana no gráfico</span>
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" data-filter="hideBarPct">
+          <span class="col-name" data-i18n="view_hide_bar_pct">Ocultar % sobre as barras</span>
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" data-filter="hideDelayBadge">
+          <span class="col-name" data-i18n="view_hide_delay_badge">Ocultar badges de atraso (+Nw)</span>
+        </label>
+        <div style="margin-top:10px; font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.3px; font-weight:600;" data-i18n="view_status_filter">Status</div>
+        <div id="view-status-list" class="checkbox-list"></div>
+
+        <div class="range-filter-block">
+          <label data-i18n="view_completion_range">% Conclusão (intervalo)</label>
+          <div class="range-inputs">
+            <span data-i18n="view_min">Min</span>
+            <input type="number" min="0" max="100" id="filter-completion-min" value="0">
+            <span>—</span>
+            <span data-i18n="view_max">Max</span>
+            <input type="number" min="0" max="100" id="filter-completion-max" value="100">
+            <span>%</span>
+          </div>
+        </div>
+
+        <div class="range-filter-block">
+          <label data-i18n="view_assignee_filter">Responsável (contém)</label>
+          <div class="range-inputs">
+            <input type="text" id="filter-assignee" placeholder="ex: Maria, João...">
+          </div>
+        </div>
+
+        <div class="range-filter-block">
+          <label data-i18n="view_date_range">Janela de datas</label>
+          <div class="range-inputs">
+            <span data-i18n="view_from">De</span>
+            <input type="date" id="filter-date-start" style="flex:1; padding:4px 6px; border:1px solid var(--border); border-radius:3px; font-size:12px;">
+            <span data-i18n="view_to">Até</span>
+            <input type="date" id="filter-date-end" style="flex:1; padding:4px 6px; border:1px solid var(--border); border-radius:3px; font-size:12px;">
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-style:italic;" data-i18n="view_date_hint">Mostra tarefas com qualquer sobreposição com a janela. Vazio = sem filtro.</div>
+        </div>
+      </div>
+
+      <div class="view-section">
+        <h3 data-i18n="view_density">Densidade</h3>
+        <div class="density-toggle" id="density-toggle">
+          <button data-density="compact" data-i18n="density_compact">Compacta</button>
+          <button data-density="normal" data-i18n="density_normal">Normal</button>
+          <button data-density="spacious" data-i18n="density_spacious">Confortável</button>
+        </div>
+      </div>
+
+      <div class="view-section">
+        <h3 data-i18n="view_saved">Visualizações salvas</h3>
+        <div class="saved-views-list" id="saved-views-list"></div>
+        <div class="save-view-row">
+          <input type="text" id="save-view-name" placeholder="Nome da visualização...">
+          <button class="tb-btn primary" id="btn-save-view" data-i18n="view_save">💾 Salvar</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="tb-btn ghost" id="btn-view-reset-all" data-i18n="view_reset_all">↺ Resetar tudo</button>
+      <span style="flex:1"></span>
+      <button class="tb-btn primary" data-close="modal-view" data-i18n="view_close">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="theme-popover" id="theme-popover">
+  <h3 data-i18n="theme_title">Tema de cores</h3>
+  <div class="theme-grid" id="theme-grid"></div>
+  <div class="custom-section">
+    <h3 data-i18n="theme_custom">Personalizar</h3>
+    <div class="color-row"><label data-i18n="theme_very_high">Very High</label><input type="color" data-color="very-high"></div>
+    <div class="color-row"><label data-i18n="theme_high">High</label><input type="color" data-color="high"></div>
+    <div class="color-row"><label data-i18n="theme_medium">Medium</label><input type="color" data-color="medium"></div>
+    <div class="color-row"><label data-i18n="theme_low">Low</label><input type="color" data-color="low"></div>
+    <div class="color-row"><label data-i18n="theme_phase">Fase</label><input type="color" data-color="phase-bar"></div>
+    <div class="color-row"><label data-i18n="theme_primary">Primária</label><input type="color" data-color="primary"></div>
+  </div>
+  <div class="palette-section">
+    <h3 style="margin:0 0 0 0;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600">Paleta Workstreams</h3>
+    <div class="palette-grid" id="palette-grid"></div>
+  </div>
+  <div class="theme-popover-footer">
+    <button class="tb-btn ghost" id="btn-theme-reset" data-i18n="theme_reset">Reset</button>
+    <button class="tb-btn" id="btn-theme-save-as" data-i18n="theme_save_as">💾 Salvar como...</button>
+    <button class="tb-btn primary" id="btn-theme-close" data-i18n="theme_close">Fechar</button>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-data">
+  <div class="modal" style="width: 1300px;">
+    <div class="modal-header">
+      <h2 data-i18n="modal_data_title">Gerenciar Dados</h2>
+      <button class="tb-btn" id="btn-add-row" data-i18n="btn_new_task">Nova Tarefa</button>
+      <button class="tb-btn" id="btn-import-modal" data-i18n="btn_import_csv_xlsx">Importar CSV/Excel</button>
+      <button class="tb-btn ghost" id="btn-template" data-i18n="btn_template_csv">Template CSV</button>
+      <button class="modal-close" data-close="modal-data">x</button>
+    </div>
+    <div class="modal-body">
+      <div id="data-grid-container"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="tb-btn ghost" id="btn-restore-default" data-i18n="btn_restore_default">Restaurar padrao</button>
+      <button class="tb-btn ghost" id="btn-undo" data-i18n="btn_undo">Desfazer</button>
+      <span style="flex:1"></span>
+      <button class="tb-btn" id="btn-copy-json" data-i18n="btn_copy_json">Copiar JSON</button>
+      <button class="tb-btn" id="btn-export-csv" data-i18n="btn_export_csv">CSV</button>
+      <button class="tb-btn" id="btn-export-xlsx" data-i18n="btn_export_xlsx">Excel</button>
+      <button class="tb-btn" id="btn-export-png" data-i18n="btn_export_png">PNG</button>
+      <button class="tb-btn" id="btn-save-local" data-i18n="btn_save_local">Salvar</button>
+      <button class="tb-btn primary" id="btn-apply" data-i18n="btn_apply">Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-import">
+  <div class="modal" style="width: 900px;">
+    <div class="modal-header">
+      <h2 data-i18n="modal_import_title">Importar CSV/Excel</h2>
+      <button class="modal-close" data-close="modal-import">x</button>
+    </div>
+    <div class="modal-body">
+      <div class="field-row">
+        <label data-i18n="import_file_label">Arquivo:</label>
+        <input type="file" id="import-file" accept=".csv,.xlsx,.xls">
+      </div>
+      <div class="info-box" data-i18n="import_info"></div>
+      <div id="import-status"></div>
+      <div id="import-errors"></div>
+      <div id="import-preview-container"></div>
+      <div class="import-options" id="import-options" style="display:none">
+        <strong data-i18n="import_mode_label">Modo:</strong>
+        <label><input type="radio" name="import-mode" value="replace" checked> <span data-i18n="import_mode_replace">Substituir todos</span></label>
+        <label><input type="radio" name="import-mode" value="merge"> <span data-i18n="import_mode_merge">Adicionar (merge)</span></label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="tb-btn ghost" data-close="modal-import" data-i18n="import_cancel">Cancelar</button>
+      <button class="tb-btn primary" id="btn-confirm-import" disabled data-i18n="import_confirm">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// I18N
+// ============================================================
+const I18N = {
+  'pt-BR': {
+    app_title: 'Gantt Chart Interativo',
+    zoom_label: 'Zoom',
+    zoom_days: 'Dias', zoom_weeks: 'Semanas', zoom_months: 'Meses', zoom_years: 'Anos', zoom_all: 'Tudo',
+    expand_all: 'Expandir tudo', collapse_all: 'Colapsar tudo',
+    manage_data: 'Gerenciar Dados', import_btn: 'Importar', export_btn: 'Exportar',
+    lang_label: 'Idioma',
+    col_id: 'ID', col_wbs: 'WBS', col_task: 'Tarefa', col_start: 'Inicio', col_end: 'Fim', col_completion: '%',
+    col_days: 'Dias', col_status: 'Status', col_progress: 'Progresso', col_dependencies: 'Dependências',
+    show_bar_labels: 'Mostrar nomes nas barras', hide_bar_labels: 'Ocultar nomes nas barras',
+    days_unit: 'd',
+    theme_title: 'Tema de cores', theme_custom: 'Personalizar', theme_reset: 'Resetar', theme_close: 'Fechar',
+    theme_very_high: 'Muito Alta', theme_high: 'Alta', theme_medium: 'Média', theme_low: 'Baixa',
+    theme_phase: 'Fase', theme_primary: 'Primária',
+    theme_save_as: '💾 Salvar como...', theme_save_prompt: 'Nome do tema:',
+    theme_user_badge: 'Meu', theme_delete_confirm: 'Remover este tema?',
+    toast_theme_applied: 'Tema aplicado', toast_theme_saved: 'Tema salvo: {name}',
+    toast_theme_deleted: 'Tema removido', toast_theme_name_invalid: 'Nome inválido ou já existente',
+    view_manager: '👁 Visualização', view_manager_title: '👁 Visualização',
+    view_columns: 'Colunas', view_filters: 'Filtros', view_density: 'Densidade', view_saved: 'Visualizações salvas',
+    view_reset: 'Resetar', view_reset_all: '↺ Resetar tudo', view_close: 'Fechar',
+    view_hide_milestones: 'Ocultar marcos', view_hide_completed: 'Ocultar tarefas 100%',
+    view_hide_weekends: 'Ocultar fins de semana no gráfico',
+    view_hide_bar_pct: 'Ocultar % sobre as barras',
+    view_hide_delay_badge: 'Ocultar badges de atraso (+Nw)',
+    view_completion_range: '% Conclusão (intervalo)',
+    view_min: 'Min', view_max: 'Max',
+    view_assignee_filter: 'Responsável (contém)',
+    view_col_width: 'Largura (px)',
+    view_date_range: 'Janela de datas',
+    view_from: 'De', view_to: 'Até',
+    view_date_hint: 'Mostra tarefas com qualquer sobreposição com a janela. Vazio = sem filtro.',
+    search_placeholder: '🔍 Buscar...',
+    view_status_filter: 'Status (selecione os que quer ver)',
+    density_compact: 'Compacta', density_normal: 'Normal', density_spacious: 'Confortável',
+    view_save: '💾 Salvar', view_save_placeholder: 'Nome da visualização...',
+    view_save_prompt: 'Nome da visualização:',
+    toast_view_saved: 'Visualização salva: {name}',
+    toast_view_applied: 'Visualização aplicada',
+    toast_view_deleted: 'Visualização removida',
+    toast_view_name_invalid: 'Nome inválido ou já existente',
+    confirm_delete_view: 'Remover esta visualização?',
+    modal_data_title: 'Gerenciar Dados',
+    modal_import_title: 'Importar CSV/Excel',
+    btn_new_task: '+ Nova Tarefa',
+    btn_import_csv_xlsx: 'Importar CSV/Excel',
+    btn_template_csv: 'Template CSV',
+    btn_restore_default: 'Restaurar padrao',
+    btn_undo: 'Desfazer',
+    btn_copy_json: 'Copiar JSON',
+    btn_export_csv: 'CSV', btn_export_xlsx: 'Excel', btn_export_png: 'PNG',
+    btn_save_local: 'Salvar', btn_apply: 'Aplicar',
+    import_file_label: 'Arquivo:',
+    import_info: 'Formato: CSV (virgula ou ponto-e-virgula) ou Excel (.xlsx). Datas em DD/MM/AAAA. Obrigatorios: phase, task, start, end. Cabecalhos aceitos em PT/ES/EN (case-insensitive).',
+    import_mode_label: 'Modo:',
+    import_mode_replace: 'Substituir todos',
+    import_mode_merge: 'Adicionar (merge)',
+    import_confirm: 'Confirmar Importacao',
+    import_cancel: 'Cancelar',
+    import_reading: 'Lendo arquivo...',
+    import_records_read: '{n} registros lidos.',
+    import_errors_label: '{n} erros de validacao:',
+    import_preview_title: 'Preview (primeiros 5 registros):',
+    grid_id: 'id', grid_wbs: 'wbs', grid_phase: 'phase', grid_parent: 'parent', grid_task: 'task', grid_milestone: 'milestone',
+    grid_start: 'start', grid_end: 'end', grid_completion: 'completion',
+    grid_dependencies: 'dependencies', grid_assignee: 'assignee', grid_status: 'status', grid_actions: 'acoes',
+    toast_cycle_detected: 'Hierarquia inválida (ciclo detectado)',
+    toast_cannot_indent: 'Nada acima para usar como pai',
+    toast_cannot_outdent: 'Já é raiz',
+    grid_new_phase: '+ Nova fase...',
+    prompt_new_phase: 'Nome da nova fase:',
+    grid_empty: '(vazio)',
+    new_task_default: 'Nova tarefa', default_phase: 'Nova Fase',
+    tt_wbs: 'WBS:', tt_phase: 'Fase:', tt_period: 'Periodo:', tt_completion: '% Concluido:',
+    tt_assignee: 'Responsavel:', tt_status: 'Status:', tt_dependencies: 'Dependencias:',
+    tt_baseline: 'Baseline:', tt_delay: 'Desvio:',
+    confirm_delete_task: 'Excluir esta tarefa?',
+    confirm_restore_default: 'Restaurar dados de exemplo? Suas alteracoes serao perdidas.',
+    prompt_export_choice: 'Exportar como: digite csv, xlsx, png ou json',
+    toast_saved: 'Salvo no navegador',
+    toast_save_failed: 'Falha ao salvar',
+    toast_applied: 'Alteracoes aplicadas',
+    toast_csv_exported: 'CSV exportado',
+    toast_xlsx_exported: 'Excel exportado',
+    toast_png_exported: 'PNG exportado',
+    toast_xlsx_failed: 'Erro ao exportar Excel',
+    toast_png_failed: 'Erro ao exportar PNG',
+    toast_json_copied: 'JSON copiado',
+    toast_json_failed: 'Falha ao copiar',
+    toast_template_downloaded: 'Template baixado',
+    toast_nothing_to_undo: 'Nada para desfazer',
+    toast_validation_errors: 'Ha erros: {errs}',
+    toast_import_done: 'Importacao concluida ({n} tarefas)',
+    val_phase_empty: 'linha {n}: phase vazia',
+    val_task_empty: 'linha {n}: task vazia',
+    val_start_invalid: 'linha {n}: start invalido',
+    val_end_invalid: 'linha {n}: end invalido',
+    val_end_before_start: 'linha {n}: end anterior a start',
+    val_completion_range: 'linha {n}: completion fora de 0-100',
+    months_short: ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'],
+    weekdays_short: ['D','S','T','Q','Q','S','S'],
+    week_prefix: 'S', quarter_prefix: 'T',
+    status_very_high: 'Muito Alta', status_high: 'Alta', status_medium: 'Media', status_low: 'Baixa',
+    title_hide_col: 'Ocultar coluna',
+    duplicate: 'Duplicar', delete_label: 'Excluir',
+    template_comment: 'Template Gantt - preencha as colunas. Datas em DD/MM/AAAA. milestone: true/false. completion: 0-100. dependencies: ids separados por virgula.',
+    example_task: 'Exemplo de tarefa', example_dep: 'Exemplo dependente', example_milestone: 'Marco final',
+  },
+  'es': {
+    app_title: 'Diagrama de Gantt Interactivo',
+    zoom_label: 'Zoom',
+    zoom_days: 'Dias', zoom_weeks: 'Semanas', zoom_months: 'Meses', zoom_years: 'Anos', zoom_all: 'Todo',
+    expand_all: 'Expandir todo', collapse_all: 'Contraer todo',
+    manage_data: 'Gestionar Datos', import_btn: 'Importar', export_btn: 'Exportar',
+    lang_label: 'Idioma',
+    col_id: 'ID', col_wbs: 'WBS', col_task: 'Tarea', col_start: 'Inicio', col_end: 'Fin', col_completion: '%',
+    col_days: 'Dias', col_status: 'Estado', col_progress: 'Progreso', col_dependencies: 'Dependencias',
+    show_bar_labels: 'Mostrar nombres en las barras', hide_bar_labels: 'Ocultar nombres en las barras',
+    days_unit: 'd',
+    theme_title: 'Tema de colores', theme_custom: 'Personalizar', theme_reset: 'Resetear', theme_close: 'Cerrar',
+    theme_very_high: 'Muy Alta', theme_high: 'Alta', theme_medium: 'Media', theme_low: 'Baja',
+    theme_phase: 'Fase', theme_primary: 'Primaria',
+    theme_save_as: '💾 Guardar como...', theme_save_prompt: 'Nombre del tema:',
+    theme_user_badge: 'Mío', theme_delete_confirm: '¿Eliminar este tema?',
+    toast_theme_applied: 'Tema aplicado', toast_theme_saved: 'Tema guardado: {name}',
+    toast_theme_deleted: 'Tema eliminado', toast_theme_name_invalid: 'Nombre inválido o ya existente',
+    view_manager: '👁 Vista', view_manager_title: '👁 Gestor de Vista',
+    view_columns: 'Columnas', view_filters: 'Filtros', view_density: 'Densidad', view_saved: 'Vistas guardadas',
+    view_reset: 'Resetear', view_reset_all: '↺ Resetear todo', view_close: 'Cerrar',
+    view_hide_milestones: 'Ocultar hitos', view_hide_completed: 'Ocultar tareas 100%',
+    view_hide_weekends: 'Ocultar fines de semana en el gráfico',
+    view_hide_bar_pct: 'Ocultar % sobre las barras',
+    view_hide_delay_badge: 'Ocultar insignias de retraso (+Nw)',
+    view_completion_range: '% Progreso (rango)',
+    view_min: 'Mín', view_max: 'Máx',
+    view_assignee_filter: 'Responsable (contiene)',
+    view_col_width: 'Ancho (px)',
+    view_date_range: 'Rango de fechas',
+    view_from: 'De', view_to: 'Hasta',
+    view_date_hint: 'Muestra tareas con cualquier superposición con el rango. Vacío = sin filtro.',
+    search_placeholder: '🔍 Buscar...',
+    view_status_filter: 'Estado (seleccione los visibles)',
+    density_compact: 'Compacta', density_normal: 'Normal', density_spacious: 'Cómoda',
+    view_save: '💾 Guardar', view_save_placeholder: 'Nombre de la vista...',
+    view_save_prompt: 'Nombre de la vista:',
+    toast_view_saved: 'Vista guardada: {name}',
+    toast_view_applied: 'Vista aplicada',
+    toast_view_deleted: 'Vista eliminada',
+    toast_view_name_invalid: 'Nombre inválido o ya existente',
+    confirm_delete_view: '¿Eliminar esta vista?',
+    modal_data_title: 'Gestionar Datos',
+    modal_import_title: 'Importar CSV/Excel',
+    btn_new_task: '+ Nueva Tarea',
+    btn_import_csv_xlsx: 'Importar CSV/Excel',
+    btn_template_csv: 'Plantilla CSV',
+    btn_restore_default: 'Restaurar predeterminado',
+    btn_undo: 'Deshacer',
+    btn_copy_json: 'Copiar JSON',
+    btn_export_csv: 'CSV', btn_export_xlsx: 'Excel', btn_export_png: 'PNG',
+    btn_save_local: 'Guardar', btn_apply: 'Aplicar',
+    import_file_label: 'Archivo:',
+    import_info: 'Formato: CSV (coma o punto y coma) o Excel (.xlsx). Fechas en DD/MM/AAAA. Obligatorios: phase, task, start, end. Encabezados PT/ES/EN aceptados (sin distincion de mayusculas).',
+    import_mode_label: 'Modo:',
+    import_mode_replace: 'Reemplazar todo',
+    import_mode_merge: 'Anadir (combinar)',
+    import_confirm: 'Confirmar Importacion',
+    import_cancel: 'Cancelar',
+    import_reading: 'Leyendo archivo...',
+    import_records_read: '{n} registros leidos.',
+    import_errors_label: '{n} errores de validacion:',
+    import_preview_title: 'Vista previa (primeros 5 registros):',
+    grid_id: 'id', grid_wbs: 'wbs', grid_phase: 'fase', grid_parent: 'padre', grid_task: 'tarea', grid_milestone: 'hito',
+    grid_start: 'inicio', grid_end: 'fin', grid_completion: 'progreso',
+    grid_dependencies: 'dependencias', grid_assignee: 'responsable', grid_status: 'estado', grid_actions: 'acciones',
+    toast_cycle_detected: 'Jerarquía inválida (ciclo detectado)',
+    toast_cannot_indent: 'Nada arriba para usar como padre',
+    toast_cannot_outdent: 'Ya es raíz',
+    grid_new_phase: '+ Nueva fase...',
+    prompt_new_phase: 'Nombre de la nueva fase:',
+    grid_empty: '(vacio)',
+    new_task_default: 'Nueva tarea', default_phase: 'Nueva Fase',
+    tt_wbs: 'WBS:', tt_phase: 'Fase:', tt_period: 'Periodo:', tt_completion: '% Completado:',
+    tt_assignee: 'Responsable:', tt_status: 'Estado:', tt_dependencies: 'Dependencias:',
+    tt_baseline: 'Baseline:', tt_delay: 'Desvío:',
+    confirm_delete_task: 'Eliminar esta tarea?',
+    confirm_restore_default: 'Restaurar datos de ejemplo? Sus cambios se perderan.',
+    prompt_export_choice: 'Exportar como: escriba csv, xlsx, png o json',
+    toast_saved: 'Guardado en el navegador',
+    toast_save_failed: 'Error al guardar',
+    toast_applied: 'Cambios aplicados',
+    toast_csv_exported: 'CSV exportado',
+    toast_xlsx_exported: 'Excel exportado',
+    toast_png_exported: 'PNG exportado',
+    toast_xlsx_failed: 'Error al exportar Excel',
+    toast_png_failed: 'Error al exportar PNG',
+    toast_json_copied: 'JSON copiado',
+    toast_json_failed: 'Error al copiar',
+    toast_template_downloaded: 'Plantilla descargada',
+    toast_nothing_to_undo: 'Nada que deshacer',
+    toast_validation_errors: 'Hay errores: {errs}',
+    toast_import_done: 'Importacion completada ({n} tareas)',
+    val_phase_empty: 'linea {n}: fase vacia',
+    val_task_empty: 'linea {n}: tarea vacia',
+    val_start_invalid: 'linea {n}: inicio invalido',
+    val_end_invalid: 'linea {n}: fin invalido',
+    val_end_before_start: 'linea {n}: fin anterior al inicio',
+    val_completion_range: 'linea {n}: progreso fuera de 0-100',
+    months_short: ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'],
+    weekdays_short: ['D','L','M','M','J','V','S'],
+    week_prefix: 'S', quarter_prefix: 'T',
+    status_very_high: 'Muy Alta', status_high: 'Alta', status_medium: 'Media', status_low: 'Baja',
+    title_hide_col: 'Ocultar columna',
+    duplicate: 'Duplicar', delete_label: 'Eliminar',
+    template_comment: 'Plantilla Gantt - complete las columnas. Fechas en DD/MM/AAAA. milestone: true/false. completion: 0-100. dependencies: ids separados por coma.',
+    example_task: 'Tarea de ejemplo', example_dep: 'Tarea dependiente', example_milestone: 'Hito final',
+  },
+  'en': {
+    app_title: 'Interactive Gantt Chart',
+    zoom_label: 'Zoom',
+    zoom_days: 'Days', zoom_weeks: 'Weeks', zoom_months: 'Months', zoom_years: 'Years', zoom_all: 'All',
+    expand_all: 'Expand all', collapse_all: 'Collapse all',
+    manage_data: 'Manage Data', import_btn: 'Import', export_btn: 'Export',
+    lang_label: 'Language',
+    col_id: 'ID', col_wbs: 'WBS', col_task: 'Task', col_start: 'Start', col_end: 'End', col_completion: '%',
+    col_days: 'Days', col_status: 'Status', col_progress: 'Progress', col_dependencies: 'Dependencies',
+    show_bar_labels: 'Show bar labels', hide_bar_labels: 'Hide bar labels',
+    days_unit: 'd',
+    theme_title: 'Color theme', theme_custom: 'Customize', theme_reset: 'Reset', theme_close: 'Close',
+    theme_very_high: 'Very High', theme_high: 'High', theme_medium: 'Medium', theme_low: 'Low',
+    theme_phase: 'Phase', theme_primary: 'Primary',
+    theme_save_as: '💾 Save as...', theme_save_prompt: 'Theme name:',
+    theme_user_badge: 'Mine', theme_delete_confirm: 'Delete this theme?',
+    toast_theme_applied: 'Theme applied', toast_theme_saved: 'Theme saved: {name}',
+    toast_theme_deleted: 'Theme deleted', toast_theme_name_invalid: 'Invalid or duplicate name',
+    view_manager: '👁 View', view_manager_title: '👁 View Manager',
+    view_columns: 'Columns', view_filters: 'Filters', view_density: 'Density', view_saved: 'Saved views',
+    view_reset: 'Reset', view_reset_all: '↺ Reset all', view_close: 'Close',
+    view_hide_milestones: 'Hide milestones', view_hide_completed: 'Hide 100% tasks',
+    view_hide_weekends: 'Hide weekends in chart',
+    view_hide_bar_pct: 'Hide % over bars',
+    view_hide_delay_badge: 'Hide delay badges (+Nw)',
+    view_completion_range: '% Completion (range)',
+    view_min: 'Min', view_max: 'Max',
+    view_assignee_filter: 'Assignee (contains)',
+    view_col_width: 'Width (px)',
+    view_date_range: 'Date range',
+    view_from: 'From', view_to: 'To',
+    view_date_hint: 'Shows tasks with any overlap with the window. Empty = no filter.',
+    search_placeholder: '🔍 Search...',
+    view_status_filter: 'Status (pick what to show)',
+    density_compact: 'Compact', density_normal: 'Normal', density_spacious: 'Spacious',
+    view_save: '💾 Save', view_save_placeholder: 'View name...',
+    view_save_prompt: 'View name:',
+    toast_view_saved: 'View saved: {name}',
+    toast_view_applied: 'View applied',
+    toast_view_deleted: 'View deleted',
+    toast_view_name_invalid: 'Invalid or duplicate name',
+    confirm_delete_view: 'Delete this view?',
+    modal_data_title: 'Manage Data',
+    modal_import_title: 'Import CSV/Excel',
+    btn_new_task: '+ New Task',
+    btn_import_csv_xlsx: 'Import CSV/Excel',
+    btn_template_csv: 'CSV Template',
+    btn_restore_default: 'Restore default',
+    btn_undo: 'Undo',
+    btn_copy_json: 'Copy JSON',
+    btn_export_csv: 'CSV', btn_export_xlsx: 'Excel', btn_export_png: 'PNG',
+    btn_save_local: 'Save', btn_apply: 'Apply',
+    import_file_label: 'File:',
+    import_info: 'Format: CSV (comma or semicolon) or Excel (.xlsx). Dates in DD/MM/YYYY. Required: phase, task, start, end. Headers PT/ES/EN accepted (case-insensitive).',
+    import_mode_label: 'Mode:',
+    import_mode_replace: 'Replace all',
+    import_mode_merge: 'Add (merge)',
+    import_confirm: 'Confirm Import',
+    import_cancel: 'Cancel',
+    import_reading: 'Reading file...',
+    import_records_read: '{n} records read.',
+    import_errors_label: '{n} validation errors:',
+    import_preview_title: 'Preview (first 5 records):',
+    grid_id: 'id', grid_wbs: 'wbs', grid_phase: 'phase', grid_parent: 'parent', grid_task: 'task', grid_milestone: 'milestone',
+    grid_start: 'start', grid_end: 'end', grid_completion: 'completion',
+    grid_dependencies: 'dependencies', grid_assignee: 'assignee', grid_status: 'status', grid_actions: 'actions',
+    toast_cycle_detected: 'Invalid hierarchy (cycle detected)',
+    toast_cannot_indent: 'Nothing above to use as parent',
+    toast_cannot_outdent: 'Already at root',
+    grid_new_phase: '+ New phase...',
+    prompt_new_phase: 'New phase name:',
+    grid_empty: '(empty)',
+    new_task_default: 'New task', default_phase: 'New Phase',
+    tt_wbs: 'WBS:', tt_phase: 'Phase:', tt_period: 'Period:', tt_completion: '% Complete:',
+    tt_assignee: 'Assignee:', tt_status: 'Status:', tt_dependencies: 'Dependencies:',
+    tt_baseline: 'Baseline:', tt_delay: 'Delay:',
+    confirm_delete_task: 'Delete this task?',
+    confirm_restore_default: 'Restore example data? Your changes will be lost.',
+    prompt_export_choice: 'Export as: type csv, xlsx, png or json',
+    toast_saved: 'Saved in browser',
+    toast_save_failed: 'Save failed',
+    toast_applied: 'Changes applied',
+    toast_csv_exported: 'CSV exported',
+    toast_xlsx_exported: 'Excel exported',
+    toast_png_exported: 'PNG exported',
+    toast_xlsx_failed: 'Excel export error',
+    toast_png_failed: 'PNG export error',
+    toast_json_copied: 'JSON copied',
+    toast_json_failed: 'Copy failed',
+    toast_template_downloaded: 'Template downloaded',
+    toast_nothing_to_undo: 'Nothing to undo',
+    toast_validation_errors: 'Errors: {errs}',
+    toast_import_done: 'Import done ({n} tasks)',
+    val_phase_empty: 'row {n}: phase empty',
+    val_task_empty: 'row {n}: task empty',
+    val_start_invalid: 'row {n}: invalid start',
+    val_end_invalid: 'row {n}: invalid end',
+    val_end_before_start: 'row {n}: end before start',
+    val_completion_range: 'row {n}: completion out of 0-100',
+    months_short: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+    weekdays_short: ['S','M','T','W','T','F','S'],
+    week_prefix: 'W', quarter_prefix: 'Q',
+    status_very_high: 'Very High', status_high: 'High', status_medium: 'Medium', status_low: 'Low',
+    title_hide_col: 'Hide column',
+    duplicate: 'Duplicate', delete_label: 'Delete',
+    template_comment: 'Gantt template - fill in the columns. Dates in DD/MM/YYYY. milestone: true/false. completion: 0-100. dependencies: ids separated by comma.',
+    example_task: 'Example task', example_dep: 'Dependent example', example_milestone: 'Final milestone',
+  },
+};
+
+const HEADER_ALIASES = {
+  id: ['id'],
+  parent_id: ['parent_id', 'parent', 'pai', 'id_pai', 'padre', 'id_padre'],
+  phase: ['phase', 'fase'],
+  task: ['task', 'tarefa', 'tarea'],
+  milestone: ['milestone', 'marco', 'hito'],
+  start: ['start', 'inicio', 'comienzo', 'data inicio', 'fecha inicio'],
+  end: ['end', 'fim', 'fin', 'termino', 'final', 'data fim', 'fecha fin'],
+  completion: ['completion', 'conclusao', 'progreso', 'progresso', '%', 'porcentagem', 'porcentaje'],
+  dependencies: ['dependencies', 'dependencias'],
+  assignee: ['assignee', 'responsavel', 'responsable'],
+  status: ['status', 'estado', 'situacao', 'prioridade', 'prioridad', 'priority'],
+};
+
+let LANG = localStorage.getItem('gantt-lang') || 'pt-BR';
+function t(key, vars) {
+  let s = (I18N[LANG] && I18N[LANG][key]) || (I18N['pt-BR'][key]) || key;
+  if (vars) for (const k in vars) s = s.replace('{' + k + '}', vars[k]);
+  return s;
+}
+function setLang(lang) {
+  LANG = lang;
+  localStorage.setItem('gantt-lang', lang);
+  document.documentElement.setAttribute('lang', lang);
+  applyI18N();
+  renderAll();
+}
+function applyI18N() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    el.textContent = t(key);
+  });
+  document.getElementById('app-title').textContent = t('app_title');
+  document.title = t('app_title');
+  const si = document.getElementById('search-input');
+  if (si) si.placeholder = t('search_placeholder');
+}
+
+// ============================================================
+// DEFAULT DATA
+// ============================================================
+const DEFAULT_DATA = [
+  // ROOT
+  { id: "H2R",  parent_id: "",     phase: "", task: "H2R Program Roadmap",            milestone: false, start: "2026-03-30", end: "2027-01-02", completion: 0, dependencies: "", assignee: "", status: "" },
+
+  // DEVELOPMENTS
+  { id: "DEV",  parent_id: "H2R",  phase: "", task: "Developments",                   milestone: false, start: "2026-03-30", end: "2026-06-26", completion: 0, dependencies: "", assignee: "", status: "" },
+  { id: "1",    parent_id: "DEV",  phase: "", task: "Wricefs",                         milestone: false, start: "2026-03-30", end: "2026-04-17", completion: 0, dependencies: "", assignee: "", status: "Medium" },
+  { id: "2",    parent_id: "DEV",  phase: "", task: "New Devs (SC+CRs)",               milestone: false, start: "2026-04-13", end: "2026-06-26", completion: 0, dependencies: "1",  assignee: "", status: "High" },
+
+  // INTERFACES
+  { id: "INT",  parent_id: "H2R",  phase: "", task: "Interfaces",                      milestone: false, start: "2026-03-30", end: "2026-06-12", completion: 0, dependencies: "", assignee: "", status: "" },
+  { id: "3",    parent_id: "INT",  phase: "", task: "R2 Interfaces",                   milestone: false, start: "2026-03-30", end: "2026-06-12", completion: 0, dependencies: "", assignee: "", status: "High", baseline_start: "2026-03-30", baseline_end: "2026-05-22" },
+
+  // DEVICES
+  { id: "DEVT", parent_id: "H2R",  phase: "", task: "Devices",                         milestone: false, start: "2026-03-30", end: "2026-07-31", completion: 0, dependencies: "", assignee: "", status: "" },
+  { id: "4",    parent_id: "DEVT", phase: "", task: "Devices",                         milestone: false, start: "2026-03-30", end: "2026-07-31", completion: 0, dependencies: "", assignee: "", status: "Very High", baseline_start: "2026-03-30", baseline_end: "2026-04-10" },
+  { id: "4a",   parent_id: "DEVT", phase: "", task: "Devices Complete",                milestone: true,  start: "2026-07-06", end: "2026-07-06", completion: 0, dependencies: "4",  assignee: "", status: "Very High" },
+
+  // ROLES & AUTHORIZATIONS
+  { id: "RA",   parent_id: "H2R",  phase: "", task: "Roles & Authorizations",          milestone: false, start: "2026-03-30", end: "2026-12-25", completion: 0, dependencies: "", assignee: "", status: "" },
+  { id: "5",    parent_id: "RA",   phase: "", task: "R&A",                             milestone: false, start: "2026-03-30", end: "2026-12-25", completion: 0, dependencies: "", assignee: "", status: "Medium" },
+
+  // DATA MIGRATION
+  { id: "DM",   parent_id: "H2R",  phase: "", task: "Data Migration",                  milestone: false, start: "2026-03-30", end: "2026-07-31", completion: 0, dependencies: "", assignee: "", status: "" },
+  { id: "6",    parent_id: "DM",   phase: "", task: "Mock 2 H2R",                      milestone: false, start: "2026-03-30", end: "2026-05-01", completion: 0, dependencies: "", assignee: "", status: "Low" },
+  { id: "7",    parent_id: "DM",   phase: "", task: "Mock 3 H2R",                      milestone: false, start: "2026-05-04", end: "2026-06-05", completion: 0, dependencies: "6",  assignee: "", status: "Medium" },
+  { id: "8",    parent_id: "DM",   phase: "", task: "Mock 4",                          milestone: false, start: "2026-06-29", end: "2026-07-31", completion: 0, dependencies: "7",  assignee: "", status: "High" },
+
+  // TESTING
+  { id: "TEST", parent_id: "H2R",  phase: "", task: "Testing",                         milestone: false, start: "2026-03-30", end: "2026-09-25", completion: 0, dependencies: "", assignee: "", status: "" },
+  { id: "9",    parent_id: "TEST", phase: "", task: "SIT 1",                           milestone: false, start: "2026-03-30", end: "2026-05-01", completion: 0, dependencies: "", assignee: "", status: "Medium" },
+  { id: "10",   parent_id: "TEST", phase: "", task: "SIT 2",                           milestone: false, start: "2026-03-30", end: "2026-05-29", completion: 0, dependencies: "", assignee: "", status: "High", baseline_start: "2026-03-30", baseline_end: "2026-05-08" },
+  { id: "11",   parent_id: "TEST", phase: "", task: "MVP Prep",                        milestone: false, start: "2026-03-30", end: "2026-04-24", completion: 0, dependencies: "", assignee: "", status: "Low" },
+  { id: "12",   parent_id: "TEST", phase: "", task: "MVP",                             milestone: false, start: "2026-05-04", end: "2026-05-22", completion: 0, dependencies: "11", assignee: "", status: "Medium", baseline_start: "2026-05-04", baseline_end: "2026-05-15" },
+  { id: "13",   parent_id: "TEST", phase: "", task: "E2E – H2R",                      milestone: false, start: "2026-06-01", end: "2026-06-26", completion: 0, dependencies: "12", assignee: "", status: "High" },
+  { id: "14",   parent_id: "TEST", phase: "", task: "E2E",                             milestone: false, start: "2026-06-29", end: "2026-08-14", completion: 0, dependencies: "13", assignee: "", status: "Very High", baseline_start: "2026-06-29", baseline_end: "2026-07-17" },
+  { id: "15",   parent_id: "TEST", phase: "", task: "UAT",                             milestone: false, start: "2026-08-10", end: "2026-09-25", completion: 0, dependencies: "14", assignee: "", status: "Very High" },
+  { id: "16",   parent_id: "TEST", phase: "", task: "UAT Start",                       milestone: true,  start: "2026-06-01", end: "2026-06-01", completion: 0, dependencies: "13", assignee: "", status: "High" },
+  { id: "17",   parent_id: "TEST", phase: "", task: "H2R E2E Complete",                milestone: true,  start: "2026-07-06", end: "2026-07-06", completion: 0, dependencies: "13", assignee: "", status: "High" },
+
+  // CHANGE MANAGEMENT
+  { id: "CM",   parent_id: "H2R",  phase: "", task: "Change Management",               milestone: false, start: "2026-05-04", end: "2026-11-20", completion: 0, dependencies: "", assignee: "", status: "" },
+  { id: "18",   parent_id: "CM",   phase: "", task: "TTT H2R",                         milestone: false, start: "2026-05-04", end: "2026-05-22", completion: 0, dependencies: "", assignee: "", status: "Medium" },
+  { id: "19",   parent_id: "CM",   phase: "", task: "End User Training H2R",           milestone: false, start: "2026-05-25", end: "2026-06-26", completion: 0, dependencies: "18", assignee: "", status: "Medium" },
+  { id: "20",   parent_id: "CM",   phase: "", task: "TTT LATAM",                       milestone: false, start: "2026-06-29", end: "2026-07-17", completion: 0, dependencies: "", assignee: "", status: "Medium", baseline_start: "2026-06-29", baseline_end: "2026-07-10" },
+  { id: "21",   parent_id: "CM",   phase: "", task: "EUT BRA",                         milestone: false, start: "2026-08-31", end: "2026-09-18", completion: 0, dependencies: "", assignee: "", status: "Medium" },
+  { id: "22",   parent_id: "CM",   phase: "", task: "EUT CHI+ARG",                     milestone: false, start: "2026-10-26", end: "2026-11-20", completion: 0, dependencies: "", assignee: "", status: "Medium" },
+
+  // CUTOVER
+  { id: "CUT",  parent_id: "H2R",  phase: "", task: "Cutover",                         milestone: false, start: "2026-05-25", end: "2026-11-27", completion: 0, dependencies: "", assignee: "", status: "" },
+  { id: "23",   parent_id: "CUT",  phase: "", task: "H2R Cut Prep",                    milestone: false, start: "2026-05-25", end: "2026-06-05", completion: 0, dependencies: "", assignee: "", status: "Low" },
+  { id: "24",   parent_id: "CUT",  phase: "", task: "Cutover Execution H2R",           milestone: false, start: "2026-06-01", end: "2026-06-26", completion: 0, dependencies: "23", assignee: "", status: "Very High" },
+  { id: "25",   parent_id: "CUT",  phase: "", task: "Cutover Preparation",             milestone: false, start: "2026-06-29", end: "2026-07-24", completion: 0, dependencies: "", assignee: "", status: "High" },
+  { id: "26",   parent_id: "CUT",  phase: "", task: "Cutover Rehearsal",               milestone: false, start: "2026-07-27", end: "2026-08-21", completion: 0, dependencies: "25", assignee: "", status: "High" },
+  { id: "27",   parent_id: "CUT",  phase: "", task: "Cutover Execution LATAM",         milestone: false, start: "2026-08-24", end: "2026-09-18", completion: 0, dependencies: "26", assignee: "", status: "Very High", baseline_start: "2026-08-24", baseline_end: "2026-09-04" },
+  { id: "28",   parent_id: "CUT",  phase: "", task: "Delta Cutover",                   milestone: false, start: "2026-11-09", end: "2026-11-27", completion: 0, dependencies: "", assignee: "", status: "Very High" },
+
+  // HYPERCARE
+  { id: "HC",   parent_id: "H2R",  phase: "", task: "Hypercare",                       milestone: false, start: "2026-05-25", end: "2027-01-02", completion: 0, dependencies: "", assignee: "", status: "" },
+  { id: "29",   parent_id: "HC",   phase: "", task: "Hypercare Preparation",           milestone: false, start: "2026-05-25", end: "2026-06-12", completion: 0, dependencies: "", assignee: "", status: "Medium", baseline_start: "2026-05-25", baseline_end: "2026-06-05" },
+  { id: "30",   parent_id: "HC",   phase: "", task: "On site Hypercare – H2R LATAM",   milestone: false, start: "2026-06-29", end: "2026-08-28", completion: 0, dependencies: "29", assignee: "", status: "Medium" },
+  { id: "31",   parent_id: "HC",   phase: "", task: "On site Hypercare – Brazil",      milestone: false, start: "2026-08-31", end: "2026-09-25", completion: 0, dependencies: "", assignee: "", status: "Medium" },
+  { id: "32",   parent_id: "HC",   phase: "", task: "On site Hypercare – CHI+ARG",     milestone: false, start: "2026-10-26", end: "2026-11-20", completion: 0, dependencies: "", assignee: "", status: "Medium" },
+  { id: "33",   parent_id: "HC",   phase: "", task: "On site Hypercare – CHI+ARG ext", milestone: false, start: "2026-11-16", end: "2027-01-02", completion: 0, dependencies: "", assignee: "", status: "Low" },
+
+  // KEY MILESTONES
+  { id: "KM",   parent_id: "H2R",  phase: "", task: "Key Milestones",                  milestone: false, start: "2026-06-29", end: "2026-11-09", completion: 0, dependencies: "", assignee: "", status: "" },
+  { id: "34",   parent_id: "KM",   phase: "", task: "Go Live – H2R LATAM (Internal Use)", milestone: true, start: "2026-06-29", end: "2026-06-29", completion: 0, dependencies: "", assignee: "", status: "Very High", marker: "go-live" },
+  { id: "35",   parent_id: "KM",   phase: "", task: "Go Live – Brazil",                milestone: true,  start: "2026-08-31", end: "2026-08-31", completion: 0, dependencies: "", assignee: "", status: "Very High", marker: "go-live" },
+  { id: "36",   parent_id: "KM",   phase: "", task: "Go Live – Chile + Argentina",     milestone: true,  start: "2026-11-09", end: "2026-11-09", completion: 0, dependencies: "", assignee: "", status: "Very High", marker: "go-live" },
+  { id: "37",   parent_id: "KM",   phase: "", task: "Go/No Go – Chile + Argentina",    milestone: true,  start: "2026-10-26", end: "2026-10-26", completion: 0, dependencies: "", assignee: "", status: "Very High", marker: "decision" },
+];
+
+// ============================================================
+// DATE UTILS
+// ============================================================
+function parseDate(s) {
+  if (s instanceof Date) return new Date(s.getFullYear(), s.getMonth(), s.getDate());
+  if (typeof s === 'number') {
+    const d = new Date(Math.round((s - 25569) * 86400 * 1000));
+    return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  }
+  if (!s) return null;
+  s = String(s).trim();
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return new Date(+m[3], +m[2]-1, +m[1]);
+  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+function fmtDate(d) {
+  if (!d) return '';
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  return dd + '/' + mm + '/' + d.getFullYear();
+}
+function toInputDate(d) {
+  if (!d) return '';
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  return d.getFullYear() + '-' + mm + '-' + dd;
+}
+function fromInputDate(s) {
+  if (!s) return null;
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  return new Date(+m[1], +m[2]-1, +m[3]);
+}
+function daysBetween(a, b) { return Math.round((b.getTime() - a.getTime()) / 86400000); }
+function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+function isoWeek(d) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return Math.ceil((((t - yearStart) / 86400000) + 1) / 7);
+}
+function getCssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+// ============================================================
+// THEMES
+// ============================================================
+const THEMES = {
+  default: {
+    label: { 'pt-BR': 'Padrão', 'es': 'Predeterminado', 'en': 'Default' },
+    colors: { 'very-high':'#b91c1c', 'high':'#ea580c', 'medium':'#ca8a04', 'low':'#16a34a', 'phase-bar':'#475569', 'primary':'#2563eb' }
+  },
+  vibrant: {
+    label: { 'pt-BR': 'Vibrante', 'es': 'Vibrante', 'en': 'Vibrant' },
+    colors: { 'very-high':'#dc2626', 'high':'#f97316', 'medium':'#eab308', 'low':'#22c55e', 'phase-bar':'#7c3aed', 'primary':'#3b82f6' }
+  },
+  pastel: {
+    label: { 'pt-BR': 'Pastel', 'es': 'Pastel', 'en': 'Pastel' },
+    colors: { 'very-high':'#f87171', 'high':'#fb923c', 'medium':'#facc15', 'low':'#86efac', 'phase-bar':'#94a3b8', 'primary':'#60a5fa' }
+  },
+  ocean: {
+    label: { 'pt-BR': 'Oceano', 'es': 'Océano', 'en': 'Ocean' },
+    colors: { 'very-high':'#0c4a6e', 'high':'#0369a1', 'medium':'#0ea5e9', 'low':'#67e8f9', 'phase-bar':'#1e40af', 'primary':'#0284c7' }
+  },
+  forest: {
+    label: { 'pt-BR': 'Floresta', 'es': 'Bosque', 'en': 'Forest' },
+    colors: { 'very-high':'#14532d', 'high':'#15803d', 'medium':'#65a30d', 'low':'#a3e635', 'phase-bar':'#3f6212', 'primary':'#16a34a' }
+  },
+  mono: {
+    label: { 'pt-BR': 'Mono Cinza', 'es': 'Mono Gris', 'en': 'Mono Gray' },
+    colors: { 'very-high':'#0f172a', 'high':'#334155', 'medium':'#64748b', 'low':'#94a3b8', 'phase-bar':'#1e293b', 'primary':'#475569' }
+  },
+  corporate: {
+    label: { 'pt-BR': 'Corporativo', 'es': 'Corporativo', 'en': 'Corporate' },
+    colors: { 'very-high':'#7f1d1d', 'high':'#92400e', 'medium':'#1e40af', 'low':'#065f46', 'phase-bar':'#1e293b', 'primary':'#1e3a8a' }
+  },
+};
+
+function loadTheme() {
+  const themeKey = localStorage.getItem('gantt-theme') || 'default';
+  let custom = null;
+  try { custom = JSON.parse(localStorage.getItem('gantt-theme-custom') || 'null'); } catch {}
+  return { themeKey, custom };
+}
+function loadUserThemes() {
+  try { return JSON.parse(localStorage.getItem('gantt-user-themes') || '{}'); }
+  catch { return {}; }
+}
+function saveUserThemes(obj) {
+  localStorage.setItem('gantt-user-themes', JSON.stringify(obj));
+}
+function getThemeByKey(key) {
+  if (THEMES[key]) return THEMES[key];
+  const userThemes = loadUserThemes();
+  if (userThemes[key]) return { label: { 'pt-BR': key, 'es': key, 'en': key }, colors: userThemes[key], isUser: true };
+  return THEMES.default;
+}
+function applyTheme(themeKey, customColors) {
+  const theme = getThemeByKey(themeKey);
+  const colors = customColors || theme.colors;
+  for (const k in colors) {
+    document.documentElement.style.setProperty('--' + k, colors[k]);
+  }
+  localStorage.setItem('gantt-theme', themeKey);
+  if (customColors) localStorage.setItem('gantt-theme-custom', JSON.stringify(customColors));
+  else localStorage.removeItem('gantt-theme-custom');
+  renderChart();
+}
+function currentThemeColors() {
+  return {
+    'very-high': getCssVar('--very-high'),
+    'high': getCssVar('--high'),
+    'medium': getCssVar('--medium'),
+    'low': getCssVar('--low'),
+    'phase-bar': getCssVar('--phase-bar'),
+    'primary': getCssVar('--primary'),
+  };
+}
+
+// ============================================================
+// STATE
+// ============================================================
+// v2 = hierarquia parent_id (refatoração estratégia B). Bump força usuários antigos a fresh start.
+const STORAGE_KEY = 'gantt-data-v3';
+// Reset explícito via URL: gantt.html?reset=1
+if (new URLSearchParams(location.search).get('reset') === '1') {
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem('gantt-data-v1');
+  localStorage.removeItem('gantt-data-v2');
+}
+const ALL_COLUMNS = [
+  { id: 'id', i18nLabel: 'col_id', width: 50 },
+  { id: 'wbs', i18nLabel: 'col_wbs', width: 80 },
+  { id: 'task', i18nLabel: 'col_task', width: 200 },
+  { id: 'start', i18nLabel: 'col_start', width: 78 },
+  { id: 'end', i18nLabel: 'col_end', width: 78 },
+  { id: 'days', i18nLabel: 'col_days', width: 56 },
+  { id: 'status', i18nLabel: 'col_status', width: 64 },
+  { id: 'progress', i18nLabel: 'col_progress', width: 110 },
+  { id: 'dependencies', i18nLabel: 'col_dependencies', width: 90 },
+];
+const WS_PALETTE = ['#3b82f6','#8b5cf6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899','#f97316','#6366f1','#14b8a6'];
+const WS_PALETTES = {
+  colorido: {
+    label: { 'pt-BR': 'Colorido', 'es': 'Colorido', 'en': 'Colorful' },
+    colors: ['#3b82f6','#8b5cf6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899','#f97316','#6366f1','#14b8a6']
+  },
+  pastel: {
+    label: { 'pt-BR': 'Pastel', 'es': 'Pastel', 'en': 'Pastel' },
+    colors: ['#93c5fd','#c4b5fd','#67e8f9','#6ee7b7','#fcd34d','#fca5a5','#f9a8d4','#fed7aa','#a5b4fc','#99f6e4']
+  },
+  neutro: {
+    label: { 'pt-BR': 'Neutro', 'es': 'Neutro', 'en': 'Neutral' },
+    colors: ['#64748b','#7c6f64','#6b7280','#71717a','#737373','#57534e','#475569','#52525b','#44403c','#404040']
+  }
+};
+const state = {
+  data: migrateToTree(loadFromStorage() || JSON.parse(JSON.stringify(DEFAULT_DATA))),
+  draftData: null,
+  collapsedNodes: new Set(),
+  hiddenColumns: new Set(),
+  zoom: 'all',
+  pixelsPerDay: 30,
+  minDate: null,
+  maxDate: null,
+  history: [],
+  hoveredTaskId: null,
+  pendingImportData: null,
+  showBarLabels: (localStorage.getItem('gantt-bar-labels') !== '0'),
+  filters: {
+    hideMilestones: false,
+    hideCompleted: false,
+    hideWeekends: false,
+    hideBarPct: false,
+    hideDelayBadge: false,
+    statuses: new Set(['Very High','High','Medium','Low','']),
+    completionMin: 0,
+    completionMax: 100,
+    assignee: '',
+    dateStart: '',
+    dateEnd: '',
+  },
+  columnWidths: {},
+  density: 'normal',
+  searchQuery: '',
+  wbsMap: new Map(),
+  wsColorMap: new Map(),
+  wsPalette: (WS_PALETTES[localStorage.getItem('gantt-ws-palette')||'colorido'] || WS_PALETTES.colorido).colors,
+};
+
+function taskMatchesSearch(tk) {
+  if (!state.searchQuery || !state.searchQuery.trim()) return false;
+  const q = state.searchQuery.trim().toLowerCase();
+  return (tk.task || '').toLowerCase().includes(q);
+}
+
+function getColWidth(id) {
+  if (state.columnWidths && state.columnWidths[id] != null) return state.columnWidths[id];
+  const col = ALL_COLUMNS.find(c => c.id === id);
+  return col ? col.width : 100;
+}
+
+// ============================================================
+// VIEW PREFERENCES (localStorage)
+// ============================================================
+const VIEW_PREFS_KEY = 'gantt-view-prefs-v1';
+const SAVED_VIEWS_KEY = 'gantt-saved-views-v1';
+
+function loadViewPrefs() {
+  try {
+    const raw = localStorage.getItem(VIEW_PREFS_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    if (p.hiddenColumns) state.hiddenColumns = new Set(p.hiddenColumns);
+    if (p.filters) {
+      state.filters.hideMilestones = !!p.filters.hideMilestones;
+      state.filters.hideCompleted  = !!p.filters.hideCompleted;
+      state.filters.hideWeekends   = !!p.filters.hideWeekends;
+      state.filters.hideBarPct     = !!p.filters.hideBarPct;
+      state.filters.hideDelayBadge = !!p.filters.hideDelayBadge;
+      if (Array.isArray(p.filters.statuses)) state.filters.statuses = new Set(p.filters.statuses);
+      state.filters.completionMin = (p.filters.completionMin != null) ? +p.filters.completionMin : 0;
+      state.filters.completionMax = (p.filters.completionMax != null) ? +p.filters.completionMax : 100;
+      state.filters.assignee = p.filters.assignee || '';
+      state.filters.dateStart = p.filters.dateStart || '';
+      state.filters.dateEnd = p.filters.dateEnd || '';
+    }
+    if (p.columnWidths && typeof p.columnWidths === 'object') state.columnWidths = p.columnWidths;
+    if (p.density) state.density = p.density;
+    return p;
+  } catch { return null; }
+}
+function saveViewPrefs() {
+  const p = {
+    hiddenColumns: Array.from(state.hiddenColumns),
+    columnWidths: state.columnWidths,
+    filters: {
+      hideMilestones: state.filters.hideMilestones,
+      hideCompleted: state.filters.hideCompleted,
+      hideWeekends: state.filters.hideWeekends,
+      hideBarPct: state.filters.hideBarPct,
+      hideDelayBadge: state.filters.hideDelayBadge,
+      statuses: Array.from(state.filters.statuses),
+      completionMin: state.filters.completionMin,
+      completionMax: state.filters.completionMax,
+      assignee: state.filters.assignee,
+      dateStart: state.filters.dateStart,
+      dateEnd: state.filters.dateEnd,
+    },
+    density: state.density,
+  };
+  localStorage.setItem(VIEW_PREFS_KEY, JSON.stringify(p));
+}
+function loadSavedViews() {
+  try { return JSON.parse(localStorage.getItem(SAVED_VIEWS_KEY) || '{}'); }
+  catch { return {}; }
+}
+function persistSavedViews(obj) {
+  localStorage.setItem(SAVED_VIEWS_KEY, JSON.stringify(obj));
+}
+function applyDensity(d) {
+  state.density = d;
+  const map = { compact: 24, normal: 30, spacious: 38 };
+  const h = map[d] || 30;
+  document.documentElement.style.setProperty('--row-h', h + 'px');
+}
+
+// ============================================================
+// HIERARQUIA (parent_id, N níveis)
+// ============================================================
+function migrateToTree(data) {
+  // Se algum item já tem parent_id, considera dados já migrados
+  const hasParentId = data.some(t => t.parent_id !== undefined && t.parent_id !== '' && t.parent_id !== null);
+  if (hasParentId) {
+    // Garante que parent_id existe em todos
+    data.forEach(t => { if (t.parent_id == null) t.parent_id = ''; });
+    return data;
+  }
+  // Migração: cria parent sintético para cada phase única
+  const phases = Array.from(new Set(data.map(t => t.phase).filter(Boolean)));
+  if (!phases.length) {
+    data.forEach(t => { t.parent_id = ''; });
+    return data;
+  }
+  let maxId = 0;
+  data.forEach(t => { const n = parseInt(t.id, 10); if (!isNaN(n) && n > maxId) maxId = n; });
+  const phaseToId = {};
+  const synthetic = phases.map(name => {
+    maxId++;
+    phaseToId[name] = String(maxId);
+    return {
+      id: String(maxId), parent_id: '', phase: '', task: name,
+      milestone: false, start: '', end: '', completion: 0,
+      dependencies: '', assignee: '', status: ''
+    };
+  });
+  data.forEach(t => {
+    t.parent_id = t.phase ? phaseToId[t.phase] : '';
+  });
+  return synthetic.concat(data);
+}
+
+function buildTree(data) {
+  const byId = new Map();
+  data.forEach(t => byId.set(t.id, { task: t, children: [], level: 0 }));
+  const roots = [];
+  data.forEach(t => {
+    const node = byId.get(t.id);
+    const pid = t.parent_id;
+    if (pid && byId.has(pid) && pid !== t.id) {
+      byId.get(pid).children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+  // assigna level via BFS
+  const walk = (node, lvl) => {
+    node.level = lvl;
+    node.children.forEach(c => walk(c, lvl + 1));
+  };
+  roots.forEach(r => walk(r, 0));
+  // ordena: preserva ordem do array
+  return roots;
+}
+
+function isSummary(node) { return node.children && node.children.length > 0; }
+
+function collectLeaves(node, out) {
+  if (!node.children || node.children.length === 0) {
+    out.push(node);
+    return;
+  }
+  node.children.forEach(c => collectLeaves(c, out));
+}
+
+function aggregateNode(node) {
+  // Recursivo: calcula completion, days, start, end agregados para summary nodes
+  if (!isSummary(node)) {
+    const tk = node.task;
+    node.aggStart = parseDate(tk.start);
+    node.aggEnd = parseDate(tk.end);
+    node.aggCompletion = +tk.completion || 0;
+    node.aggDays = tk.milestone ? 0 : (node.aggStart && node.aggEnd ? daysBetween(node.aggStart, node.aggEnd) + 1 : 0);
+    return;
+  }
+  node.children.forEach(aggregateNode);
+  // Agrega: usa folhas não-milestone para média de %
+  const leaves = [];
+  collectLeaves(node, leaves);
+  const nonMileLeaves = leaves.filter(l => !l.task.milestone);
+  const pct = nonMileLeaves.length
+    ? Math.round(nonMileLeaves.reduce((a, l) => a + (+l.task.completion || 0), 0) / nonMileLeaves.length)
+    : 0;
+  let mn = null, mx = null;
+  leaves.forEach(l => {
+    if (l.aggStart && (!mn || l.aggStart < mn)) mn = l.aggStart;
+    if (l.aggEnd && (!mx || l.aggEnd > mx)) mx = l.aggEnd;
+  });
+  node.aggStart = mn;
+  node.aggEnd = mx;
+  node.aggCompletion = pct;
+  node.aggDays = mn && mx ? daysBetween(mn, mx) + 1 : 0;
+}
+
+function leafPassesFilters(leaf) {
+  const tk = leaf.task;
+  if (state.filters.hideMilestones && tk.milestone) return false;
+  if (state.filters.hideCompleted && !tk.milestone && (+tk.completion >= 100)) return false;
+  // status filter: empty string == "(sem status)"; multi-select treats milestones with empty status as the empty bucket
+  if (state.filters.statuses.size < 5 && !state.filters.statuses.has(tk.status || '')) return false;
+  // % completion range (não aplica a marcos, que não têm noção de "% feito")
+  if (!tk.milestone) {
+    const c = +tk.completion || 0;
+    if (c < state.filters.completionMin || c > state.filters.completionMax) return false;
+  }
+  // responsável (substring case-insensitive). Empty filter = passa todos.
+  if (state.filters.assignee && state.filters.assignee.trim()) {
+    const q = state.filters.assignee.trim().toLowerCase();
+    if (!(tk.assignee || '').toLowerCase().includes(q)) return false;
+  }
+  // janela de datas — leaf passa se task interval intercepta janela
+  if (state.filters.dateStart || state.filters.dateEnd) {
+    const wStart = state.filters.dateStart ? parseDate(state.filters.dateStart) : null;
+    const wEnd   = state.filters.dateEnd   ? parseDate(state.filters.dateEnd)   : null;
+    const tStart = parseDate(tk.start);
+    const tEnd   = parseDate(tk.end);
+    if (tStart && tEnd) {
+      if (wStart && tEnd < wStart) return false;
+      if (wEnd && tStart > wEnd) return false;
+    }
+    // tarefas sem datas: passam (preserva — não escondemos por falta de info)
+  }
+  return true;
+}
+function nodeVisible(node) {
+  if (!isSummary(node)) return leafPassesFilters(node);
+  const leaves = [];
+  collectLeaves(node, leaves);
+  return leaves.some(leafPassesFilters);
+}
+function flattenVisible(roots) {
+  const out = [];
+  const walk = (node) => {
+    if (!nodeVisible(node)) return;
+    out.push(node);
+    if (isSummary(node) && !state.collapsedNodes.has(node.task.id)) {
+      node.children.forEach(walk);
+    }
+  };
+  roots.forEach(walk);
+  return out;
+}
+
+function collectAllSummaryIds(roots) {
+  const ids = [];
+  const walk = (node) => {
+    if (isSummary(node)) ids.push(node.task.id);
+    node.children.forEach(walk);
+  };
+  roots.forEach(walk);
+  return ids;
+}
+
+function isDescendantOf(potentialAncestorId, nodeId, data) {
+  // Verifica se nodeId está na árvore descendente de potentialAncestorId
+  if (potentialAncestorId === nodeId) return true;
+  const byId = new Map(data.map(t => [t.id, t]));
+  let cur = byId.get(nodeId);
+  while (cur && cur.parent_id) {
+    if (cur.parent_id === potentialAncestorId) return true;
+    cur = byId.get(cur.parent_id);
+  }
+  return false;
+}
+
+function statusKeyOf(s) {
+  if (!s) return 'empty';
+  return s.replace(/\s+/g, '');
+}
+function statusLetter(s) {
+  if (!s) return '';
+  if (s === 'Very High') return 'VH';
+  return s.charAt(0).toUpperCase();
+}
+function taskDays(tk) {
+  const s = parseDate(tk.start), e = parseDate(tk.end);
+  if (!s || !e) return 0;
+  if (tk.milestone) return 0;
+  return daysBetween(s, e) + 1;
+}
+function phaseDays(p) {
+  if (!p.start || !p.end) return 0;
+  return daysBetween(p.start, p.end) + 1;
+}
+function loadFromStorage() {
+  try { const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
+}
+function saveToStorage() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data)); return true; } catch { return false; }
+}
+
+function assignWBS(roots) {
+  const map = new Map();
+  function walk(nodes, prefix) {
+    nodes.forEach((node, i) => {
+      const code = prefix ? prefix + '.' + (i + 1) : String(i + 1);
+      map.set(node.task.id, code);
+      if (node.children && node.children.length) walk(node.children, code);
+    });
+  }
+  walk(roots, '');
+  return map;
+}
+
+function assignWorkstreamColors(roots) {
+  const map = new Map();
+  roots.forEach(rootNode => {
+    map.set(rootNode.task.id, '#94a3b8');
+    (rootNode.children || []).forEach((ws, j) => {
+      const color = state.wsPalette[j % state.wsPalette.length];
+      map.set(ws.task.id, color);
+      (function colorDesc(node, c) {
+        (node.children || []).forEach(ch => { map.set(ch.task.id, c); colorDesc(ch, c); });
+      })(ws, color);
+    });
+  });
+  return map;
+}
+
+function buildVisibleRows() {
+  const roots = buildTree(state.data);
+  roots.forEach(aggregateNode);
+  state.wbsMap = assignWBS(roots);
+  state.wsColorMap = assignWorkstreamColors(roots);
+  const flat = flattenVisible(roots);
+  return flat.map(node => ({
+    type: isSummary(node) ? 'summary' : 'leaf',
+    node: node,
+    task: node.task,
+    level: node.level,
+    hasChildren: isSummary(node),
+  }));
+}
+function computeDateRange() {
+  let mn = null, mx = null;
+  for (const tk of state.data) {
+    const s = parseDate(tk.start), e = parseDate(tk.end);
+    if (s && (!mn || s < mn)) mn = s;
+    if (e && (!mx || e > mx)) mx = e;
+  }
+  if (!mn || !mx) { const today = new Date(); mn = addDays(today, -7); mx = addDays(today, 30); }
+  state.minDate = addDays(mn, -2);
+  state.maxDate = addDays(mx, 2);
+}
+
+function colTemplate() {
+  const visible = ALL_COLUMNS.filter(c => !state.hiddenColumns.has(c.id));
+  return visible.map(c => getColWidth(c.id) + 'px').join(' ');
+}
+function applyColTemplate() {
+  document.documentElement.style.setProperty('--col-template', colTemplate());
+}
+function renderSideHeader() {
+  const header = document.getElementById('side-header');
+  const visible = ALL_COLUMNS.filter(c => !state.hiddenColumns.has(c.id));
+  header.innerHTML = visible.map(c =>
+    '<div class="col" data-col="'+c.id+'">' +
+       '<span>'+escapeHtml(t(c.i18nLabel))+'</span>' +
+       '<span class="toggle-col" title="'+escapeHtml(t('title_hide_col'))+'" data-hide="'+c.id+'">x</span>' +
+     '</div>').join('');
+  header.querySelectorAll('[data-hide]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      state.hiddenColumns.add(el.dataset.hide);
+      renderAll();
+    });
+  });
+}
+function progressBarHtml(pct, statusKey, isPhase) {
+  const cls = isPhase ? 'phase' : (statusKey || 'empty');
+  const safePct = Math.max(0, Math.min(100, pct));
+  return '<div class="cell col-progress"><div class="progress-bar">' +
+    '<div class="progress-track"><div class="progress-fill '+cls+'" style="width:'+safePct+'%"></div></div>' +
+    '<span class="progress-text">'+safePct+'%</span>' +
+  '</div></div>';
+}
+function statusBadgeHtml(status) {
+  if (!status) return '<div class="cell col-status"><span class="status-badge empty">·</span></div>';
+  const key = status.replace(/\s+/g, '');
+  return '<div class="cell col-status"><span class="status-badge '+key+'" title="'+escapeHtml(statusLabel(status))+'">'+statusLetter(status)+'</span></div>';
+}
+
+function renderSideBody() {
+  const body = document.getElementById('side-body');
+  const rows = buildVisibleRows();
+  const visible = ALL_COLUMNS.filter(c => !state.hiddenColumns.has(c.id));
+  const html = rows.map((r, i) => {
+    const node = r.node;
+    const tk = r.task;
+    const indent = r.level * 14;
+    if (r.type === 'summary') {
+      const collapsed = state.collapsedNodes.has(tk.id);
+      const caret = collapsed ? '▶' : '▼';
+      const days = node.aggDays || 0;
+      const startStr = node.aggStart ? fmtDate(node.aggStart) : '';
+      const endStr = node.aggEnd ? fmtDate(node.aggEnd) : '';
+      const pct = node.aggCompletion || 0;
+      const cells = visible.map(c => {
+        if (c.id === 'id') return '<div class="cell col-id-cell"><b>'+escapeHtml(tk.id)+'</b></div>';
+        if (c.id === 'wbs') return '<div class="cell col-wbs-cell"><b>'+escapeHtml(state.wbsMap.get(tk.id)||'')+'</b></div>';
+        if (c.id === 'task') return '<div class="cell col-task" style="padding-left:'+(8 + indent)+'px"><span class="phase-caret">'+caret+'</span><b>'+escapeHtml(tk.task)+'</b></div>';
+        if (c.id === 'start') return '<div class="cell">'+startStr+'</div>';
+        if (c.id === 'end') return '<div class="cell">'+endStr+'</div>';
+        if (c.id === 'days') return '<div class="cell col-days"><b>'+days+' '+t('days_unit')+'</b></div>';
+        if (c.id === 'status') return '<div class="cell col-status"></div>';
+        if (c.id === 'progress') return progressBarHtml(pct, '', true);
+        if (c.id === 'dependencies') return '<div class="cell"></div>';
+        return '<div class="cell"></div>';
+      }).join('');
+      const _wsC = state.wsColorMap.get(tk.id) || '#94a3b8';
+      return '<div class="row phase-row'+(collapsed?' collapsed':'')+'" data-node-id="'+escapeHtml(tk.id)+'" data-task-id="'+escapeHtml(tk.id)+'" style="box-shadow:inset 4px 0 0 '+_wsC+'">'+cells+'</div>';
+    } else {
+      const statusKey = statusKeyOf(tk.status);
+      const days = node.aggDays || 0;
+      const cells = visible.map(c => {
+        if (c.id === 'id') return '<div class="cell col-id-cell">'+escapeHtml(tk.id)+'</div>';
+        if (c.id === 'wbs') return '<div class="cell col-wbs-cell">'+escapeHtml(state.wbsMap.get(tk.id)||'')+'</div>';
+        if (c.id === 'task') {
+          const icon = tk.milestone ? '◆ ' : '';
+          return '<div class="cell col-task" style="padding-left:'+(24 + indent)+'px">'+icon+escapeHtml(tk.task)+'</div>';
+        }
+        if (c.id === 'start') return '<div class="cell">'+(tk.start||'')+'</div>';
+        if (c.id === 'end') return '<div class="cell">'+(tk.end||'')+'</div>';
+        if (c.id === 'days') return '<div class="cell col-days">'+(tk.milestone ? '◆' : days + ' ' + t('days_unit'))+'</div>';
+        if (c.id === 'status') return statusBadgeHtml(tk.status);
+        if (c.id === 'progress') return progressBarHtml(+tk.completion||0, statusKey, false);
+        if (c.id === 'dependencies') {
+          if (!tk.dependencies) return '<div class="cell"></div>';
+          const depIds = String(tk.dependencies).split(',').map(s => s.trim()).filter(Boolean);
+          const byId = new Map(state.data.map(t => [t.id, t]));
+          const names = depIds.map(d => {
+            const dt = byId.get(d);
+            return dt ? (d + ' · ' + dt.task) : d;
+          }).join('\n');
+          return '<div class="cell" title="'+escapeHtml(names)+'">'+escapeHtml(depIds.join(', '))+'</div>';
+        }
+        return '<div class="cell"></div>';
+      }).join('');
+      const matchCls = taskMatchesSearch(tk) ? ' search-match' : '';
+      const _wsC2 = state.wsColorMap.get(tk.id) || '#94a3b8';
+      return '<div class="row task-row'+matchCls+'" data-task-id="'+escapeHtml(tk.id)+'" style="box-shadow:inset 4px 0 0 '+_wsC2+'">'+cells+'</div>';
+    }
+  }).join('');
+  body.innerHTML = html;
+  body.querySelectorAll('.phase-row').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.dataset.nodeId;
+      if (state.collapsedNodes.has(id)) state.collapsedNodes.delete(id);
+      else state.collapsedNodes.add(id);
+      renderAll();
+    });
+  });
+  body.querySelectorAll('.task-row').forEach(el => {
+    el.addEventListener('mouseenter', () => { state.hoveredTaskId = el.dataset.taskId; updateHover(); });
+    el.addEventListener('mouseleave', () => { state.hoveredTaskId = null; updateHover(); });
+  });
+}
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function applyZoom(zoom) {
+  state.zoom = zoom;
+  document.querySelectorAll('.tb-btn[data-zoom]').forEach(b => {
+    b.classList.toggle('active', b.dataset.zoom === zoom);
+  });
+  computeDateRange();
+  const totalDays = daysBetween(state.minDate, state.maxDate) + 1;
+  const containerW = document.getElementById('chart-body').clientWidth - 16;
+  if (zoom === 'days') state.pixelsPerDay = 32;
+  else if (zoom === 'weeks') state.pixelsPerDay = 14;
+  else if (zoom === 'months') state.pixelsPerDay = 4;
+  else if (zoom === 'years') state.pixelsPerDay = 0.6;
+  else if (zoom === 'all') state.pixelsPerDay = Math.max(6, containerW / totalDays);
+  renderChart();
+}
+
+function renderChart() {
+  computeDateRange();
+  const rows = buildVisibleRows();
+  const totalDays = daysBetween(state.minDate, state.maxDate) + 1;
+  const ppd = state.pixelsPerDay;
+  const width = Math.max(totalDays * ppd, 200);
+  const rowH = 30;
+  const height = rows.length * rowH;
+
+  const svg = document.getElementById('timeline-svg');
+  svg.setAttribute('width', width);
+  svg.setAttribute('height', height);
+  svg.setAttribute('viewBox', '0 0 '+width+' '+height);
+
+  const parts = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const _wsc = state.wsColorMap.get(r.task.id) || '#94a3b8';
+    const _opac = r.type === 'phase' ? '0.10' : '0.04';
+    parts.push('<rect x="0" y="'+(i*rowH)+'" width="'+width+'" height="'+rowH+'" fill="'+_wsc+'" opacity="'+_opac+'"/>');
+    // colored left stripe in timeline
+    parts.push('<rect x="0" y="'+(i*rowH)+'" width="4" height="'+rowH+'" fill="'+_wsc+'" opacity="0.7"/>');
+  }
+
+  if (ppd >= 6 && !state.filters.hideWeekends) {
+    for (let i = 0; i < totalDays; i++) {
+      const d = addDays(state.minDate, i);
+      const wd = d.getDay();
+      if (wd === 0 || wd === 6) {
+        parts.push('<rect class="weekend-band" x="'+(i*ppd)+'" y="0" width="'+ppd+'" height="'+height+'"/>');
+      }
+    }
+  }
+
+  parts.push(renderGridlines(width, height, totalDays, ppd));
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  if (today >= state.minDate && today <= state.maxDate) {
+    const x = daysBetween(state.minDate, today) * ppd;
+    parts.push('<line class="today-line" x1="'+x+'" y1="0" x2="'+x+'" y2="'+height+'"/>');
+  }
+
+  // Linhas verticais de marcadores (go-live e decision)
+  for (const tk of state.data) {
+    const mkr = tk.marker;
+    if (!mkr) continue;
+    const d = parseDate(tk.start);
+    if (!d || d < state.minDate || d > state.maxDate) continue;
+    const x = Math.round(daysBetween(state.minDate, d) * ppd + ppd / 2);
+    const cls = mkr === 'go-live' ? 'golive-line' : 'decision-line';
+    const fill = mkr === 'go-live' ? '#2563eb' : '#dc2626';
+    const shortLabel = tk.task.length > 22 ? tk.task.slice(0, 20) + '…' : tk.task;
+    parts.push('<line class="'+cls+'" x1="'+x+'" y1="0" x2="'+x+'" y2="'+height+'"/>');
+    parts.push(
+      '<text class="marker-label" fill="'+fill+'" '+
+        'transform="rotate(-90,'+(x-3)+','+( height - 4)+')" '+
+        'x="'+(x-3)+'" y="'+(height - 4)+'" text-anchor="start">'+
+        escapeHtml(shortLabel)+
+      '</text>'
+    );
+  }
+
+  const taskRowIndex = new Map();
+  rows.forEach((r, i) => { taskRowIndex.set(r.task.id, i); });
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (r.type === 'summary') {
+      const node = r.node;
+      if (node.aggStart && node.aggEnd) {
+        const x = daysBetween(state.minDate, node.aggStart) * ppd;
+        const w = Math.max(2, (daysBetween(node.aggStart, node.aggEnd)+1) * ppd);
+        const y = i*rowH + 8;
+        const h = rowH - 16;
+        const cy = i*rowH + rowH/2;
+        const aggPct = node.aggCompletion || 0;
+        const wDone = w * aggPct / 100;
+        const _wsPhaseBar = state.wsColorMap.get(node.task.id) || '#475569';
+        parts.push('<g class="phase-bar-group" data-task-id="'+escapeHtml(node.task.id)+'">' +
+          '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="2" fill="'+_wsPhaseBar+'" opacity="0.30"/>' +
+          '<rect x="'+x+'" y="'+y+'" width="'+wDone+'" height="'+h+'" rx="2" fill="'+_wsPhaseBar+'" opacity="0.95"/>' +
+          '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="2" fill="none" stroke="'+_wsPhaseBar+'" stroke-width="1"/>' +
+          '<polygon points="'+x+','+(y+h)+' '+(x+5)+','+(y+h+4)+' '+(x+5)+','+(y+h)+'" fill="'+_wsPhaseBar+'"/>' +
+          '<polygon points="'+(x+w)+','+(y+h)+' '+(x+w-5)+','+(y+h+4)+' '+(x+w-5)+','+(y+h)+'" fill="'+_wsPhaseBar+'"/>' +
+        '</g>');
+        if (aggPct > 0 && wDone > 26 && !state.filters.hideBarPct) {
+          parts.push('<text class="bar-label-pct" x="'+(x + wDone/2)+'" y="'+(cy+4)+'" text-anchor="middle">'+aggPct+'%</text>');
+        }
+        if (state.showBarLabels) {
+          const labelTxt = node.task.task + ' (' + (node.aggDays||0) + ' ' + t('days_unit') + ')';
+          parts.push('<text class="bar-label-name" x="'+(x+w+6)+'" y="'+(cy+4)+'">'+escapeHtml(labelTxt)+'</text>');
+        }
+      }
+    } else {
+      const tk = r.task;
+      const s = parseDate(tk.start), e = parseDate(tk.end);
+      if (!s || !e) continue;
+      if (tk.milestone) {
+        const x = daysBetween(state.minDate, s) * ppd + ppd/2;
+        const cy = i*rowH + rowH/2;
+        const size = 8;
+        const statusKey = (tk.status || '').replace(/\s+/g, '');
+        const mileMatchCls = taskMatchesSearch(tk) ? ' search-match' : '';
+        const mkr = tk.marker || '';
+        let shapeEl;
+        if (mkr === 'go-live') {
+          // Triângulo azul apontando para cima
+          const pts = (x)+','+(cy-size)+' '+(x+size)+','+(cy+size)+' '+(x-size)+','+(cy+size);
+          shapeEl = '<polygon points="'+pts+'" fill="#2563eb" stroke="#1e40af" stroke-width="1"/>';
+        } else if (mkr === 'decision') {
+          // Losango vermelho maior
+          const sz = size + 3;
+          const pts = x+','+(cy-sz)+' '+(x+sz)+','+cy+' '+x+','+(cy+sz)+' '+(x-sz)+','+cy;
+          shapeEl = '<polygon points="'+pts+'" fill="#dc2626" stroke="#991b1b" stroke-width="1.2"/>';
+        } else {
+          // Diamante padrão
+          const color = statusKey ? 'var(--'+kebab(statusKey)+')' : '#475569';
+          const pts = x+','+(cy-size)+' '+(x+size)+','+cy+' '+x+','+(cy+size)+' '+(x-size)+','+cy;
+          shapeEl = '<polygon points="'+pts+'" fill="'+color+'" stroke="#1e293b" stroke-width="1"/>';
+        }
+        parts.push('<g class="bar-task milestone-shape'+mileMatchCls+'" data-task-id="'+tk.id+'">'+shapeEl+'</g>');
+        if (state.showBarLabels) {
+          parts.push('<text class="bar-label-name" x="'+(x+size+6)+'" y="'+(cy+4)+'">'+escapeHtml(tk.task)+'</text>');
+        }
+      } else {
+        const x = daysBetween(state.minDate, s) * ppd;
+        const w = Math.max(2, (daysBetween(s, e)+1) * ppd);
+        const y = i*rowH + 6;
+        const h = rowH - 12;
+        const cy = i*rowH + rowH/2;
+        const completion = +tk.completion || 0;
+        const wDone = w * completion / 100;
+        const statusKey = (tk.status || '').replace(/\s+/g, '');
+        const baseColor = statusKey ? 'var(--'+kebab(statusKey)+')' : 'var(--primary)';
+        const taskMatchCls = taskMatchesSearch(tk) ? ' search-match' : '';
+
+        // === BASELINE BAR ===
+        let delayWeeks = 0;
+        if (tk.baseline_end) {
+          const bs = parseDate(tk.baseline_start || tk.start);
+          const be = parseDate(tk.baseline_end);
+          if (bs && be) {
+            const bx = daysBetween(state.minDate, bs) * ppd;
+            const bw = Math.max(2, (daysBetween(bs, be)+1) * ppd);
+            parts.push(
+              '<rect class="baseline-bar" x="'+bx+'" y="'+y+'" width="'+bw+'" height="'+h+'" rx="3"/>',
+              '<rect class="baseline-bar-outline" x="'+bx+'" y="'+y+'" width="'+bw+'" height="'+h+'" rx="3"/>'
+            );
+            const delaySecs = e.getTime() - be.getTime();
+            delayWeeks = Math.round(delaySecs / (7 * 86400 * 1000));
+          }
+        }
+
+        parts.push('<g class="bar-task'+taskMatchCls+'" data-task-id="'+tk.id+'">' +
+          '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="3" fill="'+baseColor+'" opacity="0.30"/>' +
+          '<rect x="'+x+'" y="'+y+'" width="'+wDone+'" height="'+h+'" rx="3" fill="'+baseColor+'"/>' +
+          '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="3" fill="none" stroke="'+baseColor+'" stroke-width="1"/>' +
+        '</g>');
+        if (completion > 0 && wDone > 26 && !state.filters.hideBarPct) {
+          parts.push('<text class="bar-label-pct" x="'+(x + wDone/2)+'" y="'+(cy+4)+'" text-anchor="middle">'+completion+'%</text>');
+        }
+        if (state.showBarLabels) {
+          const tdays = taskDays(tk);
+          const labelTxt = tk.task + ' (' + tdays + ' ' + t('days_unit') + ')';
+          parts.push('<text class="bar-label-name" x="'+(x+w+6)+'" y="'+(cy+4)+'">'+escapeHtml(labelTxt)+'</text>');
+        }
+
+        // === DELAY BADGE ===
+        if (delayWeeks > 0 && !state.filters.hideDelayBadge) {
+          const badgeTxt = '+'+delayWeeks+'w';
+          const badgeW = badgeTxt.length * 6.2 + 8;
+          const badgeH = 13;
+          const badgeX = x + w - badgeW;
+          const badgeY = i*rowH + 2;
+          parts.push(
+            '<rect class="badge-delay-bg" x="'+badgeX+'" y="'+badgeY+'" width="'+badgeW+'" height="'+badgeH+'" rx="3" opacity="0.9"/>',
+            '<text class="badge-delay-txt" x="'+(badgeX+badgeW/2)+'" y="'+(badgeY+9.5)+'" text-anchor="middle">'+badgeTxt+'</text>'
+          );
+        }
+      }
+    }
+  }
+
+  for (const tk of state.data) {
+    if (!tk.dependencies) continue;
+    const deps = String(tk.dependencies).split(',').map(s => s.trim()).filter(Boolean);
+    const targetRow = taskRowIndex.get(tk.id);
+    if (targetRow == null) continue;
+    const ts = parseDate(tk.start);
+    if (!ts) continue;
+    for (const depId of deps) {
+      const srcRow = taskRowIndex.get(depId);
+      if (srcRow == null) continue;
+      const src = state.data.find(x => x.id === depId);
+      if (!src) continue;
+      const se = parseDate(src.end);
+      if (!se) continue;
+      const sx = src.milestone
+        ? daysBetween(state.minDate, se) * ppd + ppd/2
+        : (daysBetween(state.minDate, se) + 1) * ppd;
+      const sy = srcRow * rowH + rowH/2;
+      const tx = tk.milestone
+        ? daysBetween(state.minDate, ts) * ppd + ppd/2
+        : daysBetween(state.minDate, ts) * ppd;
+      const ty = targetRow * rowH + rowH/2;
+      const midX = Math.max(sx + 6, tx - 6);
+      const path = 'M '+sx+' '+sy+' L '+midX+' '+sy+' L '+midX+' '+ty+' L '+tx+' '+ty;
+      parts.push('<path class="dep-line" data-from="'+depId+'" data-to="'+tk.id+'" d="'+path+'" marker-end="url(#arrowhead)"/>');
+    }
+  }
+
+  const primaryColor = getCssVar('--primary') || '#2563eb';
+  const defs = '<defs>' +
+    '<marker id="arrowhead" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto"><polygon points="0 0, 6 3.5, 0 7" fill="#cbd5e1"/></marker>' +
+    '<marker id="arrowhead-hl" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto"><polygon points="0 0, 6 3.5, 0 7" fill="'+primaryColor+'"/></marker>' +
+  '</defs>';
+  svg.innerHTML = defs + parts.join('');
+
+  svg.querySelectorAll('.bar-task').forEach(el => {
+    el.addEventListener('mouseenter', e => {
+      state.hoveredTaskId = el.dataset.taskId;
+      updateHover();
+      showTooltipForTask(el.dataset.taskId, e);
+    });
+    el.addEventListener('mousemove', e => showTooltipForTask(el.dataset.taskId, e));
+    el.addEventListener('mouseleave', () => {
+      state.hoveredTaskId = null;
+      updateHover();
+      hideTooltip();
+    });
+  });
+
+  renderChartHeader(width, totalDays, ppd);
+}
+
+function kebab(s) {
+  return s.replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '');
+}
+
+function renderGridlines(width, height, totalDays, ppd) {
+  const parts = [];
+  if (ppd >= 6) {
+    for (let i = 0; i <= totalDays; i++) {
+      const d = addDays(state.minDate, i);
+      const x = i * ppd;
+      const cls = (d.getDate() === 1) ? 'gridline-month' : (d.getDay() === 1) ? 'gridline-week' : 'gridline-day';
+      parts.push('<line class="'+cls+'" x1="'+x+'" y1="0" x2="'+x+'" y2="'+height+'"/>');
+    }
+  } else if (ppd >= 1) {
+    for (let i = 0; i <= totalDays; i++) {
+      const d = addDays(state.minDate, i);
+      if (d.getDate() === 1) parts.push('<line class="gridline-month" x1="'+(i*ppd)+'" y1="0" x2="'+(i*ppd)+'" y2="'+height+'"/>');
+      else if (d.getDay() === 1 && ppd >= 2) parts.push('<line class="gridline-week" x1="'+(i*ppd)+'" y1="0" x2="'+(i*ppd)+'" y2="'+height+'"/>');
+    }
+  } else {
+    for (let i = 0; i <= totalDays; i++) {
+      const d = addDays(state.minDate, i);
+      if (d.getDate() === 1) {
+        const cls = (d.getMonth() === 0) ? 'gridline-month' : 'gridline-week';
+        parts.push('<line class="'+cls+'" x1="'+(i*ppd)+'" y1="0" x2="'+(i*ppd)+'" y2="'+height+'"/>');
+      }
+    }
+  }
+  return parts.join('');
+}
+
+function renderChartHeader(width, totalDays, ppd) {
+  const header = document.getElementById('chart-header');
+  const h = 56;
+  const parts = [];
+  const MONTHS = I18N[LANG].months_short;
+  const WEEKDAYS = I18N[LANG].weekdays_short;
+  const WK = I18N[LANG].week_prefix;
+  const QT = I18N[LANG].quarter_prefix;
+
+  if (state.zoom === 'weeks') {
+    let i = 0;
+    while (i < totalDays) {
+      const d = addDays(state.minDate, i);
+      const startOfNext = new Date(d.getFullYear(), d.getMonth()+1, 1);
+      const daysToNext = Math.min(daysBetween(d, startOfNext), totalDays - i);
+      const w = daysToNext * ppd;
+      parts.push('<rect x="'+(i*ppd)+'" y="0" width="'+w+'" height="28" fill="#f1f5f9" stroke="var(--border)"/>');
+      if (w > 30) parts.push('<text class="header-tick major" x="'+(i*ppd+8)+'" y="18">'+MONTHS[d.getMonth()]+' '+d.getFullYear()+'</text>');
+      i += daysToNext;
+    }
+    for (let j = 0; j < totalDays; j++) {
+      const d = addDays(state.minDate, j);
+      if (d.getDay() === 1 || j === 0) {
+        const wk = isoWeek(d);
+        const xStart = j * ppd;
+        let nextJ = j + 1;
+        while (nextJ < totalDays && addDays(state.minDate, nextJ).getDay() !== 1) nextJ++;
+        const w = (nextJ - j) * ppd;
+        parts.push('<line stroke="var(--border)" x1="'+xStart+'" y1="28" x2="'+xStart+'" y2="56"/>');
+        if (w > 24) parts.push('<text class="header-tick" x="'+(xStart + w/2)+'" y="46" text-anchor="middle">'+WK+wk+'</text>');
+      }
+    }
+  } else if (ppd >= 6) {
+    let i = 0;
+    while (i < totalDays) {
+      const d = addDays(state.minDate, i);
+      const startOfNext = new Date(d.getFullYear(), d.getMonth()+1, 1);
+      const daysToNext = Math.min(daysBetween(d, startOfNext), totalDays - i);
+      const w = daysToNext * ppd;
+      parts.push('<rect x="'+(i*ppd)+'" y="0" width="'+w+'" height="28" fill="#f1f5f9" stroke="var(--border)"/>');
+      parts.push('<text class="header-tick major" x="'+(i*ppd+8)+'" y="18">'+MONTHS[d.getMonth()]+' '+d.getFullYear()+'</text>');
+      i += daysToNext;
+    }
+    for (let j = 0; j < totalDays; j++) {
+      const d = addDays(state.minDate, j);
+      const x = j*ppd;
+      parts.push('<text class="header-tick" x="'+(x + ppd/2)+'" y="46" text-anchor="middle">'+d.getDate()+'</text>');
+      if (ppd >= 24) parts.push('<text class="header-tick" x="'+(x + ppd/2)+'" y="34" text-anchor="middle" style="font-size:9px">'+WEEKDAYS[d.getDay()]+'</text>');
+    }
+  } else if (ppd >= 1) {
+    let i = 0;
+    while (i < totalDays) {
+      const d = addDays(state.minDate, i);
+      const startOfNextYear = new Date(d.getFullYear()+1, 0, 1);
+      const daysToNext = Math.min(daysBetween(d, startOfNextYear), totalDays - i);
+      const w = daysToNext * ppd;
+      parts.push('<rect x="'+(i*ppd)+'" y="0" width="'+w+'" height="28" fill="#f1f5f9" stroke="var(--border)"/>');
+      parts.push('<text class="header-tick major" x="'+(i*ppd+8)+'" y="18">'+d.getFullYear()+'</text>');
+      i += daysToNext;
+    }
+    let j = 0;
+    while (j < totalDays) {
+      const d = addDays(state.minDate, j);
+      const startNext = new Date(d.getFullYear(), d.getMonth()+1, 1);
+      const dn = Math.min(daysBetween(d, startNext), totalDays - j);
+      const w = dn * ppd;
+      parts.push('<text class="header-tick" x="'+(j*ppd + w/2)+'" y="46" text-anchor="middle">'+MONTHS[d.getMonth()]+'</text>');
+      j += dn;
+    }
+  } else {
+    let i = 0;
+    while (i < totalDays) {
+      const d = addDays(state.minDate, i);
+      const startOfNextYear = new Date(d.getFullYear()+1, 0, 1);
+      const daysToNext = Math.min(daysBetween(d, startOfNextYear), totalDays - i);
+      const w = daysToNext * ppd;
+      parts.push('<rect x="'+(i*ppd)+'" y="0" width="'+w+'" height="28" fill="#f1f5f9" stroke="var(--border)"/>');
+      if (w > 30) parts.push('<text class="header-tick major" x="'+(i*ppd+8)+'" y="18">'+d.getFullYear()+'</text>');
+      i += daysToNext;
+    }
+    let j = 0;
+    while (j < totalDays) {
+      const d = addDays(state.minDate, j);
+      const q = Math.floor(d.getMonth()/3);
+      const qEnd = new Date(d.getFullYear(), q*3+3, 1);
+      const dn = Math.min(daysBetween(d, qEnd), totalDays - j);
+      const w = dn * ppd;
+      if (w > 20) parts.push('<text class="header-tick" x="'+(j*ppd + w/2)+'" y="46" text-anchor="middle">'+QT+(q+1)+'</text>');
+      j += dn;
+    }
+  }
+
+  header.innerHTML = '<svg class="timeline-header" width="'+width+'" height="'+h+'" viewBox="0 0 '+width+' '+h+'">'+parts.join('')+'</svg>';
+}
+
+function updateHover() {
+  const svg = document.getElementById('timeline-svg');
+  const id = state.hoveredTaskId;
+  if (!id) {
+    svg.querySelectorAll('.bar-task').forEach(el => el.classList.remove('dimmed','highlight'));
+    svg.querySelectorAll('.dep-line').forEach(el => el.classList.remove('dimmed','highlight'));
+    return;
+  }
+  const related = new Set([id]);
+  const hovered = state.data.find(tk => tk.id === id);
+  if (hovered && hovered.dependencies) {
+    String(hovered.dependencies).split(',').map(s=>s.trim()).filter(Boolean).forEach(d => related.add(d));
+  }
+  for (const tk of state.data) {
+    if (tk.dependencies) {
+      const deps = String(tk.dependencies).split(',').map(s=>s.trim()).filter(Boolean);
+      if (deps.includes(id)) related.add(tk.id);
+    }
+  }
+  svg.querySelectorAll('.bar-task').forEach(el => {
+    const tid = el.dataset.taskId;
+    if (related.has(tid)) {
+      el.classList.remove('dimmed');
+      el.classList.toggle('highlight', tid === id);
+    } else {
+      el.classList.add('dimmed');
+      el.classList.remove('highlight');
+    }
+  });
+  svg.querySelectorAll('.dep-line').forEach(el => {
+    const isRel = (el.dataset.from === id || el.dataset.to === id);
+    el.classList.toggle('highlight', isRel);
+    el.classList.toggle('dimmed', !isRel);
+    el.setAttribute('marker-end', isRel ? 'url(#arrowhead-hl)' : 'url(#arrowhead)');
+  });
+}
+
+function statusLabel(status) {
+  if (!status) return '';
+  const map = { 'Very High':'status_very_high','High':'status_high','Medium':'status_medium','Low':'status_low' };
+  return map[status] ? t(map[status]) : status;
+}
+
+function showTooltipForTask(id, ev) {
+  const tk = state.data.find(x => x.id === id);
+  if (!tk) return;
+  const tip = document.getElementById('tooltip');
+  let html = '<b>'+escapeHtml(tk.task)+'</b>';
+  const _wbs = state.wbsMap.get(tk.id) || '';
+  if (_wbs) html += '<div class="tt-row"><span class="tt-label">'+t('tt_wbs')+'</span><span>'+escapeHtml(_wbs)+'</span></div>';
+  html += '<div class="tt-row"><span class="tt-label">'+t('tt_phase')+'</span><span>'+escapeHtml(tk.phase)+'</span></div>';
+  html += '<div class="tt-row"><span class="tt-label">'+t('tt_period')+'</span><span>'+escapeHtml(tk.start)+' - '+escapeHtml(tk.end)+'</span></div>';
+  html += '<div class="tt-row"><span class="tt-label">'+t('tt_completion')+'</span><span>'+tk.completion+'%</span></div>';
+  if (tk.assignee) html += '<div class="tt-row"><span class="tt-label">'+t('tt_assignee')+'</span><span>'+escapeHtml(tk.assignee)+'</span></div>';
+  if (tk.status) html += '<div class="tt-row"><span class="tt-label">'+t('tt_status')+'</span><span>'+escapeHtml(statusLabel(tk.status))+'</span></div>';
+  if (tk.dependencies) html += '<div class="tt-row"><span class="tt-label">'+t('tt_dependencies')+'</span><span>'+escapeHtml(tk.dependencies)+'</span></div>';
+  if (tk.baseline_end) {
+    const _be = parseDate(tk.baseline_end);
+    const _e  = parseDate(tk.end);
+    const _bLabel = (tk.baseline_start||tk.start) + ' – ' + tk.baseline_end;
+    html += '<div class="tt-row"><span class="tt-label">'+t('tt_baseline')+'</span><span>'+escapeHtml(_bLabel)+'</span></div>';
+    if (_be && _e) {
+      const _dw = Math.round((_e - _be) / (7*86400*1000));
+      if (_dw > 0) html += '<div class="tt-row"><span class="tt-label">'+t('tt_delay')+'</span><span style="color:#f59e0b;font-weight:700">+'+_dw+' sem</span></div>';
+    }
+  }
+  tip.innerHTML = html;
+  tip.style.display = 'block';
+  tip.style.left = (ev.clientX + 14) + 'px';
+  tip.style.top = (ev.clientY + 14) + 'px';
+}
+function hideTooltip() { document.getElementById('tooltip').style.display = 'none'; }
+
+(function setupPan() {
+  const body = document.getElementById('chart-body');
+  let panning = false, startX = 0, startScrollLeft = 0, startY = 0, startScrollTop = 0;
+  body.addEventListener('mousedown', e => {
+    if (e.target.closest('.bar-task')) return;
+    panning = true;
+    body.classList.add('panning');
+    startX = e.clientX; startY = e.clientY;
+    startScrollLeft = body.scrollLeft; startScrollTop = body.scrollTop;
+  });
+  window.addEventListener('mousemove', e => {
+    if (!panning) return;
+    body.scrollLeft = startScrollLeft - (e.clientX - startX);
+    body.scrollTop = startScrollTop - (e.clientY - startY);
+  });
+  window.addEventListener('mouseup', () => {
+    panning = false;
+    body.classList.remove('panning');
+  });
+})();
+
+document.getElementById('chart-body').addEventListener('scroll', e => {
+  document.getElementById('chart-header').scrollLeft = e.target.scrollLeft;
+  document.getElementById('side-body').scrollTop = e.target.scrollTop;
+});
+document.getElementById('side-body').addEventListener('scroll', e => {
+  document.getElementById('chart-body').scrollTop = e.target.scrollTop;
+});
+
+function syncHeaderScroll() {
+  document.getElementById('chart-header').scrollLeft = document.getElementById('chart-body').scrollLeft;
+}
+document.getElementById('side-body').addEventListener('scroll', e => {
+  document.getElementById('side-header').scrollLeft = e.target.scrollLeft;
+});
+
+function renderAll() {
+  applyColTemplate();
+  renderSideHeader();
+  renderSideBody();
+  renderChart();
+  syncHeaderScroll();
+}
+
+document.querySelectorAll('.tb-btn[data-zoom]').forEach(b => {
+  b.addEventListener('click', () => applyZoom(b.dataset.zoom));
+});
+document.getElementById('btn-expand-all').addEventListener('click', () => { state.collapsedNodes.clear(); renderAll(); });
+document.getElementById('btn-collapse-all').addEventListener('click', () => {
+  const roots = buildTree(state.data);
+  collectAllSummaryIds(roots).forEach(id => state.collapsedNodes.add(id));
+  renderAll();
+});
+function renderThemeGrid() {
+  const grid = document.getElementById('theme-grid');
+  const current = localStorage.getItem('gantt-theme') || 'default';
+  const userThemes = loadUserThemes();
+
+  const presetCards = Object.keys(THEMES).map(key => {
+    const th = THEMES[key];
+    const label = (th.label[LANG] || th.label['en']);
+    const c = th.colors;
+    const swatches = ['very-high','high','medium','low','phase-bar'].map(k =>
+      '<span style="background:'+c[k]+'"></span>'
+    ).join('');
+    return '<div class="theme-card'+(key===current?' active':'')+'" data-theme="'+key+'">' +
+      '<div class="theme-card-name">'+escapeHtml(label)+'</div>' +
+      '<div class="theme-swatches">'+swatches+'</div>' +
+    '</div>';
+  }).join('');
+
+  const userCards = Object.keys(userThemes).map(name => {
+    const c = userThemes[name];
+    const swatches = ['very-high','high','medium','low','phase-bar'].map(k =>
+      '<span style="background:'+(c[k]||'#ccc')+'"></span>'
+    ).join('');
+    return '<div class="theme-card'+(name===current?' active':'')+'" data-theme="'+escapeHtml(name)+'">' +
+      '<button class="theme-card-delete" data-delete="'+escapeHtml(name)+'" title="'+escapeHtml(t('theme_delete_confirm'))+'">×</button>' +
+      '<div class="theme-card-name">'+escapeHtml(name)+' <span class="theme-card-user-badge">'+escapeHtml(t('theme_user_badge'))+'</span></div>' +
+      '<div class="theme-swatches">'+swatches+'</div>' +
+    '</div>';
+  }).join('');
+
+  grid.innerHTML = presetCards + userCards;
+  grid.querySelectorAll('.theme-card').forEach(card => {
+    card.addEventListener('click', e => {
+      if (e.target.closest('[data-delete]')) return;
+      applyTheme(card.dataset.theme, null);
+      renderThemeGrid();
+      renderPaletteGrid();
+      syncColorInputs();
+      toast(t('toast_theme_applied'), 'success');
+    });
+  });
+  grid.querySelectorAll('[data-delete]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const name = btn.dataset.delete;
+      if (!confirm(t('theme_delete_confirm') + ' (' + name + ')')) return;
+      const u = loadUserThemes();
+      delete u[name];
+      saveUserThemes(u);
+      if ((localStorage.getItem('gantt-theme') || '') === name) {
+        applyTheme('default', null);
+      }
+      renderThemeGrid();
+      renderPaletteGrid();
+      syncColorInputs();
+      toast(t('toast_theme_deleted'), 'success');
+    });
+  });
+}
+function renderPaletteGrid() {
+  const grid = document.getElementById('palette-grid');
+  const active = localStorage.getItem('gantt-ws-palette') || 'colorido';
+  grid.innerHTML = Object.keys(WS_PALETTES).map(key => {
+    const p = WS_PALETTES[key];
+    const label = p.label[LANG] || p.label['en'];
+    const swatches = p.colors.map(c => '<span style="background:'+c+'"></span>').join('');
+    return '<div class="palette-card'+(key===active?' active':'')+'" data-palette="'+key+'">' +
+      '<div class="palette-card-name">'+escapeHtml(label)+'</div>' +
+      '<div class="palette-swatches">'+swatches+'</div>' +
+    '</div>';
+  }).join('');
+  grid.querySelectorAll('.palette-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const key = card.dataset.palette;
+      localStorage.setItem('gantt-ws-palette', key);
+      state.wsPalette = (WS_PALETTES[key] || WS_PALETTES.colorido).colors;
+      renderPaletteGrid();
+      renderAll();
+      toast(t('toast_theme_applied'), 'success');
+    });
+  });
+}
+function syncColorInputs() {
+  document.querySelectorAll('#theme-popover input[type="color"]').forEach(inp => {
+    const key = inp.dataset.color;
+    inp.value = getCssVar('--' + key);
+  });
+}
+document.getElementById('btn-theme').addEventListener('click', e => {
+  const pop = document.getElementById('theme-popover');
+  if (pop.classList.contains('show')) { pop.classList.remove('show'); return; }
+  const rect = e.currentTarget.getBoundingClientRect();
+  pop.style.top = (rect.bottom + 8) + 'px';
+  pop.style.left = Math.max(8, rect.right - 320) + 'px';
+  renderThemeGrid();
+  renderPaletteGrid();
+  syncColorInputs();
+  pop.classList.add('show');
+});
+document.getElementById('btn-theme-close').addEventListener('click', () => {
+  document.getElementById('theme-popover').classList.remove('show');
+});
+document.getElementById('btn-theme-reset').addEventListener('click', () => {
+  applyTheme('default', null);
+  renderThemeGrid();
+  renderPaletteGrid();
+  syncColorInputs();
+  toast(t('toast_theme_applied'), 'success');
+});
+document.getElementById('btn-theme-save-as').addEventListener('click', () => {
+  const name = prompt(t('theme_save_prompt'));
+  if (!name) return;
+  const trimmed = name.trim();
+  if (!trimmed || THEMES[trimmed]) {
+    toast(t('toast_theme_name_invalid'), 'error');
+    return;
+  }
+  const u = loadUserThemes();
+  u[trimmed] = currentThemeColors();
+  saveUserThemes(u);
+  applyTheme(trimmed, null);
+  renderThemeGrid();
+  renderPaletteGrid();
+  syncColorInputs();
+  toast(t('toast_theme_saved', { name: trimmed }), 'success');
+});
+document.querySelectorAll('#theme-popover input[type="color"]').forEach(inp => {
+  inp.addEventListener('input', () => {
+    const custom = currentThemeColors();
+    custom[inp.dataset.color] = inp.value;
+    const key = localStorage.getItem('gantt-theme') || 'default';
+    applyTheme(key, custom);
+  });
+});
+document.addEventListener('click', e => {
+  const pop = document.getElementById('theme-popover');
+  const btn = document.getElementById('btn-theme');
+  if (pop.classList.contains('show') && !pop.contains(e.target) && !btn.contains(e.target)) {
+    pop.classList.remove('show');
+  }
+});
+
+document.getElementById('btn-toggle-labels').addEventListener('click', () => {
+  state.showBarLabels = !state.showBarLabels;
+  localStorage.setItem('gantt-bar-labels', state.showBarLabels ? '1' : '0');
+  const btn = document.getElementById('btn-toggle-labels');
+  btn.classList.toggle('active', state.showBarLabels);
+  btn.title = state.showBarLabels ? t('hide_bar_labels') : t('show_bar_labels');
+  renderChart();
+});
+// ============================================================
+// VIEW MANAGER
+// ============================================================
+function renderViewModal() {
+  // Colunas (com input de largura)
+  const colList = document.getElementById('view-columns-list');
+  colList.innerHTML = ALL_COLUMNS.map(c => {
+    const checked = !state.hiddenColumns.has(c.id);
+    const w = getColWidth(c.id);
+    return '<label class="checkbox-row">' +
+      '<input type="checkbox" data-col="'+c.id+'" '+(checked?'checked':'')+'>' +
+      '<span class="col-name">'+escapeHtml(t(c.i18nLabel))+'</span>' +
+      '<input type="number" class="col-width-input" data-col-w="'+c.id+'" min="40" max="500" value="'+w+'" title="'+escapeHtml(t('view_col_width'))+'">' +
+    '</label>';
+  }).join('');
+  colList.querySelectorAll('input[type="checkbox"][data-col]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const id = cb.dataset.col;
+      if (cb.checked) state.hiddenColumns.delete(id);
+      else state.hiddenColumns.add(id);
+      saveViewPrefs();
+      renderAll();
+    });
+  });
+  colList.querySelectorAll('input[type="number"][data-col-w]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const id = inp.dataset.colW;
+      let v = Math.max(40, Math.min(500, parseInt(inp.value, 10) || getColWidth(id)));
+      state.columnWidths[id] = v;
+      inp.value = v;
+      saveViewPrefs();
+      renderAll();
+    });
+  });
+
+  // Filter % range + assignee + date range
+  document.getElementById('filter-completion-min').value = state.filters.completionMin;
+  document.getElementById('filter-completion-max').value = state.filters.completionMax;
+  document.getElementById('filter-assignee').value = state.filters.assignee || '';
+  document.getElementById('filter-date-start').value = state.filters.dateStart ? toInputDate(parseDate(state.filters.dateStart)) : '';
+  document.getElementById('filter-date-end').value   = state.filters.dateEnd   ? toInputDate(parseDate(state.filters.dateEnd))   : '';
+
+  // Filtros booleanos
+  document.querySelectorAll('#modal-view input[data-filter]').forEach(cb => {
+    cb.checked = !!state.filters[cb.dataset.filter];
+  });
+
+  // Status filter list
+  const STATUSES = [
+    { val: 'Very High', cls: 'VeryHigh' },
+    { val: 'High',      cls: 'High' },
+    { val: 'Medium',    cls: 'Medium' },
+    { val: 'Low',       cls: 'Low' },
+    { val: '',          cls: 'empty' },
+  ];
+  const statusList = document.getElementById('view-status-list');
+  statusList.innerHTML = STATUSES.map(s => {
+    const checked = state.filters.statuses.has(s.val);
+    const label = s.val ? statusLabel(s.val) : t('grid_empty');
+    return '<label class="checkbox-row">' +
+      '<input type="checkbox" data-status="'+s.val+'" '+(checked?'checked':'')+'>' +
+      '<span class="status-dot-small status-'+s.cls+'"></span>' +
+      '<span class="col-name">'+escapeHtml(label)+'</span>' +
+    '</label>';
+  }).join('');
+  statusList.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const v = cb.dataset.status;
+      if (cb.checked) state.filters.statuses.add(v);
+      else state.filters.statuses.delete(v);
+      saveViewPrefs();
+      renderAll();
+    });
+  });
+
+  // Densidade
+  document.querySelectorAll('#density-toggle button').forEach(b => {
+    b.classList.toggle('active', b.dataset.density === state.density);
+  });
+
+  // Visualizações salvas
+  renderSavedViewsList();
+}
+
+function renderSavedViewsList() {
+  const list = document.getElementById('saved-views-list');
+  const views = loadSavedViews();
+  const names = Object.keys(views);
+  if (!names.length) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--text-muted);font-style:italic;padding:8px 4px;">— nenhuma —</div>';
+    return;
+  }
+  list.innerHTML = names.map(name =>
+    '<div class="saved-view-item">' +
+      '<span class="saved-view-item-name">'+escapeHtml(name)+'</span>' +
+      '<button class="apply-btn" data-apply="'+escapeHtml(name)+'" title="Aplicar">▶</button>' +
+      '<button data-delete="'+escapeHtml(name)+'" title="Remover">×</button>' +
+    '</div>'
+  ).join('');
+  list.querySelectorAll('[data-apply]').forEach(b => {
+    b.addEventListener('click', () => applySavedView(b.dataset.apply));
+  });
+  list.querySelectorAll('[data-delete]').forEach(b => {
+    b.addEventListener('click', () => {
+      if (!confirm(t('confirm_delete_view'))) return;
+      const all = loadSavedViews();
+      delete all[b.dataset.delete];
+      persistSavedViews(all);
+      renderSavedViewsList();
+      toast(t('toast_view_deleted'), 'success');
+    });
+  });
+}
+
+function applySavedView(name) {
+  const all = loadSavedViews();
+  const v = all[name];
+  if (!v) return;
+  state.hiddenColumns = new Set(v.hiddenColumns || []);
+  state.filters.hideMilestones = !!(v.filters && v.filters.hideMilestones);
+  state.filters.hideCompleted  = !!(v.filters && v.filters.hideCompleted);
+  state.filters.hideWeekends   = !!(v.filters && v.filters.hideWeekends);
+  state.filters.hideBarPct     = !!(v.filters && v.filters.hideBarPct);
+  state.filters.statuses = new Set((v.filters && v.filters.statuses) || ['Very High','High','Medium','Low','']);
+  state.filters.completionMin = (v.filters && v.filters.completionMin != null) ? +v.filters.completionMin : 0;
+  state.filters.completionMax = (v.filters && v.filters.completionMax != null) ? +v.filters.completionMax : 100;
+  state.filters.assignee = (v.filters && v.filters.assignee) || '';
+  state.filters.dateStart = (v.filters && v.filters.dateStart) || '';
+  state.filters.dateEnd = (v.filters && v.filters.dateEnd) || '';
+  state.columnWidths = v.columnWidths || {};
+  applyDensity(v.density || 'normal');
+  saveViewPrefs();
+  renderViewModal();
+  renderAll();
+  toast(t('toast_view_applied'), 'success');
+}
+
+document.getElementById('btn-view-manager').addEventListener('click', () => {
+  renderViewModal();
+  openModal('modal-view');
+});
+document.querySelectorAll('#modal-view input[data-filter]').forEach(cb => {
+  cb.addEventListener('change', () => {
+    state.filters[cb.dataset.filter] = cb.checked;
+    saveViewPrefs();
+    renderAll();
+  });
+});
+function bindCompletionRange() {
+  const minEl = document.getElementById('filter-completion-min');
+  const maxEl = document.getElementById('filter-completion-max');
+  function commit() {
+    let mn = Math.max(0, Math.min(100, parseInt(minEl.value, 10) || 0));
+    let mx = Math.max(0, Math.min(100, parseInt(maxEl.value, 10) || 100));
+    if (mn > mx) { [mn, mx] = [mx, mn]; }
+    state.filters.completionMin = mn;
+    state.filters.completionMax = mx;
+    minEl.value = mn; maxEl.value = mx;
+    saveViewPrefs();
+    renderAll();
+  }
+  minEl.addEventListener('change', commit);
+  maxEl.addEventListener('change', commit);
+}
+bindCompletionRange();
+document.getElementById('filter-assignee').addEventListener('input', e => {
+  state.filters.assignee = e.target.value || '';
+  saveViewPrefs();
+  renderAll();
+});
+function bindDateRange() {
+  const ds = document.getElementById('filter-date-start');
+  const de = document.getElementById('filter-date-end');
+  function commit() {
+    const dS = fromInputDate(ds.value);
+    const dE = fromInputDate(de.value);
+    state.filters.dateStart = dS ? fmtDate(dS) : '';
+    state.filters.dateEnd   = dE ? fmtDate(dE) : '';
+    saveViewPrefs();
+    renderAll();
+  }
+  ds.addEventListener('change', commit);
+  de.addEventListener('change', commit);
+}
+bindDateRange();
+
+// Search no toolbar
+const searchInput = document.getElementById('search-input');
+searchInput.addEventListener('input', e => {
+  state.searchQuery = e.target.value || '';
+  renderAll();
+});
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    searchInput.value = '';
+    state.searchQuery = '';
+    renderAll();
+    searchInput.blur();
+  }
+});
+document.querySelectorAll('#density-toggle button').forEach(b => {
+  b.addEventListener('click', () => {
+    applyDensity(b.dataset.density);
+    document.querySelectorAll('#density-toggle button').forEach(x => x.classList.toggle('active', x.dataset.density === state.density));
+    saveViewPrefs();
+    renderAll();
+  });
+});
+document.getElementById('btn-columns-reset').addEventListener('click', () => {
+  state.hiddenColumns.clear();
+  state.columnWidths = {};
+  saveViewPrefs();
+  renderViewModal();
+  renderAll();
+});
+document.getElementById('btn-view-reset-all').addEventListener('click', () => {
+  state.hiddenColumns.clear();
+  state.columnWidths = {};
+  state.filters.hideMilestones = false;
+  state.filters.hideCompleted = false;
+  state.filters.hideWeekends = false;
+  state.filters.hideBarPct = false;
+  state.filters.statuses = new Set(['Very High','High','Medium','Low','']);
+  state.filters.completionMin = 0;
+  state.filters.completionMax = 100;
+  state.filters.assignee = '';
+  state.filters.dateStart = '';
+  state.filters.dateEnd = '';
+  applyDensity('normal');
+  saveViewPrefs();
+  renderViewModal();
+  renderAll();
+});
+document.getElementById('btn-save-view').addEventListener('click', () => {
+  const inp = document.getElementById('save-view-name');
+  const name = (inp.value || '').trim();
+  if (!name) { toast(t('toast_view_name_invalid'), 'error'); return; }
+  const all = loadSavedViews();
+  if (all[name]) { toast(t('toast_view_name_invalid'), 'error'); return; }
+  all[name] = {
+    hiddenColumns: Array.from(state.hiddenColumns),
+    columnWidths: { ...state.columnWidths },
+    filters: {
+      hideMilestones: state.filters.hideMilestones,
+      hideCompleted: state.filters.hideCompleted,
+      hideWeekends: state.filters.hideWeekends,
+      hideBarPct: state.filters.hideBarPct,
+      hideDelayBadge: state.filters.hideDelayBadge,
+      statuses: Array.from(state.filters.statuses),
+      completionMin: state.filters.completionMin,
+      completionMax: state.filters.completionMax,
+      assignee: state.filters.assignee,
+      dateStart: state.filters.dateStart,
+      dateEnd: state.filters.dateEnd,
+    },
+    density: state.density,
+  };
+  persistSavedViews(all);
+  inp.value = '';
+  renderSavedViewsList();
+  toast(t('toast_view_saved', { name }), 'success');
+});
+
+document.getElementById('btn-manage-data').addEventListener('click', () => openDataModal());
+document.getElementById('btn-import-toolbar').addEventListener('click', () => openImportModal());
+document.getElementById('btn-export-toolbar').addEventListener('click', () => {
+  const choice = prompt(t('prompt_export_choice'), 'csv');
+  if (!choice) return;
+  const c = choice.toLowerCase().trim();
+  if (c === 'csv') exportCSV();
+  else if (c === 'xlsx' || c === 'excel') exportXLSX();
+  else if (c === 'png') exportPNG();
+  else if (c === 'json') copyJSON();
+});
+document.getElementById('lang-select').addEventListener('change', e => setLang(e.target.value));
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeModal(b.dataset.close)));
+document.querySelectorAll('.modal-backdrop').forEach(b => {
+  b.addEventListener('click', e => { if (e.target === b) closeModal(b.id); });
+});
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function openDataModal() {
+  state.draftData = JSON.parse(JSON.stringify(state.data));
+  state.history = [JSON.parse(JSON.stringify(state.draftData))];
+  renderDataGrid();
+  openModal('modal-data');
+}
+function pushHistory() {
+  state.history.push(JSON.parse(JSON.stringify(state.draftData)));
+  if (state.history.length > 50) state.history.shift();
+}
+function renderDataGrid() {
+  const container = document.getElementById('data-grid-container');
+  const data = state.draftData;
+  const STATUSES = ['', 'Very High', 'High', 'Medium', 'Low'];
+
+  // calcula o nível de cada tarefa para mostrar indent visual na coluna task
+  const levelById = {};
+  const byId = new Map(data.map(t => [t.id, t]));
+  data.forEach(t => {
+    let lvl = 0, cur = t, guard = 0;
+    while (cur && cur.parent_id && byId.has(cur.parent_id) && guard < 50) {
+      cur = byId.get(cur.parent_id);
+      lvl++;
+      guard++;
+    }
+    levelById[t.id] = lvl;
+  });
+  const draftWbsMap = assignWBS(buildTree(data));
+
+  const rows = data.map((tk, idx) => {
+    const lvl = levelById[tk.id] || 0;
+    // dropdown de parent_id: todos exceto self e descendentes
+    const parentOptions = '<option value="">— (raiz)</option>' +
+      data.filter(p => p.id !== tk.id && !isDescendantOf(tk.id, p.id, data))
+          .map(p => '<option value="'+escapeHtml(p.id)+'" '+(p.id===tk.parent_id?'selected':'')+'>'+escapeHtml(p.id+' · '+p.task)+'</option>')
+          .join('');
+    const statusOptions = STATUSES.map(s => '<option value="'+s+'" '+(s===tk.status?'selected':'')+'>'+(s ? escapeHtml(statusLabel(s)) : escapeHtml(t('grid_empty')))+'</option>').join('');
+    const indentSpan = lvl > 0 ? '<span style="display:inline-block;width:'+(lvl*14)+'px"></span>' : '';
+    return '<tr data-idx="'+idx+'" draggable="true">' +
+      '<td class="col-drag">::</td>' +
+      '<td class="col-id">'+escapeHtml(tk.id)+'</td>' +
+      '<td class="col-id" style="font-family:ui-monospace,monospace;font-size:11px;text-align:center" title="WBS">'+escapeHtml(draftWbsMap.get(tk.id)||'')+'</td>' +
+      '<td><select data-field="parent_id">'+parentOptions+'</select></td>' +
+      '<td>'+indentSpan+'<input type="text" data-field="task" value="'+escapeHtml(tk.task)+'" style="width:calc(100% - '+(lvl*14)+'px)"></td>' +
+      '<td style="text-align:center"><input type="checkbox" data-field="milestone" '+(tk.milestone?'checked':'')+'></td>' +
+      '<td><input type="date" data-field="start" value="'+toInputDate(parseDate(tk.start))+'"></td>' +
+      '<td><input type="date" data-field="end" value="'+toInputDate(parseDate(tk.end))+'"></td>' +
+      '<td class="completion-cell">' +
+        '<input type="range" min="0" max="100" data-field="completion-range" value="'+(+tk.completion||0)+'">' +
+        '<input type="number" min="0" max="100" data-field="completion" value="'+(+tk.completion||0)+'" style="width:50px"><span class="pct">%</span>' +
+      '</td>' +
+      '<td><input type="text" data-field="dependencies" value="'+escapeHtml(tk.dependencies||'')+'" placeholder="2,3"></td>' +
+      '<td><input type="text" data-field="assignee" value="'+escapeHtml(tk.assignee||'')+'"></td>' +
+      '<td><select data-field="status">'+statusOptions+'</select></td>' +
+      '<td class="col-actions">' +
+        '<button class="row-action-btn" data-action="outdent" title="Outdent">⇤</button>' +
+        '<button class="row-action-btn" data-action="indent" title="Indent">⇥</button>' +
+        '<button class="row-action-btn" data-action="duplicate" title="'+escapeHtml(t('duplicate'))+'">D</button>' +
+        '<button class="row-action-btn danger" data-action="delete" title="'+escapeHtml(t('delete_label'))+'">X</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  container.innerHTML =
+    '<table class="data-grid">' +
+      '<thead><tr>' +
+        '<th></th>' +
+        '<th>'+escapeHtml(t('grid_id'))+'</th>' +
+        '<th>'+escapeHtml(t('grid_wbs'))+'</th>' +
+        '<th>'+escapeHtml(t('grid_parent'))+'</th>' +
+        '<th>'+escapeHtml(t('grid_task'))+'</th>' +
+        '<th>'+escapeHtml(t('grid_milestone'))+'</th>' +
+        '<th>'+escapeHtml(t('grid_start'))+'</th>' +
+        '<th>'+escapeHtml(t('grid_end'))+'</th>' +
+        '<th>'+escapeHtml(t('grid_completion'))+'</th>' +
+        '<th>'+escapeHtml(t('grid_dependencies'))+'</th>' +
+        '<th>'+escapeHtml(t('grid_assignee'))+'</th>' +
+        '<th>'+escapeHtml(t('grid_status'))+'</th>' +
+        '<th>'+escapeHtml(t('grid_actions'))+'</th>' +
+      '</tr></thead>' +
+      '<tbody id="data-grid-body">'+rows+'</tbody>' +
+    '</table>';
+  attachGridEvents();
+}
+
+function attachGridEvents() {
+  const body = document.getElementById('data-grid-body');
+  body.querySelectorAll('tr').forEach(tr => {
+    const idx = +tr.dataset.idx;
+    tr.querySelectorAll('[data-field]').forEach(inp => {
+      inp.addEventListener('change', () => {
+        const field = inp.dataset.field;
+        const tk = state.draftData[idx];
+        if (field === 'milestone') tk.milestone = inp.checked;
+        else if (field === 'completion' || field === 'completion-range') {
+          let v = Math.max(0, Math.min(100, +inp.value||0));
+          tk.completion = v;
+          tr.querySelector('[data-field="completion"]').value = v;
+          tr.querySelector('[data-field="completion-range"]').value = v;
+        } else if (field === 'start' || field === 'end') {
+          const d = fromInputDate(inp.value);
+          if (d) tk[field] = fmtDate(d);
+        } else if (field === 'parent_id') {
+          // valida ciclo
+          if (inp.value && isDescendantOf(tk.id, inp.value, state.draftData)) {
+            toast(t('toast_cycle_detected'), 'error');
+            inp.value = tk.parent_id || '';
+            return;
+          }
+          tk.parent_id = inp.value;
+          renderDataGrid();
+          return;
+        } else tk[field] = inp.value;
+        pushHistory();
+      });
+      if (inp.dataset.field === 'completion-range') {
+        inp.addEventListener('input', () => { tr.querySelector('[data-field="completion"]').value = inp.value; });
+      }
+      if (inp.dataset.field === 'completion') {
+        inp.addEventListener('input', () => { tr.querySelector('[data-field="completion-range"]').value = inp.value; });
+      }
+    });
+    tr.querySelectorAll('[data-action]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.action;
+        const tk = state.draftData[idx];
+        if (action === 'delete') {
+          if (!confirm(t('confirm_delete_task'))) return;
+          state.draftData.splice(idx, 1);
+          pushHistory();
+          renderDataGrid();
+        } else if (action === 'duplicate') {
+          const clone = Object.assign({}, tk, { id: nextId() });
+          state.draftData.splice(idx+1, 0, clone);
+          pushHistory();
+          renderDataGrid();
+        } else if (action === 'indent') {
+          // pega o item anterior (que ainda não seja descendente meu) como novo pai
+          for (let j = idx - 1; j >= 0; j--) {
+            const cand = state.draftData[j];
+            if (cand.id === tk.id) continue;
+            if (isDescendantOf(tk.id, cand.id, state.draftData)) continue;
+            tk.parent_id = cand.id;
+            pushHistory();
+            renderDataGrid();
+            return;
+          }
+          toast(t('toast_cannot_indent'), 'error');
+        } else if (action === 'outdent') {
+          if (!tk.parent_id) { toast(t('toast_cannot_outdent'), 'error'); return; }
+          const byId = new Map(state.draftData.map(x => [x.id, x]));
+          const parent = byId.get(tk.parent_id);
+          tk.parent_id = parent ? (parent.parent_id || '') : '';
+          pushHistory();
+          renderDataGrid();
+        }
+      });
+    });
+    tr.addEventListener('dragstart', e => {
+      tr.classList.add('dragging');
+      e.dataTransfer.setData('text/plain', tr.dataset.idx);
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    tr.addEventListener('dragend', () => {
+      tr.classList.remove('dragging');
+      body.querySelectorAll('tr').forEach(r => r.classList.remove('drop-target'));
+    });
+    tr.addEventListener('dragover', e => {
+      e.preventDefault();
+      body.querySelectorAll('tr').forEach(r => r.classList.remove('drop-target'));
+      tr.classList.add('drop-target');
+    });
+    tr.addEventListener('drop', e => {
+      e.preventDefault();
+      const fromIdx = +e.dataTransfer.getData('text/plain');
+      const toIdx = +tr.dataset.idx;
+      if (fromIdx === toIdx) return;
+      const [moved] = state.draftData.splice(fromIdx, 1);
+      state.draftData.splice(toIdx, 0, moved);
+      pushHistory();
+      renderDataGrid();
+    });
+  });
+}
+
+function nextId() {
+  let max = 0;
+  for (const tk of state.draftData) {
+    const n = parseInt(tk.id, 10);
+    if (!isNaN(n) && n > max) max = n;
+  }
+  return String(max + 1);
+}
+
+document.getElementById('btn-add-row').addEventListener('click', () => {
+  const usesHierarchy = state.draftData.some(t => t.parent_id !== undefined);
+  let defaultParentId = '';
+  if (usesHierarchy) {
+    // Put new task under the root node (first item with parent_id === '')
+    const rootRow = state.draftData.find(tk => tk.parent_id === '');
+    defaultParentId = rootRow ? rootRow.id : '';
+  } else {
+    const phases = Array.from(new Set(state.draftData.map(tk => tk.phase))).filter(Boolean);
+    defaultParentId = phases[0] || t('default_phase');
+  }
+  const today = new Date();
+  state.draftData.push({
+    id: nextId(),
+    parent_id: defaultParentId,
+    phase: '',
+    task: t('new_task_default'),
+    milestone: false,
+    start: fmtDate(today),
+    end: fmtDate(addDays(today, 5)),
+    completion: 0,
+    dependencies: '', assignee: '', status: ''
+  });
+  pushHistory();
+  renderDataGrid();
+});
+document.getElementById('btn-undo').addEventListener('click', () => {
+  if (state.history.length <= 1) { toast(t('toast_nothing_to_undo'), 'error'); return; }
+  state.history.pop();
+  state.draftData = JSON.parse(JSON.stringify(state.history[state.history.length - 1]));
+  renderDataGrid();
+});
+document.getElementById('btn-restore-default').addEventListener('click', () => {
+  if (!confirm(t('confirm_restore_default'))) return;
+  state.draftData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+  pushHistory();
+  renderDataGrid();
+});
+document.getElementById('btn-apply').addEventListener('click', () => {
+  const errors = validateData(state.draftData);
+  if (errors.length) { toast(t('toast_validation_errors', { errs: errors.slice(0,3).join('; ') }), 'error'); return; }
+  state.data = JSON.parse(JSON.stringify(state.draftData));
+  closeModal('modal-data');
+  renderAll();
+  toast(t('toast_applied'), 'success');
+});
+document.getElementById('btn-save-local').addEventListener('click', () => {
+  state.data = JSON.parse(JSON.stringify(state.draftData));
+  if (saveToStorage()) toast(t('toast_saved'), 'success');
+  else toast(t('toast_save_failed'), 'error');
+  renderAll();
+});
+
+function validateData(data) {
+  const errors = [];
+  const usesHierarchy = data.some(t => t.parent_id !== undefined);
+  for (let i = 0; i < data.length; i++) {
+    const tk = data[i];
+    const ln = i + 1;
+    if (!usesHierarchy && !tk.phase) errors.push(t('val_phase_empty', { n: ln }));
+    if (!tk.task) errors.push(t('val_task_empty', { n: ln }));
+    const s = parseDate(tk.start), e = parseDate(tk.end);
+    if (tk.start && !s) errors.push(t('val_start_invalid', { n: ln }));
+    if (tk.end && !e) errors.push(t('val_end_invalid', { n: ln }));
+    if (s && e && e < s) errors.push(t('val_end_before_start', { n: ln }));
+    const c = +tk.completion;
+    if (isNaN(c) || c < 0 || c > 100) errors.push(t('val_completion_range', { n: ln }));
+  }
+  return errors;
+}
+
+function openImportModal() {
+  state.pendingImportData = null;
+  document.getElementById('import-status').innerHTML = '';
+  document.getElementById('import-errors').innerHTML = '';
+  document.getElementById('import-preview-container').innerHTML = '';
+  document.getElementById('import-options').style.display = 'none';
+  document.getElementById('btn-confirm-import').disabled = true;
+  document.getElementById('import-file').value = '';
+  openModal('modal-import');
+}
+document.getElementById('btn-import-modal').addEventListener('click', () => {
+  closeModal('modal-data');
+  openImportModal();
+});
+document.getElementById('import-file').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('import-status').innerHTML = '<div class="info-box">'+escapeHtml(t('import_reading'))+'</div>';
+  try {
+    let rows;
+    if (/\.xlsx?$/i.test(file.name)) {
+      await loadSheetJS();
+      rows = await readXlsx(file);
+    } else {
+      const text = await file.text();
+      rows = parseCSV(text);
+    }
+    processImportedRows(rows);
+  } catch (err) {
+    document.getElementById('import-status').innerHTML = '';
+    document.getElementById('import-errors').innerHTML = '<div class="errors-list">Error: '+escapeHtml(err.message)+'</div>';
+  }
+});
+
+function normalizeHeaderName(s) {
+  return String(s).toLowerCase().trim()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');  // remove accents
+}
+function matchHeader(name) {
+  const n = normalizeHeaderName(name);
+  for (const field in HEADER_ALIASES) {
+    if (HEADER_ALIASES[field].some(a => normalizeHeaderName(a) === n)) return field;
+  }
+  return null;
+}
+
+function processImportedRows(rows) {
+  if (!rows || !rows.length) {
+    document.getElementById('import-status').innerHTML = '<div class="errors-list">'+escapeHtml(t('import_records_read', { n: 0 }))+'</div>';
+    return;
+  }
+  const firstRow = rows[0];
+  const headerMap = {};
+  Object.keys(firstRow).forEach(h => {
+    const field = matchHeader(h);
+    if (field) headerMap[field] = h;
+  });
+  const FIELDS = ['id','parent_id','phase','task','milestone','start','end','completion','dependencies','assignee','status'];
+  const normalized = rows.map(row => {
+    const out = {};
+    for (const f of FIELDS) {
+      const key = headerMap[f];
+      let v = key != null ? row[key] : '';
+      if (v == null) v = '';
+      if (f === 'milestone') {
+        const s = String(v).toLowerCase().trim();
+        out[f] = (s === 'true' || s === '1' || s === 'sim' || s === 'yes' || s === 'si' || s === 'sí');
+      } else if (f === 'completion') {
+        out[f] = parseFloat(String(v).replace('%','').replace(',','.')) || 0;
+      } else if (f === 'start' || f === 'end') {
+        const d = parseDate(v);
+        out[f] = d ? fmtDate(d) : String(v);
+      } else out[f] = String(v).trim();
+    }
+    return out;
+  });
+  let maxId = 0;
+  normalized.forEach(r => { const n = parseInt(r.id, 10); if (!isNaN(n) && n > maxId) maxId = n; });
+  normalized.forEach(r => { if (!r.id) { maxId++; r.id = String(maxId); } });
+
+  const errors = validateData(normalized);
+  document.getElementById('import-status').innerHTML = '<div class="info-box">'+escapeHtml(t('import_records_read', { n: normalized.length }))+'</div>';
+  if (errors.length) {
+    document.getElementById('import-errors').innerHTML =
+      '<div class="errors-list"><b>'+escapeHtml(t('import_errors_label', { n: errors.length }))+'</b><ul>' +
+      errors.slice(0,30).map(e=>'<li>'+escapeHtml(e)+'</li>').join('') + '</ul></div>';
+  } else {
+    document.getElementById('import-errors').innerHTML = '';
+  }
+  const preview = normalized.slice(0, 5);
+  const cols = ['id','parent_id','phase','task','milestone','start','end','completion','dependencies','assignee','status'];
+  const html =
+    '<h3 style="margin-top:14px;font-size:13px">'+escapeHtml(t('import_preview_title'))+'</h3>' +
+    '<div class="import-preview"><table class="data-grid">' +
+      '<thead><tr>'+cols.map(c=>'<th>'+escapeHtml(t('grid_'+c))+'</th>').join('')+'</tr></thead>' +
+      '<tbody>'+preview.map(r=>'<tr>'+cols.map(c=>'<td>'+escapeHtml(String(r[c]))+'</td>').join('')+'</tr>').join('')+'</tbody>' +
+    '</table></div>';
+  document.getElementById('import-preview-container').innerHTML = html;
+  document.getElementById('import-options').style.display = 'flex';
+  document.getElementById('btn-confirm-import').disabled = errors.length > 0;
+  state.pendingImportData = normalized;
+}
+
+document.getElementById('btn-confirm-import').addEventListener('click', () => {
+  if (!state.pendingImportData) return;
+  const mode = document.querySelector('input[name="import-mode"]:checked').value;
+  // Migra parent_id se o arquivo veio sem hierarquia explícita
+  state.pendingImportData = migrateToTree(state.pendingImportData);
+  if (mode === 'replace') {
+    state.data = state.pendingImportData;
+  } else {
+    let maxId = 0;
+    state.data.forEach(tk => { const n = parseInt(tk.id,10); if (!isNaN(n) && n > maxId) maxId = n; });
+    const existing = new Set(state.data.map(tk => tk.id));
+    for (const r of state.pendingImportData) {
+      if (existing.has(r.id)) { maxId++; r.id = String(maxId); }
+      state.data.push(r);
+    }
+  }
+  closeModal('modal-import');
+  renderAll();
+  toast(t('toast_import_done', { n: state.pendingImportData.length }), 'success');
+});
+
+function detectDelimiter(text) {
+  const firstLine = text.split(/\r?\n/)[0] || '';
+  const cs = (firstLine.match(/,/g) || []).length;
+  const ss = (firstLine.match(/;/g) || []).length;
+  return ss > cs ? ';' : ',';
+}
+function parseCSV(text) {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const delim = detectDelimiter(text);
+  const rows = [];
+  let i = 0, field = '', row = [], inQuotes = false;
+  while (i < text.length) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i+1] === '"') { field += '"'; i += 2; continue; }
+        inQuotes = false; i++; continue;
+      }
+      field += c; i++;
+    } else {
+      if (c === '"') { inQuotes = true; i++; continue; }
+      if (c === delim) { row.push(field); field = ''; i++; continue; }
+      if (c === '\n' || c === '\r') {
+        row.push(field); field = '';
+        if (row.length > 1 || row[0] !== '') rows.push(row);
+        row = [];
+        if (c === '\r' && text[i+1] === '\n') i++;
+        i++; continue;
+      }
+      field += c; i++;
+    }
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  const dataRows = rows.filter(r => !(r[0]||'').trim().startsWith('#'));
+  if (!dataRows.length) return [];
+  const headers = dataRows[0].map(h => (h||'').trim());
+  const out = [];
+  for (let k = 1; k < dataRows.length; k++) {
+    const r = dataRows[k];
+    if (r.every(c => (c||'').trim() === '')) continue;
+    const obj = {};
+    headers.forEach((h, idx) => obj[h] = r[idx] != null ? r[idx] : '');
+    out.push(obj);
+  }
+  return out;
+}
+function dataToCSV(data) {
+  const wbsMap = assignWBS(buildTree(data));
+  const cols = ['id','wbs','parent_id','phase','task','milestone','start','end','completion','dependencies','assignee','status'];
+  const esc = v => {
+    const s = v == null ? '' : String(v);
+    if (/[",;\n\r]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+    return s;
+  };
+  const lines = [cols.join(',')];
+  for (const tk of data) lines.push(cols.map(c => c === 'wbs' ? esc(wbsMap.get(tk.id)||'') : esc(tk[c])).join(','));
+  return lines.join('\r\n');
+}
+function exportCSV() { download(dataToCSV(state.data), 'gantt-data.csv', 'text/csv;charset=utf-8'); toast(t('toast_csv_exported'), 'success'); }
+
+function generateTemplateCSV() {
+  const today = new Date();
+  return [
+    '# ' + t('template_comment'),
+    'id,phase,task,milestone,start,end,completion,dependencies,assignee,status',
+    '1,Phase 1,' + t('example_task') + ',false,' + fmtDate(today) + ',' + fmtDate(addDays(today,5)) + ',25,,A,Medium',
+    '2,Phase 1,' + t('example_dep') + ',false,' + fmtDate(addDays(today,5)) + ',' + fmtDate(addDays(today,10)) + ',0,1,B,High',
+    '3,Phase 1,' + t('example_milestone') + ',true,' + fmtDate(addDays(today,10)) + ',' + fmtDate(addDays(today,10)) + ',0,2,,Very High',
+  ].join('\r\n');
+}
+document.getElementById('btn-template').addEventListener('click', () => {
+  download(generateTemplateCSV(), 'gantt-template.csv', 'text/csv;charset=utf-8');
+  toast(t('toast_template_downloaded'), 'success');
+});
+
+let sheetJSLoaded = false;
+function loadSheetJS() {
+  if (sheetJSLoaded) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js';
+    s.onload = () => { sheetJSLoaded = true; res(); };
+    s.onerror = () => rej(new Error('SheetJS load failed'));
+    document.head.appendChild(s);
+  });
+}
+async function readXlsx(file) {
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(sheet, { defval: '' });
+}
+async function exportXLSX() {
+  try {
+    await loadSheetJS();
+    const wbsMap = assignWBS(buildTree(state.data));
+    const cols = ['id','wbs','parent_id','phase','task','milestone','start','end','completion','dependencies','assignee','status'];
+    const aoa = [cols].concat(state.data.map(tk => cols.map(c => c === 'wbs' ? (wbsMap.get(tk.id)||'') : tk[c])));
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Gantt');
+    XLSX.writeFile(wb, 'gantt-data.xlsx');
+    toast(t('toast_xlsx_exported'), 'success');
+  } catch { toast(t('toast_xlsx_failed'), 'error'); }
+}
+document.getElementById('btn-export-csv').addEventListener('click', exportCSV);
+document.getElementById('btn-export-xlsx').addEventListener('click', exportXLSX);
+
+async function exportPNG() {
+  try {
+    const sideHeader = document.getElementById('side-header');
+    const chartHeader = document.getElementById('chart-header');
+    const timelineSvg = document.getElementById('timeline-svg');
+    const headerSvg = chartHeader.querySelector('svg');
+    const sideW = sideHeader.offsetWidth;
+    const chartW = +timelineSvg.getAttribute('width');
+    const headerH = 56;
+    const bodyH = +timelineSvg.getAttribute('height');
+    const totalW = sideW + chartW;
+    const totalH = headerH + bodyH;
+    const canvas = document.createElement('canvas');
+    canvas.width = totalW; canvas.height = totalH;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, totalW, totalH);
+
+    const tlImg = await svgToImage(timelineSvg, chartW, bodyH);
+    ctx.drawImage(tlImg, sideW, headerH);
+    const hdImg = await svgToImage(headerSvg, chartW, headerH);
+    ctx.drawImage(hdImg, sideW, 0);
+    await drawSidePanelToCanvas(ctx, sideW, totalH);
+
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'gantt-chart.png';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast(t('toast_png_exported'), 'success');
+    });
+  } catch (err) { console.error(err); toast(t('toast_png_failed') + ': ' + err.message, 'error'); }
+}
+function svgToImage(svg, w, h) {
+  return new Promise((res, rej) => {
+    const clone = svg.cloneNode(true);
+    inlineStyles(clone);
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    clone.setAttribute('width', w);
+    clone.setAttribute('height', h);
+    const xml = new XMLSerializer().serializeToString(clone);
+    const blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); res(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('SVG render failed')); };
+    img.src = url;
+  });
+}
+function inlineStyles(svg) {
+  const colors = {
+    '--phase-bar': getCssVar('--phase-bar') || '#475569',
+    '--very-high': getCssVar('--very-high') || '#b91c1c',
+    '--high': getCssVar('--high') || '#ea580c',
+    '--medium': getCssVar('--medium') || '#ca8a04',
+    '--low': getCssVar('--low') || '#16a34a',
+    '--primary': getCssVar('--primary') || '#2563eb',
+    '--text-muted': '#6b7280', '--text': '#1f2430',
+    '--grid-line': '#eef0f3', '--grid-line-strong': '#d8dce2',
+    '--border': '#e3e6eb', '--danger': '#dc2626',
+  };
+  const replaceVars = el => {
+    for (const attr of ['fill','stroke']) {
+      const v = el.getAttribute(attr);
+      if (v && v.startsWith('var(')) {
+        const m = v.match(/var\((--[\w-]+)\)/);
+        if (m && colors[m[1]]) el.setAttribute(attr, colors[m[1]]);
+      }
+    }
+    if (el.classList) {
+      if (el.classList.contains('row-band') && el.classList.contains('phase')) el.setAttribute('fill', '#eef2f7');
+      if (el.classList.contains('weekend-band')) el.setAttribute('fill','#f3f4f6');
+      if (el.classList.contains('gridline-day')) { el.setAttribute('stroke','#eef0f3'); el.setAttribute('stroke-width','1'); }
+      if (el.classList.contains('gridline-week')) { el.setAttribute('stroke','#d8dce2'); el.setAttribute('stroke-width','1'); }
+      if (el.classList.contains('gridline-month')) { el.setAttribute('stroke','#d8dce2'); el.setAttribute('stroke-width','1.4'); }
+      if (el.classList.contains('today-line')) { el.setAttribute('stroke','#dc2626'); el.setAttribute('stroke-width','1.5'); el.setAttribute('stroke-dasharray','3,3'); }
+      if (el.classList.contains('golive-line')) { el.setAttribute('stroke','#2563eb'); el.setAttribute('stroke-width','1.8'); el.setAttribute('opacity','0.75'); }
+      if (el.classList.contains('decision-line')) { el.setAttribute('stroke','#dc2626'); el.setAttribute('stroke-width','1.5'); el.setAttribute('stroke-dasharray','6,3'); el.setAttribute('opacity','0.85'); }
+      if (el.classList.contains('dep-line')) { el.setAttribute('stroke','#cbd5e1'); el.setAttribute('fill','none'); el.setAttribute('stroke-width','0.9'); }
+      if (el.classList.contains('baseline-bar')) { el.setAttribute('fill','#94a3b8'); el.setAttribute('opacity','0.30'); }
+      if (el.classList.contains('baseline-bar-outline')) { el.setAttribute('fill','none'); el.setAttribute('stroke','#64748b'); el.setAttribute('stroke-width','1'); el.setAttribute('stroke-dasharray','3,2'); el.setAttribute('opacity','0.55'); }
+      if (el.classList.contains('badge-delay-bg')) { el.setAttribute('fill','#f59e0b'); el.setAttribute('opacity','0.9'); }
+      if (el.classList.contains('badge-delay-txt')) { el.setAttribute('fill','white'); el.setAttribute('font-size','9'); el.setAttribute('font-weight','700'); }
+      if (el.classList.contains('header-tick')) el.setAttribute('fill', el.classList.contains('major') ? '#1f2430' : '#6b7280');
+      if (el.classList.contains('bar-label-pct')) { el.setAttribute('fill','#ffffff'); el.setAttribute('stroke','rgba(0,0,0,0.25)'); el.setAttribute('stroke-width','0.5'); }
+      if (el.classList.contains('bar-label-name')) el.setAttribute('fill','#1f2430');
+    }
+    for (const ch of el.children) replaceVars(ch);
+  };
+  replaceVars(svg);
+}
+async function drawSidePanelToCanvas(ctx, sideW, totalH) {
+  const rows = buildVisibleRows();
+  const visible = ALL_COLUMNS.filter(c => !state.hiddenColumns.has(c.id));
+  const headerH = 56;
+  const rowH = 30;
+  const SCLR = { VeryHigh:'#b91c1c', High:'#ea580c', Medium:'#ca8a04', Low:'#16a34a', empty:'#cbd5e1', phase:'#475569' };
+  const trunc = (s, n) => { s = String(s||''); return s.length > n ? s.slice(0,n)+'…' : s; };
+  const p = [];
+
+  p.push('<svg xmlns="http://www.w3.org/2000/svg" width="'+sideW+'" height="'+totalH+'" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif">');
+  p.push('<rect width="'+sideW+'" height="'+totalH+'" fill="#fff"/>');
+  p.push('<rect width="'+sideW+'" height="'+headerH+'" fill="#fafbfc"/>');
+
+  // header labels + column dividers
+  let hx = 0;
+  for (const col of visible) {
+    const cw = getColWidth(col.id);
+    const lbl = (t(col.i18nLabel)||col.id).toUpperCase();
+    p.push('<text x="'+(hx+6)+'" y="36" font-size="10" font-weight="600" fill="#6b7280">'+escapeHtml(trunc(lbl, Math.floor(cw/7)))+'</text>');
+    p.push('<line x1="'+(hx+cw)+'" y1="0" x2="'+(hx+cw)+'" y2="'+headerH+'" stroke="#e3e6eb" stroke-width="1"/>');
+    hx += cw;
+  }
+  p.push('<line x1="0" y1="'+headerH+'" x2="'+sideW+'" y2="'+headerH+'" stroke="#c8ccd4" stroke-width="1.5"/>');
+
+  // rows
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const tk = r.task, node = r.node;
+    const y = headerH + i * rowH;
+    const ty = y + 19;
+
+    if (r.type === 'summary') p.push('<rect x="0" y="'+y+'" width="'+sideW+'" height="'+rowH+'" fill="#eef2f7"/>');
+    const _pngWsC = state.wsColorMap.get(tk.id) || '#94a3b8';
+    p.push('<rect x="0" y="'+y+'" width="4" height="'+rowH+'" fill="'+_pngWsC+'" opacity="0.85"/>');
+    p.push('<line x1="0" y1="'+(y+rowH)+'" x2="'+sideW+'" y2="'+(y+rowH)+'" stroke="#eef0f3" stroke-width="1"/>');
+
+    let cx = 0;
+    for (const col of visible) {
+      const cw = getColWidth(col.id);
+      const maxCh = Math.max(3, Math.floor(cw / 7));
+
+      if (col.id === 'id') {
+        p.push('<text x="'+(cx+cw/2)+'" y="'+ty+'" text-anchor="middle" font-family="ui-monospace,monospace" font-size="11" fill="#6b7280">'+escapeHtml(tk.id)+'</text>');
+      } else if (col.id === 'wbs') {
+        p.push('<text x="'+(cx+cw/2)+'" y="'+ty+'" text-anchor="middle" font-family="ui-monospace,monospace" font-size="11" fill="#6b7280">'+escapeHtml(state.wbsMap.get(tk.id)||'')+'</text>');
+      } else if (col.id === 'task') {
+        const ind = r.type === 'summary' ? 8 + r.level*14 : 24 + r.level*14;
+        const pfx = r.type === 'summary' ? '▼ ' : (tk.milestone ? '◆ ' : '');
+        const fw = r.type === 'summary' ? '600' : '400';
+        const mc = Math.max(3, Math.floor((cw - ind) / 7));
+        p.push('<text x="'+(cx+ind)+'" y="'+ty+'" font-size="12" font-weight="'+fw+'" fill="#1f2430">'+escapeHtml(pfx+trunc(tk.task,mc))+'</text>');
+      } else if (col.id === 'start') {
+        const v = r.type === 'summary' ? (node.aggStart ? fmtDate(node.aggStart) : '') : (tk.start||'');
+        p.push('<text x="'+(cx+4)+'" y="'+ty+'" font-size="12" fill="#1f2430">'+escapeHtml(v)+'</text>');
+      } else if (col.id === 'end') {
+        const v = r.type === 'summary' ? (node.aggEnd ? fmtDate(node.aggEnd) : '') : (tk.end||'');
+        p.push('<text x="'+(cx+4)+'" y="'+ty+'" font-size="12" fill="#1f2430">'+escapeHtml(v)+'</text>');
+      } else if (col.id === 'days') {
+        const d = node.aggDays || 0;
+        const v = (r.type === 'leaf' && tk.milestone) ? '◆' : (d + ' d');
+        const fw = r.type === 'summary' ? '600' : '400';
+        p.push('<text x="'+(cx+cw-4)+'" y="'+ty+'" text-anchor="end" font-size="12" font-weight="'+fw+'" fill="#1f2430">'+escapeHtml(v)+'</text>');
+      } else if (col.id === 'status') {
+        if (r.type === 'leaf') {
+          const sk = statusKeyOf(tk.status);
+          const clr = SCLR[sk] || SCLR.empty;
+          const ltr = statusLetter(tk.status);
+          p.push('<circle cx="'+(cx+cw/2)+'" cy="'+(y+15)+'" r="9" fill="'+clr+'"/>');
+          if (ltr) p.push('<text x="'+(cx+cw/2)+'" y="'+(y+19.5)+'" text-anchor="middle" font-size="9" font-weight="700" fill="white">'+escapeHtml(ltr)+'</text>');
+        }
+      } else if (col.id === 'progress') {
+        const pct = r.type === 'summary' ? (node.aggCompletion||0) : (+tk.completion||0);
+        const sk = r.type === 'summary' ? 'phase' : statusKeyOf(tk.status);
+        const clr = SCLR[sk] || SCLR.empty;
+        const bx = cx+6, bw = cw-46, bh = 8, by = y+11;
+        p.push('<rect x="'+bx+'" y="'+by+'" width="'+bw+'" height="'+bh+'" fill="#f1f5f9" rx="3" stroke="#e2e8f0" stroke-width="0.5"/>');
+        if (pct > 0) p.push('<rect x="'+bx+'" y="'+by+'" width="'+Math.round(bw*pct/100)+'" height="'+bh+'" fill="'+clr+'" rx="3"/>');
+        p.push('<text x="'+(bx+bw+4)+'" y="'+(y+20)+'" font-size="11" font-weight="500" fill="#1f2430">'+pct+'%</text>');
+      } else if (col.id === 'dependencies') {
+        if (tk.dependencies) p.push('<text x="'+(cx+4)+'" y="'+ty+'" font-size="12" fill="#1f2430">'+escapeHtml(trunc(tk.dependencies, maxCh))+'</text>');
+      }
+      p.push('<line x1="'+(cx+cw)+'" y1="'+y+'" x2="'+(cx+cw)+'" y2="'+(y+rowH)+'" stroke="#eef0f3" stroke-width="1"/>');
+      cx += cw;
+    }
+  }
+  p.push('</svg>');
+
+  const blob = new Blob([p.join('')], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+    ctx.drawImage(img, 0, 0);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+document.getElementById('btn-export-png').addEventListener('click', exportPNG);
+
+function copyJSON() {
+  const json = JSON.stringify(state.data, null, 2);
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(json).then(
+      () => toast(t('toast_json_copied'), 'success'),
+      () => fallbackCopy(json)
+    );
+  } else fallbackCopy(json);
+}
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text; document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); toast(t('toast_json_copied'),'success'); }
+  catch { toast(t('toast_json_failed'),'error'); }
+  document.body.removeChild(ta);
+}
+document.getElementById('btn-copy-json').addEventListener('click', copyJSON);
+
+function download(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+let toastTimer = null;
+function toast(msg, type) {
+  type = type || '';
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast ' + type + ' show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+(function setupSplitter() {
+  const side = document.querySelector('.side');
+  let dragging = false, startX = 0, startW = 380;
+  side.style.position = 'relative';
+  const handle = document.createElement('div');
+  handle.style.cssText = 'position:absolute;top:0;right:-3px;width:6px;height:100%;cursor:col-resize;z-index:5';
+  side.appendChild(handle);
+  handle.addEventListener('mousedown', e => {
+    dragging = true; startX = e.clientX; startW = side.offsetWidth;
+    document.body.style.userSelect = 'none';
+  });
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    let w = Math.max(160, Math.min(800, startW + (e.clientX - startX)));
+    document.documentElement.style.setProperty('--side-w', w + 'px');
+  });
+  window.addEventListener('mouseup', () => { dragging = false; document.body.style.userSelect = ''; });
+})();
+
+const ro = new ResizeObserver(() => { if (state.zoom === 'all') applyZoom('all'); });
+ro.observe(document.getElementById('chart-body'));
+
+document.getElementById('lang-select').value = LANG;
+const _toggleBtn = document.getElementById('btn-toggle-labels');
+_toggleBtn.classList.toggle('active', state.showBarLabels);
+_toggleBtn.title = state.showBarLabels ? t('hide_bar_labels') : t('show_bar_labels');
+const _savedTheme = loadTheme();
+applyTheme(_savedTheme.themeKey, _savedTheme.custom);
+loadViewPrefs();
+applyDensity(state.density);
+applyI18N();
+applyZoom('all');
+renderAll();
+</script>
+</body>
+</html>

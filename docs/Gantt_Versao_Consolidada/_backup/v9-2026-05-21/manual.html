@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Manual — Gantt Chart Interativo</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         max-width: 860px; margin: 40px auto; padding: 0 24px;
+         color: #1e293b; background: #f8fafc; line-height: 1.7; }
+  h1 { font-size: 2em; border-bottom: 3px solid #2563eb; padding-bottom: 8px; color: #0f172a; }
+  h2 { font-size: 1.4em; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-top: 2em; color: #1e40af; }
+  h3 { font-size: 1.1em; color: #334155; margin-top: 1.5em; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th { background: #2563eb; color: #fff; padding: 8px 12px; text-align: left; }
+  td { padding: 7px 12px; border-bottom: 1px solid #e2e8f0; }
+  tr:hover td { background: #f1f5f9; }
+  code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.88em; color: #0f172a; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 16px; border-radius: 8px; overflow-x: auto; }
+  pre code { background: none; color: inherit; padding: 0; }
+  blockquote { border-left: 4px solid #2563eb; margin: 0; padding: 8px 16px; background: #eff6ff; color: #1e40af; border-radius: 0 6px 6px 0; }
+  hr { border: none; border-top: 1px solid #e2e8f0; margin: 2em 0; }
+  a { color: #2563eb; }
+  #loading { text-align: center; padding: 60px; color: #64748b; font-size: 1.2em; }
+</style>
+<body>
+<div id="loading">Carregando manual...</div>
+<div id="content"></div>
+<script>
+fetch('README.md')
+  .then(r => r.text())
+  .then(md => {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').innerHTML = marked.parse(md);
+  })
+  .catch(e => {
+    document.getElementById('loading').textContent = 'Erro ao carregar README.md: ' + e.message;
+  });
+</script>
+</body>
+</html>
