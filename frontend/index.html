@@ -13,11 +13,11 @@
 
 <div class="toolbar">
   <button onclick="loadData()">&#8635; Atualizar</button>
-  <button id="btnEdit" onclick="toggleEditMode()" title="Editar dados do relatório diretamente na tela">
+  <button id="btnEdit" data-testid="btn-edit" onclick="toggleEditMode()" title="Editar dados do relatório diretamente na tela">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:-2px;margin-right:4px"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg>Editar
   </button>
-  <button onclick="exportPDF(event)">Exportar PDF</button>
-  <button onclick="exportPPTX(event)">Exportar PPTX</button>
+  <button data-testid="btn-export-pdf" onclick="exportPDF(event)">Exportar PDF</button>
+  <button data-testid="btn-export-pptx" onclick="exportPPTX(event)">Exportar PPTX</button>
   <button onclick="prevSlide()" aria-label="Slide anterior">&#9664;</button>
   <button id="slideIndicator" disabled>Slide 2/5</button>
   <button onclick="nextSlide()" aria-label="Próximo slide">&#9654;</button>
@@ -31,20 +31,20 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg>
       Modo Edição ativo
     </span>
-    <button class="edit-cfg-btn" type="button" onclick="openConfigDrawer()">
+    <button class="edit-cfg-btn" data-testid="btn-open-drawer" type="button" onclick="openConfigDrawer()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       Configurações do Projeto
     </button>
     <span class="edit-bar-hint">Clique em qualquer texto para editar diretamente</span>
     <div class="edit-mode-actions">
-      <button id="btnSaveEdits" onclick="saveEdits()">&#10003; Salvar alterações</button>
-      <button id="btnCancelEdits" onclick="cancelEditMode()">&#10005; Cancelar</button>
+      <button id="btnSaveEdits" data-testid="btn-save-edits" onclick="saveEdits()">&#10003; Salvar alterações</button>
+      <button id="btnCancelEdits" data-testid="btn-cancel-edits" onclick="cancelEditMode()">&#10005; Cancelar</button>
     </div>
   </div>
 </div>
 
 <!-- Drawer de configurações (desliza da direita) -->
-<div id="configDrawer" class="config-drawer" aria-hidden="true">
+<div id="configDrawer" data-testid="config-drawer" class="config-drawer" aria-hidden="true">
   <div class="config-drawer-header">
     <h3 class="config-drawer-title">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -52,7 +52,7 @@
     </h3>
     <button class="config-drawer-close" type="button" onclick="closeConfigDrawer()" aria-label="Fechar">&#10005;</button>
   </div>
-  <div class="config-drawer-body" id="configDrawerBody"></div>
+  <div class="config-drawer-body" id="configDrawerBody" data-testid="config-drawer-body"></div>
 </div>
 <div id="configDrawerBackdrop" class="config-drawer-backdrop" style="display:none" onclick="closeConfigDrawer()"></div>
 
@@ -91,7 +91,7 @@
 </main>
 
 <main class="page-shell deck-slide active" id="slide2">
-  <header class="topbar">
+  <header class="topbar" data-testid="section-header">
     <div class="brand">
       <div class="logo-box">
         <div class="logo-mark" id="logoMark">
@@ -128,10 +128,10 @@
 
   <section class="content">
 
-    <section class="timeline" id="timeline" aria-label="Timeline de fases">
+    <section class="timeline" id="timeline" data-testid="section-timeline" aria-label="Timeline de fases">
     </section>
 
-    <section class="kpis" id="kpis" aria-label="Indicadores-chave">
+    <section class="kpis" id="kpis" data-testid="section-kpis" aria-label="Indicadores-chave">
     </section>
 
     <section class="middle-grid">
@@ -143,7 +143,7 @@
           Resumo Executivo
         </div>
         <div class="panel-rule green"></div>
-        <ul class="summary-list" id="resumo" aria-label="Resumo executivo"></ul>
+        <ul class="summary-list" id="resumo" data-testid="section-resumo" aria-label="Resumo executivo"></ul>
       </article>
 
       <article class="panel">
@@ -161,7 +161,7 @@
               <th scope="col">Status</th>
             </tr>
           </thead>
-          <tbody id="pendencias"></tbody>
+          <tbody id="pendencias" data-testid="section-pendencias"></tbody>
         </table>
       </article>
 
@@ -171,7 +171,7 @@
           Próximas Ações
         </div>
         <div class="panel-rule blue"></div>
-        <ul class="actions-list" id="acoes" aria-label="Próximas ações"></ul>
+        <ul class="actions-list" id="acoes" data-testid="section-acoes" aria-label="Próximas ações"></ul>
       </article>
     </section>
 
@@ -184,7 +184,7 @@
           Curva S — Avanço Planejado x Realizado
         </div>
         <div class="chart-wrap">
-          <svg id="curvaSvg" viewBox="0 0 820 370" role="img" aria-label="Curva S de avanço" shape-rendering="geometricPrecision"></svg>
+          <svg id="curvaSvg" data-testid="section-curva-s" viewBox="0 0 820 370" role="img" aria-label="Curva S de avanço" shape-rendering="geometricPrecision"></svg>
         </div>
       </article>
 
@@ -195,11 +195,11 @@
           </span>
           Marcos e Datas-Alvo
         </div>
-        <div class="milestone-body" id="marcosBody"></div>
+        <div class="milestone-body" id="marcosBody" data-testid="section-marcos"></div>
       </article>
     </section>
 
-    <footer class="footer-strip" id="footerStrip" role="contentinfo">
+    <footer class="footer-strip" id="footerStrip" data-testid="section-rodape" role="contentinfo">
     </footer>
 
   </section>
