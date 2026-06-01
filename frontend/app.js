@@ -1449,7 +1449,7 @@ function renderRodape(d) {
     },
     {
       title: 'Responsável',
-      value: v(r.owner_relatorio, v(cfg.owner_name, '--')),
+      value: v(cfg.owner_name, v(r.owner_relatorio, '--')),
       rawVal: null,
       editAttr: 'data-edit-config="owner_name"',
       strong: false, light: true, primary: false,
@@ -2189,6 +2189,8 @@ function collectEdits() {
   if (data.marcos)           data.marcos           = data.marcos.map(function(m,i){ return Object.assign({},m,{ordem:i+1}); });
   if (data.fases)            data.fases            = data.fases.map(function(f,i){ return Object.assign({},f,{ordem:i+1}); });
   if (data.kpis)             data.kpis             = data.kpis.map(function(k,i){ return Object.assign({},k,{ordem:i+1}); });
+  if (!data.rodape) data.rodape = {};
+  if (data.config && data.config.owner_name) data.rodape.owner_relatorio = data.config.owner_name;
 
   return data;
 }
@@ -2330,7 +2332,11 @@ function _buildConfigDrawer() {
     addF(s1, 'Subtítulo',          txt(cfg.project_subtitle, function(v){d.config.project_subtitle=v;}));
     addF(s1, 'Sponsor / Cliente',  txt(cfg.sponsor,          function(v){d.config.sponsor=v;}));
     addF(s1, 'Parceiro',           txt(cfg.partner_name,     function(v){d.config.partner_name=v;}));
-    addF(s1, 'Responsável (PM)',   txt(cfg.owner_name,       function(v){d.config.owner_name=v;}));
+    addF(s1, 'Responsável (PM)',   txt(cfg.owner_name,       function(v){
+      d.config.owner_name = v;
+      if (!d.rodape) d.rodape = {};
+      d.rodape.owner_relatorio = v;
+    }));
     addF(s1, 'Data do Relatório',  txtDateFriendly(cfg.report_date, function(v){d.config.report_date=v;}));
     addF(s1, 'Nome do Relatório',  txt(cfg.report_name,      function(v){d.config.report_name=v;}));
     body.appendChild(s1);
