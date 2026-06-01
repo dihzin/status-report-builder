@@ -164,3 +164,16 @@ onepage-status-project/
 - Exportações PDF/PPTX são geradas a partir do `reportData` salvo no SQLite.
 - `WATCH_EXCEL=false` por padrão (watcher desligado por padrão; só inicia se habilitado e Excel existir).
 - `VALIDATE_EXCEL_SCHEMA=false` por padrão (sem dependência operacional de schema Excel para `/api/status`).
+
+## Execução E2E (Builder V1)
+
+- Comando:
+  - `python -m pytest -q tests/test_e2e_builder_v1_contextual.py`
+- Porta padrão do servidor E2E: `8010`.
+- Para sobrescrever a porta:
+  - PowerShell: `$env:E2E_PORT='8020'; python -m pytest -q tests/test_e2e_builder_v1_contextual.py`
+
+Recomendação operacional:
+- Rodar E2E de forma serial.
+- Rodar suíte unitária/regressão separadamente.
+- Evitar duas execuções E2E simultâneas na mesma porta.

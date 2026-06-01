@@ -16,7 +16,8 @@ except Exception:  # pragma: no cover
     sync_playwright = None
 
 
-BASE_URL = "http://127.0.0.1:8000"
+E2E_PORT = int(os.getenv("E2E_PORT", "8010"))
+BASE_URL = f"http://127.0.0.1:{E2E_PORT}"
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -48,7 +49,7 @@ def app_server():
     env["WATCH_EXCEL"] = "false"
     env["VALIDATE_EXCEL_SCHEMA"] = "false"
     proc = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", "8000"],
+        [sys.executable, "-m", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", str(E2E_PORT)],
         cwd=str(ROOT),
         env=env,
         stdout=subprocess.DEVNULL,
