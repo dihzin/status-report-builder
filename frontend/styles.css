@@ -161,6 +161,33 @@ body { padding: 0; }
   display: none !important;
 }
 
+.env-strip {
+  width: min(1780px, 100%);
+  margin: 0 auto 10px auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  border: 1px solid var(--gray-300);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.86);
+}
+.env-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--gray-800);
+  background: var(--gray-100);
+  border-radius: 999px;
+  padding: 6px 10px;
+}
+.env-meta {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gray-700);
+  white-space: nowrap;
+}
+
 /* ── Botão Editar ── */
 #btnEdit.active {
   background: var(--blue-800);

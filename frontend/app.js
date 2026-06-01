@@ -6,6 +6,8 @@ var totalSlides = 4;
 var _isDirty = false;
 var _pendingAction = null;
 var _isPresentationMode = false;
+var _latestReleaseUrl = '';
+var _updatePayload = null;
 var EXPORT_TIMEOUT_MS = 45000;
 
 /** Retorna x se não for nulo/vazio, senão fallback */
@@ -1607,6 +1609,132 @@ async function requestPresentationMode() {
   }
 }
 
+function openLatestRelease() {
+  if (!_latestReleaseUrl) return;
+  window.open(_latestReleaseUrl, '_blank', 'noopener');
+}
+
+function _setUpdateButtonsLoading(which, loading) {
+  var map = {
+    check: { id: 'btnCheckUpdate', idle: 'Verificar atualizações', busy: 'Verificando...' },
+    download: { id: 'btnDownloadUpdate', idle: 'Baixar atualização', busy: 'Baixando...' },
+    apply: { id: 'btnApplyUpdate', idle: 'Instalar e reiniciar', busy: 'Instalando...' },
+  };
+  var current = map[which];
+  if (!current) return;
+  var btn = document.getElementById(current.id);
+  if (!btn) return;
+  btn.disabled = !!loading;
+  btn.textContent = loading ? current.busy : current.idle;
+}
+
+function _setUpdateUiState(payload) {
+  payload = payload || {};
+  _updatePayload = payload;
+  var versionLabel = document.getElementById('appVersionLabel');
+  var statusLabel = document.getElementById('updateStatusLabel');
+  var releaseBtn = document.getElementById('btnOpenRelease');
+  var dlBtn = document.getElementById('btnDownloadUpdate');
+  var apBtn = document.getElementById('btnApplyUpdate');
+  if (versionLabel) {
+    versionLabel.textContent = 'Versão atual: ' + (payload.current_version || '-');
+  }
+  if (statusLabel) {
+    statusLabel.textContent = payload.error
+      ? ('Atualizações: ' + payload.error)
+      : ('Atualizações: ' + (payload.message || 'não verificado'));
+  }
+  _latestReleaseUrl = payload.release_url || '';
+  var canShowUpdateActions = !!(payload.ok && payload.has_update);
+
+  if (releaseBtn) releaseBtn.classList.toggle('tb-btn-hidden', !(_latestReleaseUrl && canShowUpdateActions));
+  if (dlBtn) dlBtn.classList.toggle('tb-btn-hidden', !canShowUpdateActions);
+  if (apBtn) apBtn.classList.toggle('tb-btn-hidden', !canShowUpdateActions);
+  if (dlBtn) dlBtn.disabled = false;
+  if (apBtn) apBtn.disabled = false;
+}
+
+async function checkForUpdates(manual) {
+  _setUpdateButtonsLoading('check', true);
+  try {
+    var resp = await fetch('/api/update/check');
+    var payload = await resp.json();
+    _setUpdateUiState(payload);
+    if (manual) {
+      if (payload && payload.ok && payload.has_update) {
+        showToast('Nova versão disponível: ' + (payload.latest_version || '-'), 'info');
+      } else if (payload && payload.ok) {
+        showToast('Você já está na versão mais recente.', 'success');
+      } else {
+        showToast((payload && payload.error) || 'Não foi possível verificar atualizações.', 'error');
+      }
+    }
+  } catch (_) {
+    _setUpdateUiState({
+      current_version: '-',
+      error: 'Falha de conexão ao consultar atualizações.',
+      ok: false,
+      has_update: false,
+    });
+    if (manual) showToast('Falha de conexão ao consultar atualizações.', 'error');
+  } finally {
+    _setUpdateButtonsLoading('check', false);
+  }
+}
+
+async function downloadUpdate() {
+  if (!_updatePayload || !_updatePayload.has_update) {
+    showToast('Nenhuma atualização pendente para download.', 'info');
+    return;
+  }
+  if (_updatePayload.mode !== 'portable') {
+    showToast('Atualização automática disponível apenas na versão portátil.', 'info');
+    return;
+  }
+  _setUpdateButtonsLoading('download', true);
+  try {
+    var resp = await fetch('/api/update/download', { method: 'POST' });
+    var payload = await resp.json();
+    if (!resp.ok || !payload.ok) {
+      showToast((payload && payload.error) || 'Falha ao baixar atualização.', 'error');
+      return;
+    }
+    _setUpdateUiState(payload);
+    showToast('Pacote de atualização baixado com sucesso.', 'success');
+  } catch (_) {
+    showToast('Erro de conexão ao baixar atualização.', 'error');
+  } finally {
+    _setUpdateButtonsLoading('download', false);
+  }
+}
+
+async function applyUpdate() {
+  if (!_updatePayload || !_updatePayload.has_update) {
+    showToast('Nenhuma atualização pronta para instalar.', 'info');
+    return;
+  }
+  if (_updatePayload.mode !== 'portable') {
+    showToast('Atualização automática disponível apenas na versão portátil.', 'info');
+    return;
+  }
+  var ok = confirm('O app será fechado e reiniciado para aplicar a atualização. Deseja continuar?');
+  if (!ok) return;
+  _setUpdateButtonsLoading('apply', true);
+  try {
+    var resp = await fetch('/api/update/apply', { method: 'POST' });
+    var payload = await resp.json();
+    if (!resp.ok || !payload.ok) {
+      showToast((payload && payload.error) || 'Falha ao iniciar instalação.', 'error');
+      return;
+    }
+    showToast('Instalação iniciada. O app será reiniciado.', 'success');
+  } catch (_) {
+    showToast('Erro de conexão ao iniciar instalação.', 'error');
+  } finally {
+    _setUpdateButtonsLoading('apply', false);
+  }
+}
+
 /* ===== Edit Mode ===== */
 
 var editMode = false;
@@ -2595,6 +2723,7 @@ document.addEventListener('DOMContentLoaded', function () {
   window.addEventListener('afterprint', function () {
     if (_lastRenderData) renderCurvaS(_lastRenderData.data || {});
   });
+  checkForUpdates(false);
   document.addEventListener('fullscreenchange', function () {
     if (!document.fullscreenElement) {
       _isPresentationMode = false;

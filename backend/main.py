@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import os
+import threading
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
@@ -10,7 +12,9 @@ from fastapi.responses import JSONResponse, FileResponse
 
 from backend.watcher import start_watcher
 from backend.exporter import export_pdf, export_pptx
+from backend.app_version import APP_VERSION
 from backend.services.report_service import ReportService
+from backend.services.update_service import UpdateService
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,6 +27,7 @@ FRONTEND_DIR = Path(os.getenv("STATUS_BUILDER_FRONTEND_DIR", str(ROOT_DIR / "fro
 active_connections: set[WebSocket] = set()
 _watcher = None
 report_service = ReportService(APP_ROOT)
+update_service = UpdateService()
 WATCH_EXCEL = os.getenv("WATCH_EXCEL", "false").strip().lower() == "true"
 
 
@@ -72,7 +77,7 @@ async def lifespan(app: FastAPI):
         _watcher.join()
 
 
-app = FastAPI(title="OnePage Status Project", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="OnePage Status Project", version=APP_VERSION, lifespan=lifespan)
 
 _MEDIA_TYPES = {
     ".html": "text/html",
@@ -91,6 +96,7 @@ _MEDIA_TYPES = {
 async def health():
     return {
         "status": "ok",
+        "app_version": APP_VERSION,
         "excel_exists": EXCEL_PATH.exists(),
         "excel_file": EXCEL_PATH.name,  # apenas nome, não caminho completo
     }
@@ -108,6 +114,31 @@ async def get_status():
             "validation_errors": [str(e)],
             "file_error": str(e),
         }
+
+
+@app.get("/api/update/check")
+async def check_update():
+    result = update_service.check()
+    return result.as_dict()
+
+
+@app.post("/api/update/download")
+async def download_update():
+    payload = update_service.download()
+    status = 200 if payload.get("ok") else 400
+    return JSONResponse(status_code=status, content=payload)
+
+
+@app.post("/api/update/apply")
+async def apply_update():
+    payload = update_service.apply()
+    status = 200 if payload.get("ok") else 400
+    if payload.get("ok"):
+        def _shutdown():
+            time.sleep(1.2)
+            os._exit(0)
+        threading.Thread(target=_shutdown, daemon=True).start()
+    return JSONResponse(status_code=status, content=payload)
 
 
 @app.websocket("/ws/status")

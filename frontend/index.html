@@ -24,6 +24,15 @@
   <button class="tb-btn tb-btn-soft tb-btn-hidden" onclick="safePrint()">Imprimir / PDF</button>
   <button class="tb-btn tb-btn-soft" onclick="requestPresentationMode()">Modo apresentação</button>
 </div>
+<div class="env-strip" id="envStrip" aria-label="Ambiente">
+  <span class="env-title">Ambiente</span>
+  <span id="appVersionLabel" class="env-meta">Versão atual: -</span>
+  <button id="btnCheckUpdate" class="tb-btn tb-btn-soft" onclick="checkForUpdates(true)">Verificar atualizações</button>
+  <button id="btnDownloadUpdate" class="tb-btn tb-btn-soft tb-btn-hidden" onclick="downloadUpdate()" type="button">Baixar atualização</button>
+  <button id="btnApplyUpdate" class="tb-btn tb-btn-primary tb-btn-hidden" onclick="applyUpdate()" type="button">Instalar e reiniciar</button>
+  <button id="btnOpenRelease" class="tb-btn tb-btn-soft tb-btn-hidden" onclick="openLatestRelease()" type="button">Abrir release</button>
+  <span id="updateStatusLabel" class="env-meta">Atualizações: não verificado</span>
+</div>
 
 <div id="editModeBar" class="edit-mode-bar" style="display:none" role="complementary" aria-label="Barra de edição">
   <div class="edit-mode-bar-inner">
