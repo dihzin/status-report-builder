@@ -5,13 +5,13 @@ import os
 import re
 import subprocess
 import sys
-import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+import zipfile
 
 from backend.app_version import APP_VERSION
 
@@ -51,6 +51,10 @@ def _updates_dir() -> Path:
     upd = base / "updates"
     upd.mkdir(parents=True, exist_ok=True)
     return upd
+
+
+def _state_file() -> Path:
+    return _updates_dir() / "update_state.json"
 
 
 @dataclass
@@ -103,7 +107,49 @@ class UpdateService:
             "STATUS_BUILDER_GITHUB_RELEASES_API",
             f"https://api.github.com/repos/{self.repo}/releases/latest",
         )
-        self._last_download_path: Path | None = None
+        self._last_download_path: Path | None = self._load_last_download_path()
+
+    def _load_last_download_path(self) -> Path | None:
+        sf = _state_file()
+        if not sf.exists():
+            return None
+        try:
+            payload = json.loads(sf.read_text(encoding="utf-8"))
+            path = payload.get("downloaded_file")
+            if not path:
+                return None
+            p = Path(path)
+            return p if p.exists() else None
+        except Exception:
+            return None
+
+    def _persist_last_download_path(self, path: Path | None) -> None:
+        payload = {"downloaded_file": str(path) if path else None, "updated_at": int(time.time())}
+        _state_file().write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def _validate_zip_payload(self, zip_path: Path) -> tuple[bool, str | None]:
+        try:
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                names = zf.namelist()
+                if not names:
+                    return False, "Pacote de atualização vazio."
+                found_exe = False
+                for raw in names:
+                    normalized = raw.replace("\\", "/")
+                    if normalized.startswith("/") or normalized.startswith("../") or "/../" in normalized:
+                        return False, "Pacote inválido (path traversal detectado)."
+                    parts = [p for p in normalized.split("/") if p not in ("", ".")]
+                    if any(p == ".." for p in parts):
+                        return False, "Pacote inválido (path traversal detectado)."
+                    if parts and parts[-1].lower() == "statusreportbuilder.exe":
+                        found_exe = True
+                if not found_exe:
+                    return False, "Pacote inválido: StatusReportBuilder.exe não encontrado."
+                return True, None
+        except zipfile.BadZipFile:
+            return False, "Pacote inválido (zip corrompido)."
+        except Exception:
+            return False, "Não foi possível validar o pacote baixado."
 
     def check(self) -> UpdateCheckResult:
         mode = _runtime_mode()
@@ -251,6 +297,7 @@ class UpdateService:
             }
 
         self._last_download_path = target
+        self._persist_last_download_path(target)
         checked.downloaded_file = str(target)
         return checked.as_dict()
 
@@ -259,21 +306,50 @@ class UpdateService:
         exe_name = Path(sys.executable).name if getattr(sys, "frozen", False) else "StatusReportBuilder.exe"
         script_path = _updates_dir() / "apply_update.ps1"
         stage_name = f"_stage_{int(time.time())}"
+        backup_name = f"_backup_{int(time.time())}"
         script = f"""$ErrorActionPreference = 'Stop'
 $InstallDir = '{install_dir}'
 $ZipPath = '{zip_path}'
 $ExeName = '{exe_name}'
 $StageDir = Join-Path $InstallDir '{stage_name}'
-Start-Sleep -Seconds 2
+$BackupDir = Join-Path $InstallDir '{backup_name}'
+$LogFile = Join-Path $InstallDir 'updates\\apply_update.log'
+New-Item -ItemType Directory -Path (Join-Path $InstallDir 'updates') -Force *> $null
+Start-Sleep -Seconds 3
+Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] Iniciando apply."
 if (Test-Path $StageDir) {{ Remove-Item -Recurse -Force $StageDir }}
 New-Item -ItemType Directory -Path $StageDir -Force *> $null
+if (Test-Path $BackupDir) {{ Remove-Item -Recurse -Force $BackupDir }}
+New-Item -ItemType Directory -Path $BackupDir -Force *> $null
 Expand-Archive -Path $ZipPath -DestinationPath $StageDir -Force
+$exeCandidate = Get-ChildItem -Path $StageDir -Recurse -Filter 'StatusReportBuilder.exe' | Select-Object -First 1
+if (-not $exeCandidate) {{ throw 'StatusReportBuilder.exe não encontrado no pacote.' }}
 $exclude = @('data','exports','logs','config','updates','app.lock')
+$toCopy = @()
 Get-ChildItem -Path $StageDir | ForEach-Object {{
   if ($exclude -contains $_.Name) {{ return }}
-  Copy-Item -Path $_.FullName -Destination (Join-Path $InstallDir $_.Name) -Recurse -Force
+  $toCopy += $_
+}}
+foreach ($item in $toCopy) {{
+  $dest = Join-Path $InstallDir $item.Name
+  if (Test-Path $dest) {{
+    Copy-Item -Path $dest -Destination (Join-Path $BackupDir $item.Name) -Recurse -Force
+  }}
+}}
+try {{
+  foreach ($item in $toCopy) {{
+    Copy-Item -Path $item.FullName -Destination (Join-Path $InstallDir $item.Name) -Recurse -Force
+  }}
+  Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] Apply concluído."
+}} catch {{
+  Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [ERROR] Falha no apply, iniciando rollback: $($_.Exception.Message)"
+  foreach ($item in Get-ChildItem -Path $BackupDir) {{
+    Copy-Item -Path $item.FullName -Destination (Join-Path $InstallDir $item.Name) -Recurse -Force
+  }}
+  throw
 }}
 Remove-Item -Recurse -Force $StageDir
+Remove-Item -Recurse -Force $BackupDir
 Start-Process -FilePath (Join-Path $InstallDir $ExeName) -WindowStyle Hidden
 """
         script_path.write_text(script, encoding="utf-8")
@@ -292,6 +368,14 @@ Start-Process -FilePath (Join-Path $InstallDir $ExeName) -WindowStyle Hidden
             return {
                 "ok": False,
                 "error": "Nenhum pacote baixado. Faça o download da atualização primeiro.",
+                "mode": _runtime_mode(),
+            }
+
+        valid, err = self._validate_zip_payload(zip_path)
+        if not valid:
+            return {
+                "ok": False,
+                "error": err or "Pacote inválido para instalação.",
                 "mode": _runtime_mode(),
             }
 
@@ -323,4 +407,3 @@ Start-Process -FilePath (Join-Path $InstallDir $ExeName) -WindowStyle Hidden
             "mode": _runtime_mode(),
             "message": "Instalação iniciada. O app será reiniciado.",
         }
-

@@ -1751,8 +1751,19 @@ function isLockedField(name) {
 }
 
 function toggleEditMode() {
-  if (editMode) cancelEditMode();
-  else enterEditMode();
+  if (editMode) {
+    cancelEditMode();
+    return;
+  }
+  if (_lastRenderData && (_lastRenderData.data || _lastRenderData.reportData)) {
+    enterEditMode();
+    return;
+  }
+  loadData(true).then(function () {
+    if (!editMode && _lastRenderData && (_lastRenderData.data || _lastRenderData.reportData)) enterEditMode();
+  }).catch(function () {
+    showToast('Aguarde o carregamento dos dados para entrar em edição.', 'info');
+  });
 }
 
 function enterEditMode() {
