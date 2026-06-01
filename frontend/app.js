@@ -1613,7 +1613,6 @@ function enterEditMode() {
 }
 
 function cancelEditMode() {
-  if (!confirmLoseUnsaved('cancelamento')) return;
   _closeBadgeMenus();
   closeConfigDrawer();
   if (editMode && _lastRenderData) renderAll(_lastRenderData);
@@ -1821,9 +1820,30 @@ function _attachAllEditHandlers() {
 
 /* ── Header ── */
 function _attachHeaderHandlers() {
-  _ce(document.getElementById('projectTitle'));
-  _ce(document.getElementById('projectSubtitle'));
-  _ce(document.getElementById('alertText'));
+  var titleEl = document.getElementById('projectTitle');
+  var subtitleEl = document.getElementById('projectSubtitle');
+  var alertEl = document.getElementById('alertText');
+  _ce(titleEl);
+  _ce(subtitleEl);
+  _ce(alertEl);
+  if (titleEl && !titleEl.dataset.syncBound) {
+    titleEl.dataset.syncBound = '1';
+    titleEl.addEventListener('input', function () {
+      if (_editSnapshotData && _editSnapshotData.config) _editSnapshotData.config.project_name = titleEl.textContent.trim();
+    });
+  }
+  if (subtitleEl && !subtitleEl.dataset.syncBound) {
+    subtitleEl.dataset.syncBound = '1';
+    subtitleEl.addEventListener('input', function () {
+      if (_editSnapshotData && _editSnapshotData.config) _editSnapshotData.config.project_subtitle = subtitleEl.textContent.trim();
+    });
+  }
+  if (alertEl && !alertEl.dataset.syncBound) {
+    alertEl.dataset.syncBound = '1';
+    alertEl.addEventListener('input', function () {
+      if (_editSnapshotData && _editSnapshotData.config) _editSnapshotData.config.alert_label = alertEl.textContent.trim();
+    });
+  }
 }
 
 /* ── KPI cards (label + value, sem quebrar card) ── */
@@ -2078,25 +2098,34 @@ function _attachFooterHandlers() {
     } else {
       // Campo de texto: contenteditable normal
       _ce(el);
+      if (!el.dataset.syncBound) {
+        el.dataset.syncBound = '1';
+        el.addEventListener('input', function () {
+          if (!_editSnapshotData) return;
+          if (el.dataset.editRodape) {
+            if (!_editSnapshotData.rodape) _editSnapshotData.rodape = {};
+            _editSnapshotData.rodape[el.dataset.editRodape] = el.textContent.trim();
+          }
+        });
+      }
     }
   });
   document.querySelectorAll('[data-edit-config]').forEach(function(el) {
     _ce(el);
+    if (!el.dataset.syncBound) {
+      el.dataset.syncBound = '1';
+      el.addEventListener('input', function () {
+        if (_editSnapshotData && _editSnapshotData.config) {
+          _editSnapshotData.config[el.dataset.editConfig] = el.textContent.trim();
+        }
+      });
+    }
   });
 }
 
 /* ── Coleta dados para salvar ── */
 function collectEdits() {
   var data = JSON.parse(JSON.stringify(_editSnapshotData));
-
-  // Header
-  var el;
-  el = document.getElementById('projectTitle');
-  if (el && el.contentEditable === 'true') data.config.project_name = el.textContent.trim();
-  el = document.getElementById('projectSubtitle');
-  if (el && el.contentEditable === 'true') data.config.project_subtitle = el.textContent.trim();
-  el = document.getElementById('alertText');
-  if (el && el.contentEditable === 'true') data.config.alert_label = el.textContent.trim();
 
   // KPIs
   document.querySelectorAll('#kpis .kpi-card[data-kpi-orig-idx]').forEach(function(card) {
@@ -2144,19 +2173,14 @@ function collectEdits() {
     // status já atualizado pelo onChange
   });
 
-  // Footer — texto editável via contenteditable, datas via dataset
+  // Footer — datas via dataset
   document.querySelectorAll('[data-edit-rodape]').forEach(function(el) {
     if (!data.rodape) data.rodape = {};
     var key = el.dataset.editRodape;
     if (el.dataset.editDateAttached) {
       // Data: usa rawDate do dataset (atualizado pelo picker)
       if (el.dataset.rawVal) data.rodape[key] = el.dataset.rawVal;
-    } else if (el.contentEditable === 'true') {
-      data.rodape[key] = el.textContent.trim();
     }
-  });
-  document.querySelectorAll('[data-edit-config]').forEach(function(el) {
-    if (el.contentEditable === 'true') data.config[el.dataset.editConfig] = el.textContent.trim();
   });
 
   // Reordenar arrays
