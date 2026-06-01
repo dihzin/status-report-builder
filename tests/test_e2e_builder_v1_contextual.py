@@ -75,6 +75,13 @@ def test_builder_v1_contextual_e2e(app_server):
         page = browser.new_page()
         page.goto(BASE_URL, wait_until="networkidle")
 
+        # Regressão: botão "Adicionar" deve sumir ao cancelar edição.
+        page.get_by_test_id("btn-edit").click()
+        assert page.locator(".edit-add-wrap").count() > 0
+        page.get_by_test_id("btn-cancel-edits").click()
+        page.wait_for_timeout(250)
+        assert page.locator(".edit-add-wrap").count() == 0
+
         page.get_by_test_id("btn-edit").click()
         page.get_by_test_id("btn-open-drawer").click()
         drawer = page.get_by_test_id("config-drawer-body")

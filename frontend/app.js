@@ -1569,6 +1569,9 @@ function _exitEditMode() {
   editMode = false;
   _editSnapshotData = null;
   clearDirty();
+  // Limpa artefatos de UI criados dinamicamente no modo edição.
+  document.querySelectorAll('.edit-add-wrap, .edit-rm-btn').forEach(function(el){ el.remove(); });
+  document.querySelectorAll('.edit-add-host').forEach(function(el){ el.classList.remove('edit-add-host'); });
   document.body.classList.remove('edit-mode');
   document.getElementById('editModeBar').style.display = 'none';
   var btn = document.getElementById('btnEdit');

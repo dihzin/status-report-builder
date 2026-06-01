@@ -11,6 +11,7 @@ import webbrowser
 from pathlib import Path
 
 import uvicorn
+from backend.main import app as fastapi_app
 
 
 def _portable_root() -> Path:
@@ -101,10 +102,14 @@ def main() -> int:
             threading.Timer(1.2, lambda: webbrowser.open(url)).start()
 
         logging.info("Iniciando Status Report Builder em %s", url)
-        uvicorn.run("backend.main:app", host=host, port=port, log_level="info")
+        uvicorn.run(fastapi_app, host=host, port=port, log_level="info")
         return 0
     except Exception as exc:
         logging.exception("Falha ao iniciar launcher portable: %s", exc)
+        print(f"Falha ao iniciar: {exc}")
+        print(f"Detalhes em: {log_path}")
+        if getattr(sys, "frozen", False):
+            os.system("pause")
         return 1
     finally:
         if lock_path and lock_path.exists():

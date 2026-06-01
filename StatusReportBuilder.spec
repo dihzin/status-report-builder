@@ -3,7 +3,11 @@ block_cipher = None
 
 from PyInstaller.utils.hooks import collect_submodules
 
-hiddenimports = collect_submodules('uvicorn') + collect_submodules('watchfiles')
+hiddenimports = (
+    collect_submodules('uvicorn')
+    + collect_submodules('watchfiles')
+    + collect_submodules('backend')
+)
 
 a = Analysis(
     ['portable_launcher.py'],
