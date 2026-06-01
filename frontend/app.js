@@ -5,6 +5,8 @@ var currentSlide = 2;
 var totalSlides = 4;
 var _isDirty = false;
 var _pendingAction = null;
+var _isPresentationMode = false;
+var EXPORT_TIMEOUT_MS = 45000;
 
 /** Retorna x se não for nulo/vazio, senão fallback */
 function v(x, fb) {
@@ -54,10 +56,12 @@ function fmtDateShort(val) {
 
 function markDirty() {
   _isDirty = true;
+  _syncDirtyUi();
 }
 
 function clearDirty() {
   _isDirty = false;
+  _syncDirtyUi();
 }
 
 function hasUnsavedChanges() {
@@ -66,7 +70,42 @@ function hasUnsavedChanges() {
 
 function confirmLoseUnsaved(contextLabel) {
   if (!hasUnsavedChanges()) return true;
-  return confirm('Existem alterações não salvas (' + contextLabel + '). Deseja descartar e continuar?');
+  if (contextLabel === 'atualização') {
+    return confirm('Você tem alterações não salvas. Deseja descartar e atualizar?');
+  }
+  return confirm('Existem alterações não salvas. Deseja descartar e continuar?');
+}
+
+function showToast(message, kind) {
+  var t = document.getElementById('appToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'appToast';
+    t.className = 'app-toast';
+    document.body.appendChild(t);
+  }
+  t.textContent = message;
+  t.className = 'app-toast show ' + (kind || 'info');
+  clearTimeout(t._hideTimer);
+  t._hideTimer = setTimeout(function () { t.className = 'app-toast'; }, 2800);
+}
+
+function _syncDirtyUi() {
+  var saveBtn = document.getElementById('btnSaveEdits');
+  var hint = document.getElementById('unsavedHint');
+  if (saveBtn) saveBtn.textContent = hasUnsavedChanges() ? '✓ Salvar alterações *' : '✓ Salvar alterações';
+  if (hint) hint.style.display = hasUnsavedChanges() ? 'inline-flex' : 'none';
+}
+
+async function _fetchWithTimeout(url, options, timeoutMs) {
+  var ctrl = new AbortController();
+  var timer = setTimeout(function () { ctrl.abort('timeout'); }, timeoutMs || EXPORT_TIMEOUT_MS);
+  try {
+    var opts = Object.assign({}, options || {}, { signal: ctrl.signal });
+    return await fetch(url, opts);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
@@ -1193,8 +1232,8 @@ function renderCurvaS(d) {
   var cfg    = d.config   || {};
   if (!pontos.length) { svg.innerHTML = ''; return; }
 
-  var currentDay = parseInt(cfg.current_day)      || 0;
-  var currentPct = parseInt(cfg.progress_percent) || 0;
+  var currentDay = parseFloat(cfg.current_day)      || 0;
+  var currentPct = parseFloat(cfg.progress_percent) || 0;
 
   // ── Dimensões dinâmicas: o SVG se encaixa no container real ──────────────
   var W = 820;
@@ -1217,7 +1256,7 @@ function renderCurvaS(d) {
   var legY   = H - 18;               // linha da legenda
   var legTY  = H - 5;                // texto da legenda
 
-  var maxDay = Math.max.apply(null, pontos.map(function (p) { return parseInt(p.dia) || 0; }));
+  var maxDay = Math.max.apply(null, pontos.map(function (p) { return parseFloat(p.dia) || 0; }));
   maxDay = Math.max(maxDay, 1);
 
   function sx(dayVal) { return padL + (dayVal / maxDay) * chartW; }
@@ -1263,11 +1302,22 @@ function renderCurvaS(d) {
   }
 
   var plannedCoords = pontos.map(function (p) {
-    return [sx(parseInt(p.dia) || 0), sy(parseInt(p.planejado) || 0)];
+    return [sx(parseFloat(p.dia) || 0), sy(parseFloat(p.planejado) || 0)];
   });
   var realCoords = pontos
-    .filter(function (p) { return p.realizado !== null && p.realizado !== undefined; })
-    .map(function (p) { return [sx(parseInt(p.dia) || 0), sy(parseInt(p.realizado) || 0)]; });
+    .filter(function (p) { return p.realizado !== null && p.realizado !== undefined && p.realizado !== ''; })
+    .map(function (p) { return [sx(parseFloat(p.dia) || 0), sy(parseFloat(p.realizado) || 0)]; });
+
+  // Se planejado e realizado estiverem iguais (ou praticamente iguais), evita percepção de desvio.
+  var sameTrend = pontos.length > 0 && pontos.every(function (p) {
+    var pv = parseFloat(p.planejado);
+    var rv = parseFloat(p.realizado);
+    if (isNaN(pv) || isNaN(rv)) return false;
+    return Math.abs(pv - rv) <= 0.01;
+  });
+  if (sameTrend && realCoords.length === plannedCoords.length) {
+    plannedCoords = realCoords.slice();
+  }
 
   var pD = smoothPath(plannedCoords);
   var rD = smoothPath(realCoords);
@@ -1411,7 +1461,7 @@ function renderRodape(d) {
     },
     {
       title: 'Responsável',
-      value: v(r.owner_relatorio, v(cfg.owner_name, '--')),
+      value: v(cfg.owner_name, v(r.owner_relatorio, '--')),
       rawVal: null,
       editAttr: 'data-edit-config="owner_name"',
       strong: false, light: true, primary: false,
@@ -1456,9 +1506,10 @@ async function exportPDF(ev) {
   var btn = ev.target;
   btn.textContent = 'Exportando...';
   btn.disabled = true;
+  document.body.classList.add('is-exporting');
   try {
-    var resp = await fetch('/api/export/pdf', { method: 'POST' });
-    if (!resp.ok) { var e = await resp.json(); alert(e.error || 'Erro'); return; }
+    var resp = await _fetchWithTimeout('/api/export/pdf', { method: 'POST' }, EXPORT_TIMEOUT_MS);
+    if (!resp.ok) { var e = await resp.json(); showToast(e.error || 'Falha ao exportar PDF.', 'error'); return; }
     var blob = await resp.blob();
     var url  = URL.createObjectURL(blob);
     var a    = document.createElement('a');
@@ -1466,11 +1517,13 @@ async function exportPDF(ev) {
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    showToast('PDF gerado com sucesso.', 'success');
   } catch (err) {
-    alert('Erro: ' + err.message);
+    showToast(err && err.name === 'AbortError' ? 'Exportação PDF expirou. Tente novamente.' : 'Erro ao exportar PDF.', 'error');
   } finally {
     btn.textContent = 'Exportar PDF';
     btn.disabled = false;
+    document.body.classList.remove('is-exporting');
   }
 }
 
@@ -1485,9 +1538,10 @@ async function exportPPTX(ev) {
   var btn = ev.target;
   btn.textContent = 'Exportando...';
   btn.disabled = true;
+  document.body.classList.add('is-exporting');
   try {
-    var resp = await fetch('/api/export/pptx', { method: 'POST' });
-    if (!resp.ok) { var e = await resp.json(); alert(e.error || 'Erro'); return; }
+    var resp = await _fetchWithTimeout('/api/export/pptx', { method: 'POST' }, EXPORT_TIMEOUT_MS);
+    if (!resp.ok) { var e = await resp.json(); showToast(e.error || 'Falha ao exportar PPTX.', 'error'); return; }
     var blob = await resp.blob();
     var url  = URL.createObjectURL(blob);
     var a    = document.createElement('a');
@@ -1495,11 +1549,13 @@ async function exportPPTX(ev) {
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    showToast('PPTX gerado com sucesso.', 'success');
   } catch (err) {
-    alert('Erro: ' + err.message);
+    showToast(err && err.name === 'AbortError' ? 'Exportação PPTX expirou. Tente novamente.' : 'Erro ao exportar PPTX.', 'error');
   } finally {
     btn.textContent = 'Exportar PPTX';
     btn.disabled = false;
+    document.body.classList.remove('is-exporting');
   }
 }
 
@@ -1511,7 +1567,18 @@ async function safePrint() {
     if (editMode || hasUnsavedChanges()) return;
   }
   if (editMode) _exitEditMode();
-  window.print();
+  document.body.classList.add('printing');
+  try {
+    if (!window.print) {
+      showToast('Impressão não disponível neste ambiente.', 'error');
+      return;
+    }
+    window.print();
+  } catch (_) {
+    showToast('Não foi possível iniciar a impressão.', 'error');
+  } finally {
+    setTimeout(function(){ document.body.classList.remove('printing'); }, 250);
+  }
 }
 
 async function requestPresentationMode() {
@@ -1522,7 +1589,22 @@ async function requestPresentationMode() {
     if (editMode || hasUnsavedChanges()) return;
   }
   if (editMode) _exitEditMode();
-  document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+  try {
+    var root = document.documentElement;
+    if (!_isPresentationMode) {
+      if (root.requestFullscreen) await root.requestFullscreen();
+      else if (document.body.requestFullscreen) await document.body.requestFullscreen();
+      document.body.classList.add('presentation-mode');
+      _isPresentationMode = true;
+      showToast('Modo apresentação ativo. Use setas para navegar e ESC para sair.', 'success');
+    } else {
+      if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen();
+      document.body.classList.remove('presentation-mode');
+      _isPresentationMode = false;
+    }
+  } catch (_) {
+    showToast('Não foi possível ativar o modo apresentação neste navegador.', 'error');
+  }
 }
 
 /* ===== Edit Mode ===== */
@@ -1558,7 +1640,6 @@ function enterEditMode() {
 }
 
 function cancelEditMode() {
-  if (!confirmLoseUnsaved('cancelamento')) return;
   _closeBadgeMenus();
   closeConfigDrawer();
   if (editMode && _lastRenderData) renderAll(_lastRenderData);
@@ -1569,18 +1650,23 @@ function _exitEditMode() {
   editMode = false;
   _editSnapshotData = null;
   clearDirty();
+  // Limpa artefatos de UI criados dinamicamente no modo edição.
+  document.querySelectorAll('.edit-add-wrap, .edit-rm-btn').forEach(function(el){ el.remove(); });
+  document.querySelectorAll('.edit-add-host').forEach(function(el){ el.classList.remove('edit-add-host'); });
   document.body.classList.remove('edit-mode');
   document.getElementById('editModeBar').style.display = 'none';
   var btn = document.getElementById('btnEdit');
   if (btn) btn.classList.remove('active');
   // Remove any floating date pickers
   document.querySelectorAll('.date-overlay-input').forEach(function(el){ el.remove(); });
+  _syncDirtyUi();
 }
 
 /* ── contenteditable sem quebra de layout ── */
 function _ce(el) {
   if (!el || el.contentEditable === 'true') return;
   el.setAttribute('contenteditable', 'true');
+  el.setAttribute('spellcheck', 'false');
   // Previne Enter de criar nova linha (mantém layout single-line)
   el.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
@@ -1761,9 +1847,30 @@ function _attachAllEditHandlers() {
 
 /* ── Header ── */
 function _attachHeaderHandlers() {
-  _ce(document.getElementById('projectTitle'));
-  _ce(document.getElementById('projectSubtitle'));
-  _ce(document.getElementById('alertText'));
+  var titleEl = document.getElementById('projectTitle');
+  var subtitleEl = document.getElementById('projectSubtitle');
+  var alertEl = document.getElementById('alertText');
+  _ce(titleEl);
+  _ce(subtitleEl);
+  _ce(alertEl);
+  if (titleEl && !titleEl.dataset.syncBound) {
+    titleEl.dataset.syncBound = '1';
+    titleEl.addEventListener('input', function () {
+      if (_editSnapshotData && _editSnapshotData.config) _editSnapshotData.config.project_name = titleEl.textContent.trim();
+    });
+  }
+  if (subtitleEl && !subtitleEl.dataset.syncBound) {
+    subtitleEl.dataset.syncBound = '1';
+    subtitleEl.addEventListener('input', function () {
+      if (_editSnapshotData && _editSnapshotData.config) _editSnapshotData.config.project_subtitle = subtitleEl.textContent.trim();
+    });
+  }
+  if (alertEl && !alertEl.dataset.syncBound) {
+    alertEl.dataset.syncBound = '1';
+    alertEl.addEventListener('input', function () {
+      if (_editSnapshotData && _editSnapshotData.config) _editSnapshotData.config.alert_label = alertEl.textContent.trim();
+    });
+  }
 }
 
 /* ── KPI cards (label + value, sem quebrar card) ── */
@@ -1848,6 +1955,8 @@ function addResumoItem() {
   markDirty();
   renderResumo({ resumo_executivo: _editSnapshotData.resumo_executivo });
   _attachResumoHandlers();
+  var list = document.querySelector('#resumo li[data-edit-idx="' + (_editSnapshotData.resumo_executivo.length - 1) + '"] .resumo-text');
+  if (list) list.focus();
 }
 
 /* ── Pendências Críticas ── */
@@ -1911,6 +2020,8 @@ function addPendenciaItem() {
   markDirty();
   renderPendencias({ pendencias_criticas: _editSnapshotData.pendencias_criticas });
   _attachPendenciasHandlers();
+  var row = document.querySelector('#pendencias tr[data-edit-idx="' + (_editSnapshotData.pendencias_criticas.length - 1) + '"] .risk-title');
+  if (row) row.focus();
 }
 
 /* ── Próximas Ações ── */
@@ -1942,6 +2053,8 @@ function addAcaoItem() {
   markDirty();
   renderAcoes({ proximas_acoes: _editSnapshotData.proximas_acoes });
   _attachAcoesHandlers();
+  var item = document.querySelector('#acoes li[data-edit-idx="' + (_editSnapshotData.proximas_acoes.length - 1) + '"] .acao-text');
+  if (item) item.focus();
 }
 
 /* ── Marcos ── */
@@ -2012,25 +2125,34 @@ function _attachFooterHandlers() {
     } else {
       // Campo de texto: contenteditable normal
       _ce(el);
+      if (!el.dataset.syncBound) {
+        el.dataset.syncBound = '1';
+        el.addEventListener('input', function () {
+          if (!_editSnapshotData) return;
+          if (el.dataset.editRodape) {
+            if (!_editSnapshotData.rodape) _editSnapshotData.rodape = {};
+            _editSnapshotData.rodape[el.dataset.editRodape] = el.textContent.trim();
+          }
+        });
+      }
     }
   });
   document.querySelectorAll('[data-edit-config]').forEach(function(el) {
     _ce(el);
+    if (!el.dataset.syncBound) {
+      el.dataset.syncBound = '1';
+      el.addEventListener('input', function () {
+        if (_editSnapshotData && _editSnapshotData.config) {
+          _editSnapshotData.config[el.dataset.editConfig] = el.textContent.trim();
+        }
+      });
+    }
   });
 }
 
 /* ── Coleta dados para salvar ── */
 function collectEdits() {
   var data = JSON.parse(JSON.stringify(_editSnapshotData));
-
-  // Header
-  var el;
-  el = document.getElementById('projectTitle');
-  if (el && el.contentEditable === 'true') data.config.project_name = el.textContent.trim();
-  el = document.getElementById('projectSubtitle');
-  if (el && el.contentEditable === 'true') data.config.project_subtitle = el.textContent.trim();
-  el = document.getElementById('alertText');
-  if (el && el.contentEditable === 'true') data.config.alert_label = el.textContent.trim();
 
   // KPIs
   document.querySelectorAll('#kpis .kpi-card[data-kpi-orig-idx]').forEach(function(card) {
@@ -2078,19 +2200,14 @@ function collectEdits() {
     // status já atualizado pelo onChange
   });
 
-  // Footer — texto editável via contenteditable, datas via dataset
+  // Footer — datas via dataset
   document.querySelectorAll('[data-edit-rodape]').forEach(function(el) {
     if (!data.rodape) data.rodape = {};
     var key = el.dataset.editRodape;
     if (el.dataset.editDateAttached) {
       // Data: usa rawDate do dataset (atualizado pelo picker)
       if (el.dataset.rawVal) data.rodape[key] = el.dataset.rawVal;
-    } else if (el.contentEditable === 'true') {
-      data.rodape[key] = el.textContent.trim();
     }
-  });
-  document.querySelectorAll('[data-edit-config]').forEach(function(el) {
-    if (el.contentEditable === 'true') data.config[el.dataset.editConfig] = el.textContent.trim();
   });
 
   // Reordenar arrays
@@ -2099,6 +2216,8 @@ function collectEdits() {
   if (data.marcos)           data.marcos           = data.marcos.map(function(m,i){ return Object.assign({},m,{ordem:i+1}); });
   if (data.fases)            data.fases            = data.fases.map(function(f,i){ return Object.assign({},f,{ordem:i+1}); });
   if (data.kpis)             data.kpis             = data.kpis.map(function(k,i){ return Object.assign({},k,{ordem:i+1}); });
+  if (!data.rodape) data.rodape = {};
+  if (data.config && data.config.owner_name) data.rodape.owner_relatorio = data.config.owner_name;
 
   return data;
 }
@@ -2114,19 +2233,26 @@ async function saveEdits() {
     var resp = await fetch('/api/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ reportData: payload })
     });
     if (!resp.ok) {
       var err = await resp.json();
-      alert('Erro ao salvar: ' + (err.error || 'Erro desconhecido'));
+      showToast('Não foi possível salvar as alterações. Tente novamente.', 'error');
       return;
+    }
+    if (_lastRenderData) {
+      _lastRenderData.reportData = JSON.parse(JSON.stringify(payload));
+      _lastRenderData.data = JSON.parse(JSON.stringify(payload));
+      renderAll(_lastRenderData);
     }
     clearDirty();
     _exitEditMode();
+    showToast('✓ Alterações salvas com sucesso', 'success');
   } catch(err) {
-    alert('Erro: ' + err.message);
+    showToast('Não foi possível salvar as alterações. Tente novamente.', 'error');
   } finally {
-    if (btn) { btn.textContent = '✓ Salvar alterações'; btn.disabled = false; }
+    if (btn) { btn.disabled = false; }
+    _syncDirtyUi();
   }
 }
 
@@ -2145,6 +2271,7 @@ function closeConfigDrawer() {
   if (d) { d.classList.remove('open'); d.setAttribute('aria-hidden', 'true'); }
   var b = document.getElementById('configDrawerBackdrop');
   if (b) b.style.display = 'none';
+  _closeBadgeMenus();
 }
 
 function _registry() {
@@ -2232,7 +2359,11 @@ function _buildConfigDrawer() {
     addF(s1, 'Subtítulo',          txt(cfg.project_subtitle, function(v){d.config.project_subtitle=v;}));
     addF(s1, 'Sponsor / Cliente',  txt(cfg.sponsor,          function(v){d.config.sponsor=v;}));
     addF(s1, 'Parceiro',           txt(cfg.partner_name,     function(v){d.config.partner_name=v;}));
-    addF(s1, 'Responsável (PM)',   txt(cfg.owner_name,       function(v){d.config.owner_name=v;}));
+    addF(s1, 'Responsável (PM)',   txt(cfg.owner_name,       function(v){
+      d.config.owner_name = v;
+      if (!d.rodape) d.rodape = {};
+      d.rodape.owner_relatorio = v;
+    }));
     addF(s1, 'Data do Relatório',  txtDateFriendly(cfg.report_date, function(v){d.config.report_date=v;}));
     addF(s1, 'Nome do Relatório',  txt(cfg.report_name,      function(v){d.config.report_name=v;}));
     body.appendChild(s1);
@@ -2445,6 +2576,7 @@ function _drawerCurvaS(d) {
 
 /* ===== Init ===== */
 document.addEventListener('DOMContentLoaded', function () {
+  _exitEditMode();
   loadData(true);
   connectWebSocket();
   window.addEventListener('beforeunload', function(e) {
@@ -2462,5 +2594,28 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   window.addEventListener('afterprint', function () {
     if (_lastRenderData) renderCurvaS(_lastRenderData.data || {});
+  });
+  document.addEventListener('fullscreenchange', function () {
+    if (!document.fullscreenElement) {
+      _isPresentationMode = false;
+      document.body.classList.remove('presentation-mode');
+    }
+    syncDeckHeights();
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (!_isPresentationMode) return;
+    if (ev.key === 'ArrowRight' || ev.key === 'PageDown') {
+      ev.preventDefault();
+      nextSlide();
+    } else if (ev.key === 'ArrowLeft' || ev.key === 'PageUp') {
+      ev.preventDefault();
+      prevSlide();
+    } else if (ev.key === 'Home') {
+      ev.preventDefault();
+      setSlide(1);
+    } else if (ev.key === 'End') {
+      ev.preventDefault();
+      setSlide(totalSlides);
+    }
   });
 });

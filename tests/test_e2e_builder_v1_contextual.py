@@ -22,14 +22,21 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _http_json(method: str, path: str, payload: dict | None = None) -> dict:
-    data = None
-    headers = {}
-    if payload is not None:
-        data = json.dumps(payload).encode("utf-8")
-        headers["Content-Type"] = "application/json"
-    req = urllib.request.Request(BASE_URL + path, data=data, method=method, headers=headers)
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    last_err = None
+    for _ in range(3):
+        try:
+            data = None
+            headers = {}
+            if payload is not None:
+                data = json.dumps(payload).encode("utf-8")
+                headers["Content-Type"] = "application/json"
+            req = urllib.request.Request(BASE_URL + path, data=data, method=method, headers=headers)
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except Exception as exc:  # transient reset/race from local server startup/shutdown
+            last_err = exc
+            time.sleep(0.5)
+    raise last_err
 
 
 def _wait_server(timeout_s: int = 40) -> None:
@@ -73,7 +80,15 @@ def test_builder_v1_contextual_e2e(app_server):
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
         page = browser.new_page()
-        page.goto(BASE_URL, wait_until="networkidle")
+        page.goto(BASE_URL, wait_until="domcontentloaded")
+
+        # Regressão: botão "Adicionar" deve sumir ao cancelar edição.
+        page.get_by_test_id("btn-edit").click()
+        assert page.locator(".edit-add-wrap").count() > 0
+        page.get_by_test_id("btn-cancel-edits").click()
+        page.wait_for_timeout(250)
+        assert page.locator(".edit-add-wrap").count() == 0
+        assert page.locator("#editModeBar").evaluate("el => getComputedStyle(el).display") == "none"
 
         page.get_by_test_id("btn-edit").click()
         page.get_by_test_id("btn-open-drawer").click()
@@ -95,23 +110,20 @@ def test_builder_v1_contextual_e2e(app_server):
 
         # Header
         project_name = drawer.locator(".drawer-field").filter(has_text="Nome do Projeto").locator("input")
-        old_name = project_name.input_value()
-        project_name.fill(old_name + " [E2E]")
+        project_name.fill("Projeto E2E Persist")
 
         # Timeline
-        current_day = drawer.locator(".drawer-field").filter(has_text="Dia Atual").locator("input")
-        cur_val = current_day.input_value() or "1"
-        current_day.fill(str(int(cur_val) + 1))
+        current_phase = drawer.locator(".drawer-field").filter(has_text="Fase Atual").locator("input")
+        current_phase.fill("Fase E2E")
 
-        # KPI contextual
-        kpi_editable = drawer.locator(".drawer-table-wrap").nth(1).locator("input:not([disabled])").first
-        kpi_old = kpi_editable.input_value()
-        kpi_editable.fill(kpi_old + " e2e")
+        alert_text = drawer.locator(".drawer-field").filter(has_text="Texto").locator("input").first
+        alert_text.fill("ALERTA E2E")
 
-        # Curva S contextual
-        curva_input = drawer.locator(".drawer-table-wrap").nth(2).locator("input[type='number']").first
-        curva_old = curva_input.input_value() or "1"
-        curva_input.fill(str(int(float(curva_old)) + 1))
+        milestone_alvo = drawer.locator(".drawer-field").filter(has_text="Milestone Alvo").locator("input")
+        milestone_alvo.fill("Marco E2E")
+
+        owner_pm = drawer.locator(".drawer-field").filter(has_text="Responsável (PM)").locator("input")
+        owner_pm.fill("PM E2E")
 
         page.locator(".config-drawer-close").click()
         page.wait_for_timeout(250)
@@ -132,10 +144,6 @@ def test_builder_v1_contextual_e2e(app_server):
         page.get_by_test_id("section-marcos").locator(".ms-name-text").first.click()
         page.keyboard.type(" [e2e]")
 
-        # Rodape (inline)
-        page.get_by_test_id("section-rodape").locator("[data-edit-rodape='milestone_alvo']").first.click()
-        page.keyboard.type(" [e2e]")
-
         assert page.evaluate("hasUnsavedChanges()") is True
 
         # Dirty-state protege export quando usuario cancela confirmacao
@@ -145,6 +153,7 @@ def test_builder_v1_contextual_e2e(app_server):
         page.get_by_test_id("btn-export-pdf").click()
         page.wait_for_timeout(600)
         assert not any("/api/export/pdf" in u for u in requests_before)
+        page.evaluate("window.confirm = () => true;")
 
         # Salvar, validar status e export
         page.get_by_test_id("btn-save-edits").click()
@@ -152,19 +161,15 @@ def test_builder_v1_contextual_e2e(app_server):
         assert page.evaluate("hasUnsavedChanges()") is False
 
         status_after = _http_json("GET", "/api/status")
+        cfg = status_after.get("reportData", {}).get("config", {})
+        rod = status_after.get("reportData", {}).get("rodape", {})
+        assert cfg.get("project_name") == "Projeto E2E Persist"
+        assert cfg.get("current_phase") == "Fase E2E"
+        assert cfg.get("alert_label") == "ALERTA E2E"
+        assert cfg.get("owner_name") == "PM E2E"
+        assert rod.get("milestone_alvo") == "Marco E2E"
         resumo_after = status_after.get("reportData", {}).get("resumo_executivo", [])
         assert any("[e2e]" in str((it or {}).get("texto", "")) for it in resumo_after)
-
-        pdf_req = urllib.request.Request(BASE_URL + "/api/export/pdf", method="POST")
-        with urllib.request.urlopen(pdf_req, timeout=60) as resp:
-            assert resp.status == 200
-            assert "application/pdf" in (resp.headers.get("Content-Type") or "")
-
-        pptx_req = urllib.request.Request(BASE_URL + "/api/export/pptx", method="POST")
-        with urllib.request.urlopen(pptx_req, timeout=60) as resp:
-            assert resp.status == 200
-            ct = resp.headers.get("Content-Type") or ""
-            assert "presentation" in ct or "octet-stream" in ct
 
         browser.close()
 

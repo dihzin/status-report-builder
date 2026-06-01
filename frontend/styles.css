@@ -89,7 +89,14 @@ body { padding: 0; }
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  padding: 2px 8px 0;
+  padding: 6px 8px;
+  position: sticky;
+  top: 0;
+  z-index: 3000;
+  background: rgba(246, 248, 247, 0.96);
+  backdrop-filter: blur(8px);
+  border-radius: 0 0 10px 10px;
+  overflow: clip;
 }
 
 .toolbar .tb-btn {
@@ -150,6 +157,9 @@ body { padding: 0; }
   font-weight: 800;
   color: var(--gray-700);
 }
+.toolbar .tb-btn-hidden {
+  display: none !important;
+}
 
 /* ── Botão Editar ── */
 #btnEdit.active {
@@ -209,6 +219,41 @@ body { padding: 0; }
   opacity: 0.85;
   flex-shrink: 0;
 }
+
+.unsaved-hint {
+  font-size: 11px;
+  color: #ffd88b;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.app-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 56px;
+  z-index: 10001;
+  background: rgba(25, 33, 52, 0.96);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.22);
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.app-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.app-toast.success { background: rgba(40, 121, 75, 0.96); }
+.app-toast.error { background: rgba(156, 56, 56, 0.96); }
+.app-toast.info { background: rgba(35, 62, 112, 0.96); }
 
 .edit-cfg-btn {
   display: flex;
@@ -577,6 +622,22 @@ body.export-clean .edit-date-field {
   }
   .edit-mode .edit-locked .label::after { display: none !important; }
   .edit-mode .edit-date-field::after { display: none !important; }
+}
+
+body.presentation-mode {
+  background: #111827;
+}
+body.presentation-mode .toolbar,
+body.presentation-mode .validation-banner,
+body.presentation-mode #editModeBar,
+body.presentation-mode #configDrawer,
+body.presentation-mode #configDrawerBackdrop {
+  display: none !important;
+}
+body.presentation-mode .page-shell {
+  margin: 0 auto;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
 /* ===== Config Drawer ===== */

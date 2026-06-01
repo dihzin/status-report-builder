@@ -125,12 +125,17 @@ def _screenshot(url: str, path: str) -> None:
         browser.close()
 
 
-if __name__ == "__main__":
-    cmd = json.loads(sys.argv[1])
+def run_command(cmd: dict) -> int:
     action = cmd["action"]
     if action == "pdf":
         _pdf(cmd["url"], cmd["path"])
     elif action == "screenshot":
         _screenshot(cmd["url"], cmd["path"])
     else:
-        sys.exit(f"Unknown action: {action}")
+        raise RuntimeError(f"Unknown action: {action}")
+    return 0
+
+
+if __name__ == "__main__":
+    cmd = json.loads(sys.argv[1])
+    sys.exit(run_command(cmd))

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import sqlite3
+import os
 from contextlib import contextmanager
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = ROOT_DIR / "data"
-DB_PATH = DATA_DIR / "status_builder.db"
+DATA_DIR = Path(os.getenv("STATUS_BUILDER_DATA_DIR", str(ROOT_DIR / "data"))).resolve()
+DB_PATH = Path(os.getenv("STATUS_BUILDER_DB_PATH", str(DATA_DIR / "status_builder.db"))).resolve()
 
 
 def _dict_factory(cursor: sqlite3.Cursor, row: tuple):

@@ -55,6 +55,11 @@ status_projeto_before_restore_*.xlsx
 exports/
 *.pdf
 *.pptx
+logs/
+config/settings.json
+data/status_report.db
+dist/
+build/
 
 # Backups/temporários e cache
 *.tmp
