@@ -90,6 +90,11 @@ body { padding: 0; }
   gap: 8px;
   flex-wrap: wrap;
   padding: 2px 8px 0;
+  position: sticky;
+  top: 0;
+  z-index: 3000;
+  background: rgba(246, 248, 247, 0.92);
+  backdrop-filter: blur(8px);
 }
 
 .toolbar .tb-btn {
@@ -209,6 +214,41 @@ body { padding: 0; }
   opacity: 0.85;
   flex-shrink: 0;
 }
+
+.unsaved-hint {
+  font-size: 11px;
+  color: #ffd88b;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.app-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 56px;
+  z-index: 10001;
+  background: rgba(25, 33, 52, 0.96);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.22);
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.app-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.app-toast.success { background: rgba(40, 121, 75, 0.96); }
+.app-toast.error { background: rgba(156, 56, 56, 0.96); }
+.app-toast.info { background: rgba(35, 62, 112, 0.96); }
 
 .edit-cfg-btn {
   display: flex;

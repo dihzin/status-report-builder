@@ -5,6 +5,7 @@ var currentSlide = 2;
 var totalSlides = 4;
 var _isDirty = false;
 var _pendingAction = null;
+var EXPORT_TIMEOUT_MS = 45000;
 
 /** Retorna x se não for nulo/vazio, senão fallback */
 function v(x, fb) {
@@ -54,10 +55,12 @@ function fmtDateShort(val) {
 
 function markDirty() {
   _isDirty = true;
+  _syncDirtyUi();
 }
 
 function clearDirty() {
   _isDirty = false;
+  _syncDirtyUi();
 }
 
 function hasUnsavedChanges() {
@@ -66,7 +69,42 @@ function hasUnsavedChanges() {
 
 function confirmLoseUnsaved(contextLabel) {
   if (!hasUnsavedChanges()) return true;
-  return confirm('Existem alterações não salvas (' + contextLabel + '). Deseja descartar e continuar?');
+  if (contextLabel === 'atualização') {
+    return confirm('Você tem alterações não salvas. Deseja descartar e atualizar?');
+  }
+  return confirm('Existem alterações não salvas. Deseja descartar e continuar?');
+}
+
+function showToast(message, kind) {
+  var t = document.getElementById('appToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'appToast';
+    t.className = 'app-toast';
+    document.body.appendChild(t);
+  }
+  t.textContent = message;
+  t.className = 'app-toast show ' + (kind || 'info');
+  clearTimeout(t._hideTimer);
+  t._hideTimer = setTimeout(function () { t.className = 'app-toast'; }, 2800);
+}
+
+function _syncDirtyUi() {
+  var saveBtn = document.getElementById('btnSaveEdits');
+  var hint = document.getElementById('unsavedHint');
+  if (saveBtn) saveBtn.textContent = hasUnsavedChanges() ? '✓ Salvar alterações *' : '✓ Salvar alterações';
+  if (hint) hint.style.display = hasUnsavedChanges() ? 'inline-flex' : 'none';
+}
+
+async function _fetchWithTimeout(url, options, timeoutMs) {
+  var ctrl = new AbortController();
+  var timer = setTimeout(function () { ctrl.abort('timeout'); }, timeoutMs || EXPORT_TIMEOUT_MS);
+  try {
+    var opts = Object.assign({}, options || {}, { signal: ctrl.signal });
+    return await fetch(url, opts);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
@@ -1456,9 +1494,10 @@ async function exportPDF(ev) {
   var btn = ev.target;
   btn.textContent = 'Exportando...';
   btn.disabled = true;
+  document.body.classList.add('is-exporting');
   try {
-    var resp = await fetch('/api/export/pdf', { method: 'POST' });
-    if (!resp.ok) { var e = await resp.json(); alert(e.error || 'Erro'); return; }
+    var resp = await _fetchWithTimeout('/api/export/pdf', { method: 'POST' }, EXPORT_TIMEOUT_MS);
+    if (!resp.ok) { var e = await resp.json(); showToast(e.error || 'Falha ao exportar PDF.', 'error'); return; }
     var blob = await resp.blob();
     var url  = URL.createObjectURL(blob);
     var a    = document.createElement('a');
@@ -1466,11 +1505,13 @@ async function exportPDF(ev) {
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    showToast('PDF gerado com sucesso.', 'success');
   } catch (err) {
-    alert('Erro: ' + err.message);
+    showToast(err && err.name === 'AbortError' ? 'Exportação PDF expirou. Tente novamente.' : 'Erro ao exportar PDF.', 'error');
   } finally {
     btn.textContent = 'Exportar PDF';
     btn.disabled = false;
+    document.body.classList.remove('is-exporting');
   }
 }
 
@@ -1485,9 +1526,10 @@ async function exportPPTX(ev) {
   var btn = ev.target;
   btn.textContent = 'Exportando...';
   btn.disabled = true;
+  document.body.classList.add('is-exporting');
   try {
-    var resp = await fetch('/api/export/pptx', { method: 'POST' });
-    if (!resp.ok) { var e = await resp.json(); alert(e.error || 'Erro'); return; }
+    var resp = await _fetchWithTimeout('/api/export/pptx', { method: 'POST' }, EXPORT_TIMEOUT_MS);
+    if (!resp.ok) { var e = await resp.json(); showToast(e.error || 'Falha ao exportar PPTX.', 'error'); return; }
     var blob = await resp.blob();
     var url  = URL.createObjectURL(blob);
     var a    = document.createElement('a');
@@ -1495,11 +1537,13 @@ async function exportPPTX(ev) {
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    showToast('PPTX gerado com sucesso.', 'success');
   } catch (err) {
-    alert('Erro: ' + err.message);
+    showToast(err && err.name === 'AbortError' ? 'Exportação PPTX expirou. Tente novamente.' : 'Erro ao exportar PPTX.', 'error');
   } finally {
     btn.textContent = 'Exportar PPTX';
     btn.disabled = false;
+    document.body.classList.remove('is-exporting');
   }
 }
 
@@ -1511,7 +1555,18 @@ async function safePrint() {
     if (editMode || hasUnsavedChanges()) return;
   }
   if (editMode) _exitEditMode();
-  window.print();
+  document.body.classList.add('printing');
+  try {
+    if (!window.print) {
+      showToast('Impressão não disponível neste ambiente.', 'error');
+      return;
+    }
+    window.print();
+  } catch (_) {
+    showToast('Não foi possível iniciar a impressão.', 'error');
+  } finally {
+    setTimeout(function(){ document.body.classList.remove('printing'); }, 250);
+  }
 }
 
 async function requestPresentationMode() {
@@ -1522,7 +1577,7 @@ async function requestPresentationMode() {
     if (editMode || hasUnsavedChanges()) return;
   }
   if (editMode) _exitEditMode();
-  document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+  showToast('Modo apresentação será habilitado em versão futura.', 'info');
 }
 
 /* ===== Edit Mode ===== */
@@ -1578,12 +1633,14 @@ function _exitEditMode() {
   if (btn) btn.classList.remove('active');
   // Remove any floating date pickers
   document.querySelectorAll('.date-overlay-input').forEach(function(el){ el.remove(); });
+  _syncDirtyUi();
 }
 
 /* ── contenteditable sem quebra de layout ── */
 function _ce(el) {
   if (!el || el.contentEditable === 'true') return;
   el.setAttribute('contenteditable', 'true');
+  el.setAttribute('spellcheck', 'false');
   // Previne Enter de criar nova linha (mantém layout single-line)
   el.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
@@ -1851,6 +1908,8 @@ function addResumoItem() {
   markDirty();
   renderResumo({ resumo_executivo: _editSnapshotData.resumo_executivo });
   _attachResumoHandlers();
+  var list = document.querySelector('#resumo li[data-edit-idx="' + (_editSnapshotData.resumo_executivo.length - 1) + '"] .resumo-text');
+  if (list) list.focus();
 }
 
 /* ── Pendências Críticas ── */
@@ -1914,6 +1973,8 @@ function addPendenciaItem() {
   markDirty();
   renderPendencias({ pendencias_criticas: _editSnapshotData.pendencias_criticas });
   _attachPendenciasHandlers();
+  var row = document.querySelector('#pendencias tr[data-edit-idx="' + (_editSnapshotData.pendencias_criticas.length - 1) + '"] .risk-title');
+  if (row) row.focus();
 }
 
 /* ── Próximas Ações ── */
@@ -1945,6 +2006,8 @@ function addAcaoItem() {
   markDirty();
   renderAcoes({ proximas_acoes: _editSnapshotData.proximas_acoes });
   _attachAcoesHandlers();
+  var item = document.querySelector('#acoes li[data-edit-idx="' + (_editSnapshotData.proximas_acoes.length - 1) + '"] .acao-text');
+  if (item) item.focus();
 }
 
 /* ── Marcos ── */
@@ -2117,19 +2180,26 @@ async function saveEdits() {
     var resp = await fetch('/api/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ reportData: payload })
     });
     if (!resp.ok) {
       var err = await resp.json();
-      alert('Erro ao salvar: ' + (err.error || 'Erro desconhecido'));
+      showToast('Não foi possível salvar as alterações. Tente novamente.', 'error');
       return;
+    }
+    if (_lastRenderData) {
+      _lastRenderData.reportData = JSON.parse(JSON.stringify(payload));
+      _lastRenderData.data = JSON.parse(JSON.stringify(payload));
+      renderAll(_lastRenderData);
     }
     clearDirty();
     _exitEditMode();
+    showToast('✓ Alterações salvas com sucesso', 'success');
   } catch(err) {
-    alert('Erro: ' + err.message);
+    showToast('Não foi possível salvar as alterações. Tente novamente.', 'error');
   } finally {
-    if (btn) { btn.textContent = '✓ Salvar alterações'; btn.disabled = false; }
+    if (btn) { btn.disabled = false; }
+    _syncDirtyUi();
   }
 }
 
@@ -2148,6 +2218,7 @@ function closeConfigDrawer() {
   if (d) { d.classList.remove('open'); d.setAttribute('aria-hidden', 'true'); }
   var b = document.getElementById('configDrawerBackdrop');
   if (b) b.style.display = 'none';
+  _closeBadgeMenus();
 }
 
 function _registry() {
@@ -2448,6 +2519,7 @@ function _drawerCurvaS(d) {
 
 /* ===== Init ===== */
 document.addEventListener('DOMContentLoaded', function () {
+  _exitEditMode();
   loadData(true);
   connectWebSocket();
   window.addEventListener('beforeunload', function(e) {
