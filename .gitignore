@@ -40,3 +40,27 @@ data/*.db-shm
 data/*.db-wal
 backups/*.db
 backups/*.xlsx
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+
+# Artefatos operacionais do app (fonte canônica = SQLite)
+status_projeto.xlsx
+status_projeto_backup*.xlsx
+status_projeto_before_restore_*.xlsx
+
+# Exports gerados
+exports/
+*.pdf
+*.pptx
+
+# Backups/temporários e cache
+*.tmp
+*.temp
+*.log
+*.cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

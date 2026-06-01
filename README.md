@@ -154,3 +154,10 @@ onepage-status-project/
   - `python -m pytest -q tests/test_phase4_sqlite_hardening.py`
   - `python -m pytest -q tests/test_excel_reader.py tests/test_schema_validator.py`
   - `python -m pytest -q tests/test_import_pmar.py`
+
+## Fonte de dados oficial (Fase 4+)
+
+- A fonte principal de dados do app e das APIs (`/api/status`, `/api/save`) é o SQLite com `reportData` canônico.
+- O Excel (`status_projeto.xlsx`) permanece apenas como legado/importação opcional e não é a fonte operacional principal.
+- A edição oficial ocorre pela interface/API, persistindo snapshots no SQLite.
+- Exportações PDF/PPTX são geradas a partir do `reportData` salvo no SQLite.
