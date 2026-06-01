@@ -12,6 +12,7 @@ from pathlib import Path
 
 import uvicorn
 from backend.main import app as fastapi_app
+from backend import export_worker
 
 
 def _portable_root() -> Path:
@@ -46,6 +47,19 @@ def _load_settings(config_dir: Path) -> dict:
     return default
 
 
+def _configure_runtime_env(base: Path, paths: dict[str, Path]) -> None:
+    os.environ["STATUS_BUILDER_APP_ROOT"] = str(base)
+    os.environ["STATUS_BUILDER_DATA_DIR"] = str(paths["data"])
+    os.environ["STATUS_BUILDER_DB_PATH"] = str(paths["data"] / "status_report.db")
+    os.environ["STATUS_BUILDER_EXPORTS_DIR"] = str(paths["exports"])
+    os.environ["STATUS_BUILDER_LOGS_DIR"] = str(paths["logs"])
+    os.environ["STATUS_BUILDER_CONFIG_DIR"] = str(paths["config"])
+    # Keep explicit absolute browser path for portable runtime.
+    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(base / "_internal" / "ms-playwright")
+    os.environ["WATCH_EXCEL"] = os.getenv("WATCH_EXCEL", "false")
+    os.environ["VALIDATE_EXCEL_SCHEMA"] = os.getenv("VALIDATE_EXCEL_SCHEMA", "false")
+
+
 def _find_free_port(host: str, preferred: int = 0) -> int:
     if preferred:
         with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
@@ -73,6 +87,12 @@ def _acquire_lock(root: Path) -> tuple[Path, int]:
 def main() -> int:
     base = _portable_root()
     paths = _ensure_dirs(base)
+
+    if len(sys.argv) >= 3 and sys.argv[1] == "--export-worker":
+        _configure_runtime_env(base, paths)
+        cmd = json.loads(sys.argv[2])
+        return export_worker.run_command(cmd)
+
     settings = _load_settings(paths["config"])
 
     log_path = paths["logs"] / "launcher.log"
@@ -88,14 +108,7 @@ def main() -> int:
         host = str(settings.get("host") or "127.0.0.1")
         port = _find_free_port(host, int(settings.get("preferred_port") or 0))
 
-        os.environ["STATUS_BUILDER_APP_ROOT"] = str(base)
-        os.environ["STATUS_BUILDER_DATA_DIR"] = str(paths["data"])
-        os.environ["STATUS_BUILDER_DB_PATH"] = str(paths["data"] / "status_report.db")
-        os.environ["STATUS_BUILDER_EXPORTS_DIR"] = str(paths["exports"])
-        os.environ["STATUS_BUILDER_LOGS_DIR"] = str(paths["logs"])
-        os.environ["STATUS_BUILDER_CONFIG_DIR"] = str(paths["config"])
-        os.environ["WATCH_EXCEL"] = os.getenv("WATCH_EXCEL", "false")
-        os.environ["VALIDATE_EXCEL_SCHEMA"] = os.getenv("VALIDATE_EXCEL_SCHEMA", "false")
+        _configure_runtime_env(base, paths)
 
         url = f"http://{host}:{port}"
         if bool(settings.get("open_browser", True)):

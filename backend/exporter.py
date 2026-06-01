@@ -14,8 +14,12 @@ _executor = ThreadPoolExecutor(max_workers=2)
 
 
 def _run_worker(cmd: dict, timeout: int = 60) -> None:
+    if getattr(sys, "frozen", False):
+        worker_cmd = [sys.executable, "--export-worker", json.dumps(cmd)]
+    else:
+        worker_cmd = [sys.executable, str(_WORKER), json.dumps(cmd)]
     result = subprocess.run(
-        [sys.executable, str(_WORKER), json.dumps(cmd)],
+        worker_cmd,
         capture_output=True,
         text=True,
         timeout=timeout,
