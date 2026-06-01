@@ -6,6 +6,7 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
+from typing import Callable
 
 _WORKER = Path(__file__).parent / "export_worker.py"
 _executor = ThreadPoolExecutor(max_workers=2)
@@ -63,8 +64,7 @@ async def export_pdf(frontend_url: str) -> str:
     return str(pdf_path)
 
 
-async def export_pptx(frontend_url: str) -> str:
-    from backend.excel_reader import read_excel
+async def export_pptx(frontend_url: str, data_provider: Callable[[], dict] | None = None) -> str:
     from pptx import Presentation
     from pptx.util import Inches
     from pptx.util import Pt
@@ -72,7 +72,7 @@ async def export_pptx(frontend_url: str) -> str:
     from pptx.dml.color import RGBColor
 
     pptx_path = PPTX_DIR / _stamped("status_report", ".pptx")
-    data, _ = read_excel(str(ROOT_DIR / "status_projeto.xlsx"))
+    data = data_provider() if callable(data_provider) else {}
     data = data or {}
     cfg = data.get("config", {}) or {}
     branding = data.get("branding", {}) or {}

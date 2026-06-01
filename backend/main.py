@@ -1,16 +1,15 @@
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, FileResponse
 
-from backend.excel_reader import read_excel, create_template
-from backend.report_data import build_report_data, to_legacy_data_shape
-from backend.schema_validator import validate_schema
 from backend.watcher import start_watcher
 from backend.exporter import export_pdf, export_pptx
+from backend.services.report_service import ReportService
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,16 +20,8 @@ FRONTEND_DIR = ROOT_DIR / "frontend"
 
 active_connections: set[WebSocket] = set()
 _watcher = None
-
-
-def _deep_merge(base: dict, patch: dict) -> dict:
-    out = dict(base or {})
-    for k, v in (patch or {}).items():
-        if isinstance(v, dict) and isinstance(out.get(k), dict):
-            out[k] = _deep_merge(out.get(k) or {}, v)
-        else:
-            out[k] = v
-    return out
+report_service = ReportService(ROOT_DIR)
+WATCH_EXCEL = os.getenv("WATCH_EXCEL", "false").strip().lower() == "true"
 
 
 async def broadcast(message: dict):
@@ -45,7 +36,6 @@ async def broadcast(message: dict):
 
 async def on_excel_changed():
     logger.info("Excel alterado. Atualizando dados...")
-    read_excel(str(EXCEL_PATH))  # atualiza _cache em excel_reader
     await broadcast({"type": "data_updated"})
 
 
@@ -53,16 +43,15 @@ async def on_excel_changed():
 async def lifespan(app: FastAPI):
     global _watcher
 
-    if not EXCEL_PATH.exists():
-        logger.info("status_projeto.xlsx não encontrado. Criando template...")
-        create_template(str(EXCEL_PATH))
-        logger.info("Template criado: status_projeto.xlsx")
+    report_service.initialize_storage()
+    report_service.ensure_seeded()
 
-    read_excel(str(EXCEL_PATH))  # aquece o cache
-
-    loop = asyncio.get_running_loop()
-    _watcher = start_watcher(str(EXCEL_PATH), loop, on_excel_changed)
-    logger.info("Watchdog iniciado. Monitorando alterações no Excel...")
+    if WATCH_EXCEL and EXCEL_PATH.exists():
+        loop = asyncio.get_running_loop()
+        _watcher = start_watcher(str(EXCEL_PATH), loop, on_excel_changed)
+        logger.info("Watchdog iniciado. Monitorando alterações no Excel...")
+    else:
+        logger.info("Watchdog de Excel desativado (WATCH_EXCEL=false ou Excel ausente).")
 
     yield
 
@@ -97,22 +86,16 @@ async def health():
 
 @app.get("/api/status")
 async def get_status():
-    raw_data, file_error = read_excel(str(EXCEL_PATH))
-    report_data = build_report_data(raw_data if isinstance(raw_data, dict) else {})
-    data = to_legacy_data_shape(report_data)
-
-    validation_errors: list[str] = []
-    if not EXCEL_PATH.exists():
-        validation_errors = ["Arquivo Excel não encontrado"]
-    elif file_error is None:
-        validation_errors = validate_schema(str(EXCEL_PATH))
-
-    return {
-        "data": data,
-        "reportData": report_data,
-        "validation_errors": validation_errors,
-        "file_error": file_error,
-    }
+    try:
+        return report_service.get_status_payload()
+    except Exception as e:
+        logger.exception("Erro ao carregar status")
+        return {
+            "data": {},
+            "reportData": {},
+            "validation_errors": [str(e)],
+            "file_error": str(e),
+        }
 
 
 @app.websocket("/ws/status")
@@ -134,16 +117,9 @@ async def websocket_endpoint(websocket: WebSocket):
 async def save_status(request: Request):
     try:
         payload = await request.json()
-        # Aceita payload legado ou canônico e persiste no formato esperado pelo writer.
-        if isinstance(payload, dict) and "reportData" in payload:
-            payload = payload.get("reportData") or {}
-        current_raw, _ = read_excel(str(EXCEL_PATH))
-        merged = _deep_merge(current_raw if isinstance(current_raw, dict) else {}, payload if isinstance(payload, dict) else {})
-        payload = to_legacy_data_shape(build_report_data(merged))
-        from backend.excel_writer import write_excel
-        write_excel(str(EXCEL_PATH), payload)
+        result = report_service.save_payload(payload if isinstance(payload, dict) else {})
         await on_excel_changed()
-        return {"ok": True}
+        return result
     except Exception as e:
         import traceback
         logger.error("Erro ao salvar dados:\n%s", traceback.format_exc())
@@ -165,7 +141,7 @@ async def generate_pdf():
 @app.post("/api/export/pptx")
 async def generate_pptx():
     try:
-        path = await export_pptx("http://127.0.0.1:8000")
+        path = await export_pptx("http://127.0.0.1:8000", data_provider=report_service.get_current_report_data)
         return FileResponse(
             path,
             media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",

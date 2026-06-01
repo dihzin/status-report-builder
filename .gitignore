@@ -33,3 +33,10 @@ Thumbs.db
 # Playwright
 .playwright/
 playwright-report/
+
+# SQLite / backups locais
+data/*.db
+data/*.db-shm
+data/*.db-wal
+backups/*.db
+backups/*.xlsx
