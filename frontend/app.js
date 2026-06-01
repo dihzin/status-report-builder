@@ -5,6 +5,7 @@ var currentSlide = 2;
 var totalSlides = 4;
 var _isDirty = false;
 var _pendingAction = null;
+var _isPresentationMode = false;
 var EXPORT_TIMEOUT_MS = 45000;
 
 /** Retorna x se não for nulo/vazio, senão fallback */
@@ -1231,8 +1232,8 @@ function renderCurvaS(d) {
   var cfg    = d.config   || {};
   if (!pontos.length) { svg.innerHTML = ''; return; }
 
-  var currentDay = parseInt(cfg.current_day)      || 0;
-  var currentPct = parseInt(cfg.progress_percent) || 0;
+  var currentDay = parseFloat(cfg.current_day)      || 0;
+  var currentPct = parseFloat(cfg.progress_percent) || 0;
 
   // ── Dimensões dinâmicas: o SVG se encaixa no container real ──────────────
   var W = 820;
@@ -1255,7 +1256,7 @@ function renderCurvaS(d) {
   var legY   = H - 18;               // linha da legenda
   var legTY  = H - 5;                // texto da legenda
 
-  var maxDay = Math.max.apply(null, pontos.map(function (p) { return parseInt(p.dia) || 0; }));
+  var maxDay = Math.max.apply(null, pontos.map(function (p) { return parseFloat(p.dia) || 0; }));
   maxDay = Math.max(maxDay, 1);
 
   function sx(dayVal) { return padL + (dayVal / maxDay) * chartW; }
@@ -1301,11 +1302,22 @@ function renderCurvaS(d) {
   }
 
   var plannedCoords = pontos.map(function (p) {
-    return [sx(parseInt(p.dia) || 0), sy(parseInt(p.planejado) || 0)];
+    return [sx(parseFloat(p.dia) || 0), sy(parseFloat(p.planejado) || 0)];
   });
   var realCoords = pontos
-    .filter(function (p) { return p.realizado !== null && p.realizado !== undefined; })
-    .map(function (p) { return [sx(parseInt(p.dia) || 0), sy(parseInt(p.realizado) || 0)]; });
+    .filter(function (p) { return p.realizado !== null && p.realizado !== undefined && p.realizado !== ''; })
+    .map(function (p) { return [sx(parseFloat(p.dia) || 0), sy(parseFloat(p.realizado) || 0)]; });
+
+  // Se planejado e realizado estiverem iguais (ou praticamente iguais), evita percepção de desvio.
+  var sameTrend = pontos.length > 0 && pontos.every(function (p) {
+    var pv = parseFloat(p.planejado);
+    var rv = parseFloat(p.realizado);
+    if (isNaN(pv) || isNaN(rv)) return false;
+    return Math.abs(pv - rv) <= 0.01;
+  });
+  if (sameTrend && realCoords.length === plannedCoords.length) {
+    plannedCoords = realCoords.slice();
+  }
 
   var pD = smoothPath(plannedCoords);
   var rD = smoothPath(realCoords);
@@ -1577,7 +1589,22 @@ async function requestPresentationMode() {
     if (editMode || hasUnsavedChanges()) return;
   }
   if (editMode) _exitEditMode();
-  showToast('Modo apresentação será habilitado em versão futura.', 'info');
+  try {
+    var root = document.documentElement;
+    if (!_isPresentationMode) {
+      if (root.requestFullscreen) await root.requestFullscreen();
+      else if (document.body.requestFullscreen) await document.body.requestFullscreen();
+      document.body.classList.add('presentation-mode');
+      _isPresentationMode = true;
+      showToast('Modo apresentação ativo. Use setas para navegar e ESC para sair.', 'success');
+    } else {
+      if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen();
+      document.body.classList.remove('presentation-mode');
+      _isPresentationMode = false;
+    }
+  } catch (_) {
+    showToast('Não foi possível ativar o modo apresentação neste navegador.', 'error');
+  }
 }
 
 /* ===== Edit Mode ===== */
@@ -2567,5 +2594,28 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   window.addEventListener('afterprint', function () {
     if (_lastRenderData) renderCurvaS(_lastRenderData.data || {});
+  });
+  document.addEventListener('fullscreenchange', function () {
+    if (!document.fullscreenElement) {
+      _isPresentationMode = false;
+      document.body.classList.remove('presentation-mode');
+    }
+    syncDeckHeights();
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (!_isPresentationMode) return;
+    if (ev.key === 'ArrowRight' || ev.key === 'PageDown') {
+      ev.preventDefault();
+      nextSlide();
+    } else if (ev.key === 'ArrowLeft' || ev.key === 'PageUp') {
+      ev.preventDefault();
+      prevSlide();
+    } else if (ev.key === 'Home') {
+      ev.preventDefault();
+      setSlide(1);
+    } else if (ev.key === 'End') {
+      ev.preventDefault();
+      setSlide(totalSlides);
+    }
   });
 });
