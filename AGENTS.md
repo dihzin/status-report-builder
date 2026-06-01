@@ -2,7 +2,8 @@
 
 ## Architecture
 
-FastAPI backend + pure HTML/CSS/JS frontend. Data source is `status_projeto.xlsx` at root.
+FastAPI backend + pure HTML/CSS/JS frontend. Fonte principal é SQLite (`data/status_builder.db`) com contrato canônico `reportData`.
+`status_projeto.xlsx` é legado/importador opcional para seed inicial.
 
 **Stack**: Python (FastAPI, openpyxl, watchdog, Playwright, python-pptx)
 
@@ -40,9 +41,11 @@ If `status_projeto.xlsx` is missing at startup, `backend/excel_reader.py:create_
 
 ## Key behaviors
 
-- **WebSocket auto‑refresh**: `backend/watcher.py` monitors the Excel file via watchdog. On save, it broadcasts `{"type": "data_updated"}` to all `/ws/status` clients. The frontend re-fetches `/api/status` automatically.
-- **Cache fallback**: If the Excel file is locked (open in Excel), `excel_reader.py` returns the last valid cached data with a warning instead of crashing.
-- **No hardcoded business text**: All labels, values, statuses come from Excel sheets. The only static HTML is structural markup and button labels.
+- **SQLite source of truth**: `/api/status` lê snapshot atual do SQLite e `/api/save` persiste novos snapshots SQLite por `project_key`.
+- **Excel legado opcional**: em banco vazio, se `status_projeto.xlsx` existir, ocorre import/seed inicial via `ExcelImportService`.
+- **Watcher por flag**: `WATCH_EXCEL=false` por padrão; watcher só inicia se habilitado e se o Excel existir.
+- **Schema Excel por flag**: `VALIDATE_EXCEL_SCHEMA=false` por padrão; `/api/status` não depende operacionalmente da validação do Excel.
+- **No hardcoded business text**: labels e valores do relatório vêm de `reportData` persistido, mantendo compatibilidade com dados legados.
 - **Layout**: `.page-shell` at `width: min(1780px, 100%)`, content at 16:9 proportion. Print `@page` set to A4 landscape.
 - **S-Curve**: SVG rendered in `app.js:renderCurvaS()` with dashed planned line, solid realized line, and a green dot for current day/percentage. Coordinates calculated dynamically from CURVA_S data.
 
@@ -65,4 +68,4 @@ If `status_projeto.xlsx` is missing at startup, `backend/excel_reader.py:create_
 
 ## Validation
 
-`schema_validator.py` checks all 9 required sheets exist and that column-oriented sheets have the expected headers. Errors are returned in `/api/status` as `validation_errors[]`.
+`schema_validator.py` valida schema Excel legado quando habilitado. Com `VALIDATE_EXCEL_SCHEMA=false` (padrão), `/api/status` segue operacional com dados do SQLite.

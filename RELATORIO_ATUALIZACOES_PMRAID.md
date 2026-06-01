@@ -77,3 +77,11 @@ python -m backend.import_pmar_raid --pmar docs/PMAR.45_RAID_Log.xlsm --status st
 - `read_excel(status_projeto.xlsx)` retornou dados corretamente.
 - `node --check frontend/app.js` executou sem erros de sintaxe.
 - Busca por erros de planilha (`#REF!`, `#N/A`, `#VALUE!`, etc.) no `status_projeto.xlsx` não encontrou ocorrências.
+
+## Atualização de Governança (Fase 4.1)
+
+- Fase 4.1 aprovada.
+- Auditoria consolidada: **PASS COM RESSALVAS**.
+- Ressalvas classificadas como baixas e concentradas em documentação/curadoria de artefatos.
+- Projeto liberado para iniciar a Fase 5 — Builder Visual V1.
+- Estado operacional oficial: SQLite + `reportData` como fonte principal; Excel apenas legado/importador opcional.

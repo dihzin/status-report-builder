@@ -1,6 +1,6 @@
 # OnePage Status Project
 
-Gera um OnePage executivo de status de projeto a partir de um arquivo Excel.
+Gera um OnePage executivo de status de projeto com persistência principal em SQLite e contrato canônico `reportData`.
 
 ## Requisitos
 
@@ -32,11 +32,11 @@ python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 
 Acesse: http://127.0.0.1:8000
 
-### 3. Editar o Excel
+### 3. Editar os dados
 
-Abra `status_projeto.xlsx` (criado automaticamente na primeira execução), altere os dados e salve. O OnePage será atualizado automaticamente via WebSocket.
+Edite os dados pela interface (modo edição) e salve. As APIs persistem snapshots no SQLite e o OnePage reflete o `reportData` salvo.
 
-## Abas do Excel
+## Abas do Excel (legado/importação opcional)
 
 | Aba | Descrição |
 |-----|-----------|
@@ -103,7 +103,7 @@ Clique em **Exportar PPTX** no menu superior. O arquivo será salvo em `exports/
 
 ```
 onepage-status-project/
-├── status_projeto.xlsx     # Fonte oficial de dados
+├── status_projeto.xlsx     # Entrada legada opcional para seed/import
 ├── start.bat               # Inicialização
 ├── requirements.txt
 ├── backend/
@@ -130,7 +130,8 @@ onepage-status-project/
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | GET | `/health` | Health check |
-| GET | `/api/status` | Retorna todos os dados do Excel em JSON |
+| GET | `/api/status` | Retorna o snapshot atual salvo no SQLite (`reportData` + `data` legado) |
+| POST | `/api/save` | Salva snapshot no SQLite (fonte oficial) |
 | WS | `/ws/status` | WebSocket para atualizações automáticas |
 | POST | `/api/export/pdf` | Exporta OnePage como PDF (landscape) |
 | POST | `/api/export/pptx` | Exporta OnePage como PPTX |
@@ -161,3 +162,5 @@ onepage-status-project/
 - O Excel (`status_projeto.xlsx`) permanece apenas como legado/importação opcional e não é a fonte operacional principal.
 - A edição oficial ocorre pela interface/API, persistindo snapshots no SQLite.
 - Exportações PDF/PPTX são geradas a partir do `reportData` salvo no SQLite.
+- `WATCH_EXCEL=false` por padrão (watcher desligado por padrão; só inicia se habilitado e Excel existir).
+- `VALIDATE_EXCEL_SCHEMA=false` por padrão (sem dependência operacional de schema Excel para `/api/status`).
