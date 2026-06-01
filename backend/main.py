@@ -3,6 +3,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, FileResponse
@@ -15,13 +16,24 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-EXCEL_PATH = ROOT_DIR / "status_projeto.xlsx"
-FRONTEND_DIR = ROOT_DIR / "frontend"
+APP_ROOT = Path(os.getenv("STATUS_BUILDER_APP_ROOT", str(ROOT_DIR))).resolve()
+EXCEL_PATH = Path(os.getenv("STATUS_BUILDER_EXCEL_PATH", str(APP_ROOT / "status_projeto.xlsx"))).resolve()
+FRONTEND_DIR = Path(os.getenv("STATUS_BUILDER_FRONTEND_DIR", str(ROOT_DIR / "frontend"))).resolve()
 
 active_connections: set[WebSocket] = set()
 _watcher = None
-report_service = ReportService(ROOT_DIR)
+report_service = ReportService(APP_ROOT)
 WATCH_EXCEL = os.getenv("WATCH_EXCEL", "false").strip().lower() == "true"
+
+
+def _local_base_url(request: Request) -> str:
+    base = str(request.base_url).rstrip("/")
+    forced_host = os.getenv("STATUS_BUILDER_HOST")
+    if not forced_host:
+        return base
+    parts = urlsplit(base)
+    forced_netloc = f"{forced_host}:{parts.port}" if parts.port else forced_host
+    return urlunsplit((parts.scheme, forced_netloc, "", "", ""))
 
 
 async def broadcast(message: dict):
@@ -127,9 +139,9 @@ async def save_status(request: Request):
 
 
 @app.post("/api/export/pdf")
-async def generate_pdf():
+async def generate_pdf(request: Request):
     try:
-        path = await export_pdf("http://127.0.0.1:8000")
+        path = await export_pdf(_local_base_url(request))
         return FileResponse(path, media_type="application/pdf", filename="status_report.pdf")
     except Exception as e:
         import traceback
@@ -139,9 +151,9 @@ async def generate_pdf():
 
 
 @app.post("/api/export/pptx")
-async def generate_pptx():
+async def generate_pptx(request: Request):
     try:
-        path = await export_pptx("http://127.0.0.1:8000", data_provider=report_service.get_current_report_data)
+        path = await export_pptx(_local_base_url(request), data_provider=report_service.get_current_report_data)
         return FileResponse(
             path,
             media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",

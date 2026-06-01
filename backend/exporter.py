@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
+import os
 
 _WORKER = Path(__file__).parent / "export_worker.py"
 _executor = ThreadPoolExecutor(max_workers=2)
@@ -23,8 +24,9 @@ def _run_worker(cmd: dict, timeout: int = 60) -> None:
         raise RuntimeError(result.stderr or result.stdout or "export_worker falhou")
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-PDF_DIR  = ROOT_DIR / "exports" / "pdf"
-PPTX_DIR = ROOT_DIR / "exports" / "pptx"
+EXPORTS_DIR = Path(os.getenv("STATUS_BUILDER_EXPORTS_DIR", str(ROOT_DIR / "exports"))).resolve()
+PDF_DIR  = EXPORTS_DIR / "pdf"
+PPTX_DIR = EXPORTS_DIR / "pptx"
 PDF_DIR.mkdir(parents=True, exist_ok=True)
 PPTX_DIR.mkdir(parents=True, exist_ok=True)
 
