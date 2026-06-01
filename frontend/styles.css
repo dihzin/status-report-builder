@@ -83,36 +83,72 @@ body { padding: 0; }
 /* ===== Toolbar ===== */
 .toolbar {
   width: min(1780px, 100%);
-  margin: 0 auto 14px auto;
+  margin: 0 auto 12px auto;
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 2px 8px 0;
 }
 
-.toolbar button {
+.toolbar .tb-btn {
   border: 1px solid var(--gray-300);
   background: #ffffff;
   color: var(--gray-800);
   font-weight: 700;
   border-radius: 12px;
-  padding: 10px 16px;
+  min-height: 38px;
+  padding: 8px 14px;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0,0,0,0.04);
   transition: 0.18s ease;
   font-family: var(--font);
-  font-size: 14px;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
 }
 
-.toolbar button:hover {
+.toolbar .tb-btn:hover {
   transform: translateY(-1px);
   background: var(--gray-100);
   border-color: var(--gray-400);
 }
 
-.toolbar button:disabled {
+.toolbar .tb-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
   transform: none;
+}
+
+.toolbar .tb-btn-primary {
+  background: linear-gradient(180deg, #1f4f87 0%, #1a3f6d 100%);
+  color: #fff;
+  border-color: #1f4f87;
+  box-shadow: 0 6px 16px rgba(31,79,135,0.28);
+}
+
+.toolbar .tb-btn-primary:hover {
+  background: linear-gradient(180deg, #245a97 0%, #1f4a80 100%);
+  border-color: #245a97;
+}
+
+.toolbar .tb-btn-soft {
+  background: #f8fafc;
+}
+
+.toolbar .tb-btn-nav {
+  min-width: 38px;
+  padding: 8px 10px;
+}
+
+.toolbar .tb-btn-indicator {
+  min-width: 86px;
+  font-weight: 800;
+  color: var(--gray-700);
 }
 
 /* ── Botão Editar ── */
@@ -122,6 +158,21 @@ body { padding: 0; }
   border-color: var(--blue-800);
 }
 #btnEdit.active:hover { background: var(--blue-900); border-color: var(--blue-900); }
+
+@media (max-width: 960px) {
+  .toolbar {
+    justify-content: flex-start;
+    gap: 6px;
+  }
+  .toolbar .tb-btn {
+    min-height: 34px;
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+  .toolbar .tb-btn-indicator {
+    min-width: 74px;
+  }
+}
 
 /* ===== Edit Mode Bar — compacta e premium ===== */
 .edit-mode-bar {
