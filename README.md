@@ -141,3 +141,16 @@ onepage-status-project/
 - Se o Excel estiver aberto no Microsoft Excel, a leitura pode falhar (cache mantém último dado válido).
 - Não há autenticação — uso local recomendado.
 - Curva S usa SVG simples sem interatividade.
+
+## Changelog
+
+### Fase 4.1 (Aprovada)
+
+- Hotfix defensivo de migração SQLite para snapshots legados com duplicidade de `version_number` por `project_key`, executado antes da criação do índice único.
+- Mantidos os índices `uq_report_snapshots_project_version` e `uq_report_snapshots_single_current`.
+- `VALIDATE_EXCEL_SCHEMA=false` por padrão para evitar dependência operacional do Excel em `/api/status`.
+- Auditoria técnica: PASS.
+- Testes executados:
+  - `python -m pytest -q tests/test_phase4_sqlite_hardening.py`
+  - `python -m pytest -q tests/test_excel_reader.py tests/test_schema_validator.py`
+  - `python -m pytest -q tests/test_import_pmar.py`

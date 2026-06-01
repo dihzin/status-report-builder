@@ -13,6 +13,59 @@ def _dict_factory(cursor: sqlite3.Cursor, row: tuple):
     return {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
 
 
+def _sanitize_legacy_snapshot_versions(conn: sqlite3.Connection) -> None:
+    groups = conn.execute(
+        """
+        SELECT project_key, version_number
+        FROM report_snapshots
+        GROUP BY project_key, version_number
+        HAVING COUNT(*) > 1
+        """
+    ).fetchall()
+    if not groups:
+        return
+
+    for group in groups:
+        project_key = group["project_key"]
+        version_number = group["version_number"]
+
+        rows = conn.execute(
+            """
+            SELECT id, is_current, created_at
+            FROM report_snapshots
+            WHERE project_key = ? AND version_number = ?
+            ORDER BY is_current DESC, created_at DESC, id DESC
+            """,
+            (project_key, version_number),
+        ).fetchall()
+        if len(rows) <= 1:
+            continue
+
+        keep_id = rows[0]["id"]
+        max_version_row = conn.execute(
+            """
+            SELECT COALESCE(MAX(version_number), 0) AS max_version
+            FROM report_snapshots
+            WHERE project_key = ?
+            """,
+            (project_key,),
+        ).fetchone()
+        next_version = int(max_version_row["max_version"] or 0) + 1
+
+        for row in rows:
+            if row["id"] == keep_id:
+                continue
+            conn.execute(
+                """
+                UPDATE report_snapshots
+                SET version_number = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (next_version, row["id"]),
+            )
+            next_version += 1
+
+
 def ensure_db() -> Path:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     with get_connection() as conn:
@@ -60,7 +113,7 @@ def ensure_db() -> Path:
                 WHEN id = (
                     SELECT id FROM report_snapshots rs2
                     WHERE rs2.project_key = report_snapshots.project_key
-                    ORDER BY rs2.id DESC
+                    ORDER BY rs2.is_current DESC, rs2.id DESC
                     LIMIT 1
                 ) THEN 1 ELSE 0
             END
@@ -68,6 +121,7 @@ def ensure_db() -> Path:
             """
         )
         # 2) Evita duplicidade de version_number por project_key sem quebrar DB existente.
+        _sanitize_legacy_snapshot_versions(conn)
         conn.execute(
             """
             CREATE UNIQUE INDEX IF NOT EXISTS uq_report_snapshots_project_version

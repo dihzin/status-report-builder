@@ -13,6 +13,7 @@ from backend.services.excel_import_service import ExcelImportService
 
 PROJECT_KEY = "default"
 SYNC_SAVE_TO_EXCEL = os.getenv("SYNC_SAVE_TO_EXCEL", "false").strip().lower() == "true"
+VALIDATE_EXCEL_SCHEMA = os.getenv("VALIDATE_EXCEL_SCHEMA", "false").strip().lower() == "true"
 
 
 class ReportService:
@@ -69,8 +70,11 @@ class ReportService:
         validation_errors: list[str] = []
         file_error = None
 
-        if self.excel_path.exists():
-            validation_errors = validate_schema(str(self.excel_path))
+        if VALIDATE_EXCEL_SCHEMA and self.excel_path.exists():
+            try:
+                validation_errors = validate_schema(str(self.excel_path))
+            except Exception:
+                validation_errors = []
 
         return {
             "data": legacy_data,

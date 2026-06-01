@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import importlib
 import sqlite3
 from pathlib import Path
 
@@ -192,3 +193,172 @@ def test_hardening_indexes_are_created(tmp_path, monkeypatch):
 
     assert "uq_report_snapshots_project_version" in indexes
     assert "uq_report_snapshots_single_current" in indexes
+
+
+def test_legacy_duplicate_versions_are_sanitized_before_unique_index(tmp_path, monkeypatch):
+    root = _root(tmp_path)
+    _patch_db(monkeypatch, root)
+    db_path = root / "data" / "status_builder.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(str(db_path))
+    cur = conn.cursor()
+    cur.execute(
+        """
+        CREATE TABLE report_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_key TEXT NOT NULL,
+            report_name TEXT,
+            report_date TEXT,
+            version_number INTEGER NOT NULL DEFAULT 1,
+            is_current INTEGER NOT NULL DEFAULT 1,
+            source TEXT NOT NULL,
+            report_data_json TEXT NOT NULL,
+            legacy_data_json TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    rows = [
+        ("legacy", 1, 0, "legacy_seed", "2026-01-01 10:00:00"),
+        ("legacy", 1, 1, "legacy_seed", "2026-01-02 10:00:00"),
+        ("legacy", 1, 0, "legacy_seed", "2026-01-03 10:00:00"),
+        ("legacy", 2, 0, "legacy_seed", "2026-01-04 10:00:00"),
+    ]
+    for project_key, version_number, is_current, source, created_at in rows:
+        cur.execute(
+            """
+            INSERT INTO report_snapshots(
+                project_key, report_name, report_date, version_number, is_current, source,
+                report_data_json, legacy_data_json, created_at, updated_at
+            ) VALUES (?, 'R', '2026-01-01', ?, ?, ?, '{}', '{}', ?, ?)
+            """,
+            (project_key, version_number, is_current, source, created_at, created_at),
+        )
+    conn.commit()
+    conn.close()
+
+    ensure_db()
+
+    conn = sqlite3.connect(str(db_path))
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM report_snapshots WHERE project_key='legacy'")
+    total_rows = cur.fetchone()[0]
+    cur.execute(
+        """
+        SELECT COUNT(*) FROM (
+            SELECT version_number, COUNT(*) c
+            FROM report_snapshots
+            WHERE project_key='legacy'
+            GROUP BY version_number
+            HAVING c > 1
+        )
+        """
+    )
+    duplicated_versions = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM report_snapshots WHERE project_key='legacy' AND is_current=1")
+    current_count = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM report_snapshots WHERE project_key='legacy' AND version_number=1 AND is_current=1")
+    preserved_current = cur.fetchone()[0]
+    conn.close()
+
+    assert total_rows == 4
+    assert duplicated_versions == 0
+    assert current_count == 1
+    assert preserved_current == 1
+
+
+def test_legacy_dedup_migration_is_idempotent(tmp_path, monkeypatch):
+    root = _root(tmp_path)
+    _patch_db(monkeypatch, root)
+    db_path = root / "data" / "status_builder.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(str(db_path))
+    cur = conn.cursor()
+    cur.execute(
+        """
+        CREATE TABLE report_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_key TEXT NOT NULL,
+            report_name TEXT,
+            report_date TEXT,
+            version_number INTEGER NOT NULL DEFAULT 1,
+            is_current INTEGER NOT NULL DEFAULT 1,
+            source TEXT NOT NULL,
+            report_data_json TEXT NOT NULL,
+            legacy_data_json TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    cur.executemany(
+        """
+        INSERT INTO report_snapshots(
+            project_key, report_name, report_date, version_number, is_current, source,
+            report_data_json, legacy_data_json, created_at, updated_at
+        ) VALUES ('legacy', 'R', '2026-01-01', ?, ?, 'legacy_seed', '{}', '{}', ?, ?)
+        """,
+        [
+            (3, 0, "2026-01-01 10:00:00", "2026-01-01 10:00:00"),
+            (3, 1, "2026-01-02 10:00:00", "2026-01-02 10:00:00"),
+            (3, 0, "2026-01-03 10:00:00", "2026-01-03 10:00:00"),
+        ],
+    )
+    conn.commit()
+    conn.close()
+
+    ensure_db()
+    conn = sqlite3.connect(str(db_path))
+    cur = conn.cursor()
+    cur.execute("SELECT id, version_number, is_current FROM report_snapshots WHERE project_key='legacy' ORDER BY id")
+    first_run_rows = cur.fetchall()
+    conn.close()
+
+    ensure_db()
+    conn = sqlite3.connect(str(db_path))
+    cur = conn.cursor()
+    cur.execute("SELECT id, version_number, is_current FROM report_snapshots WHERE project_key='legacy' ORDER BY id")
+    second_run_rows = cur.fetchall()
+    cur.execute(
+        """
+        SELECT COUNT(*) FROM (
+            SELECT version_number, COUNT(*) c
+            FROM report_snapshots
+            WHERE project_key='legacy'
+            GROUP BY version_number
+            HAVING c > 1
+        )
+        """
+    )
+    duplicated_versions = cur.fetchone()[0]
+    conn.close()
+
+    assert first_run_rows == second_run_rows
+    assert duplicated_versions == 0
+
+
+def test_status_does_not_depend_on_excel_validation_when_flag_false(tmp_path, monkeypatch):
+    root = _root(tmp_path)
+    _patch_db(monkeypatch, root)
+    create_template(str(_excel_path(root)))
+
+    import backend.services.report_service as report_service_module
+    monkeypatch.setenv("VALIDATE_EXCEL_SCHEMA", "false")
+    importlib.reload(report_service_module)
+
+    calls = {"count": 0}
+
+    def fake_validate_schema(_):
+        calls["count"] += 1
+        raise AssertionError("validate_schema nao deveria ser chamado com VALIDATE_EXCEL_SCHEMA=false")
+
+    monkeypatch.setattr(report_service_module, "validate_schema", fake_validate_schema)
+    svc = report_service_module.ReportService(root)
+    payload = svc.get_status_payload()
+
+    assert payload["reportData"]
+    assert payload["validation_errors"] == []
+    assert calls["count"] == 0
