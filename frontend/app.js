@@ -2147,6 +2147,33 @@ function closeConfigDrawer() {
   if (b) b.style.display = 'none';
 }
 
+function _registry() {
+  return (window.DECK_FIELD_REGISTRY && Array.isArray(window.DECK_FIELD_REGISTRY.fields))
+    ? window.DECK_FIELD_REGISTRY
+    : { sections: {}, fields: [] };
+}
+
+function _registrySectionLabel(key, fallback) {
+  var sections = (_registry().sections || {});
+  return sections[key] || fallback;
+}
+
+function _registryFieldsBy(sectionKey, editorMode) {
+  return _registry().fields
+    .filter(function (f) { return f.section === sectionKey && f.editorMode === editorMode; })
+    .sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+}
+
+function _hasRegistryFields(sectionKey, editorMode) {
+  return _registryFieldsBy(sectionKey, editorMode).length > 0;
+}
+
+function _pathGet(obj, path) {
+  return String(path || "").split(".").reduce(function (acc, key) {
+    return (acc && Object.prototype.hasOwnProperty.call(acc, key)) ? acc[key] : undefined;
+  }, obj);
+}
+
 function _buildConfigDrawer() {
   var d  = _editSnapshotData;
   var body = document.getElementById('configDrawerBody');
@@ -2198,60 +2225,96 @@ function _buildConfigDrawer() {
     s.addEventListener('change', function(){ cb(s.value); markDirty(); }); return s;
   }
 
-  /* ─ Projeto ─ */
-  var s1 = sec('Projeto');
-  addF(s1, 'Nome do Projeto',    txt(cfg.project_name,     function(v){d.config.project_name=v;}));
-  addF(s1, 'Subtítulo',          txt(cfg.project_subtitle, function(v){d.config.project_subtitle=v;}));
-  addF(s1, 'Sponsor / Cliente',  txt(cfg.sponsor,          function(v){d.config.sponsor=v;}));
-  addF(s1, 'Parceiro',           txt(cfg.partner_name,     function(v){d.config.partner_name=v;}));
-  addF(s1, 'Responsável (PM)',   txt(cfg.owner_name,       function(v){d.config.owner_name=v;}));
-  addF(s1, 'Data do Relatório',  txtDateFriendly(cfg.report_date, function(v){d.config.report_date=v;}));
-  addF(s1, 'Nome do Relatório',  txt(cfg.report_name,      function(v){d.config.report_name=v;}));
-  body.appendChild(s1);
+  /* ─ Header (main) ─ */
+  if (_hasRegistryFields('header', 'main')) {
+    var s1 = sec(_registrySectionLabel('header', 'Projeto'));
+    addF(s1, 'Nome do Projeto',    txt(cfg.project_name,     function(v){d.config.project_name=v;}));
+    addF(s1, 'Subtítulo',          txt(cfg.project_subtitle, function(v){d.config.project_subtitle=v;}));
+    addF(s1, 'Sponsor / Cliente',  txt(cfg.sponsor,          function(v){d.config.sponsor=v;}));
+    addF(s1, 'Parceiro',           txt(cfg.partner_name,     function(v){d.config.partner_name=v;}));
+    addF(s1, 'Responsável (PM)',   txt(cfg.owner_name,       function(v){d.config.owner_name=v;}));
+    addF(s1, 'Data do Relatório',  txtDateFriendly(cfg.report_date, function(v){d.config.report_date=v;}));
+    addF(s1, 'Nome do Relatório',  txt(cfg.report_name,      function(v){d.config.report_name=v;}));
+    body.appendChild(s1);
+  }
 
-  /* ─ Andamento ─ */
-  var s2 = sec('Andamento');
-  addF(s2, 'Fase Atual',              txt(cfg.current_phase,    function(v){d.config.current_phase=v;}));
-  addF(s2, 'Dia Atual',               num(cfg.current_day,      function(v){d.config.current_day=v;}));
-  addF(s2, 'Total de Dias do Projeto',num(cfg.total_days,       function(v){d.config.total_days=v;}));
-  addF(s2, '% Planejado (Curva S)',   num(cfg.progress_percent, function(v){d.config.progress_percent=v;}));
-  body.appendChild(s2);
+  /* ─ Timeline (main) ─ */
+  if (_hasRegistryFields('timeline', 'main')) {
+    var s2 = sec(_registrySectionLabel('timeline', 'Andamento'));
+    addF(s2, 'Fase Atual',              txt(cfg.current_phase,    function(v){d.config.current_phase=v;}));
+    addF(s2, 'Dia Atual',               num(cfg.current_day,      function(v){d.config.current_day=v;}));
+    addF(s2, 'Total de Dias do Projeto',num(cfg.total_days,       function(v){d.config.total_days=v;}));
+    addF(s2, '% Planejado (Curva S)',   num(cfg.progress_percent, function(v){d.config.progress_percent=v;}));
+    body.appendChild(s2);
+  }
 
-  /* ─ Alerta ─ */
-  var s3 = sec('Alerta no Header');
-  addF(s3, 'Texto', txt(cfg.alert_label, function(v){d.config.alert_label=v;}));
-  addF(s3, 'Nível', sel(cfg.alert_level, [
-    {v:'warning', l:'⚠ Atenção (amarelo)'},
-    {v:'danger',  l:'🔴 Crítico (vermelho)'},
-    {v:'success', l:'✅ OK (verde)'},
-    {v:'',        l:'— Ocultar alerta'},
-  ], function(v){d.config.alert_level=v;}));
-  body.appendChild(s3);
+  /* ─ Alerta (main) ─ */
+  if (_hasRegistryFields('header_alert', 'main')) {
+    var s3 = sec(_registrySectionLabel('header_alert', 'Alerta no Header'));
+    addF(s3, 'Texto', txt(cfg.alert_label, function(v){d.config.alert_label=v;}));
+    addF(s3, 'Nível', sel(cfg.alert_level, [
+      {v:'warning', l:'⚠ Atenção (amarelo)'},
+      {v:'danger',  l:'🔴 Crítico (vermelho)'},
+      {v:'success', l:'✅ OK (verde)'},
+      {v:'',        l:'— Ocultar alerta'},
+    ], function(v){d.config.alert_level=v;}));
+    body.appendChild(s3);
+  }
 
-  /* ─ Rodapé ─ */
-  var s4 = sec('Rodapé');
-  addF(s4, 'Milestone Alvo',          txt(rodape.milestone_alvo,    function(v){d.rodape.milestone_alvo=v;}));
-  addF(s4, 'Data Alvo (dd/mm/aaaa)',  txtDateFriendly(rodape.data_alvo, function(v){d.rodape.data_alvo=v;}));
-  addF(s4, 'Go-Live (dd/mm/aaaa)',    txtDateFriendly(rodape.go_live_previsto, function(v){d.rodape.go_live_previsto=v;}));
-  body.appendChild(s4);
+  /* ─ Rodapé (main) ─ */
+  if (_hasRegistryFields('rodape', 'main')) {
+    var s4 = sec(_registrySectionLabel('rodape', 'Rodapé'));
+    addF(s4, 'Milestone Alvo',          txt(rodape.milestone_alvo,    function(v){d.rodape.milestone_alvo=v;}));
+    addF(s4, 'Data Alvo (dd/mm/aaaa)',  txtDateFriendly(rodape.data_alvo, function(v){d.rodape.data_alvo=v;}));
+    addF(s4, 'Go-Live (dd/mm/aaaa)',    txtDateFriendly(rodape.go_live_previsto, function(v){d.rodape.go_live_previsto=v;}));
+    body.appendChild(s4);
+  }
 
-  /* ─ Fases ─ */
-  var s5 = sec('Fases do Projeto (Timeline)');
-  s5.appendChild(_drawerFases(d));
-  body.appendChild(s5);
+  /* ─ Contextual: Timeline ─ */
+  if (_hasRegistryFields('timeline', 'contextual')) {
+    var s5 = sec('Fases do Projeto (Timeline)');
+    s5.appendChild(_drawerFases(d));
+    body.appendChild(s5);
+  }
 
-  /* ─ KPIs ─ */
-  var s6 = sec('Indicadores — KPI Cards');
-  s6.appendChild(_drawerKpis(d));
-  body.appendChild(s6);
+  /* ─ Contextual: KPI Cards ─ */
+  if (_hasRegistryFields('kpi_cards', 'contextual')) {
+    var s6 = sec('Indicadores — KPI Cards');
+    s6.appendChild(_drawerKpis(d));
+    body.appendChild(s6);
+  }
 
-  /* ─ Curva S ─ */
-  var s7 = sec('Curva S — Dados do Gráfico');
-  var note = document.createElement('p'); note.className = 'drawer-note';
-  note.textContent = 'Informe Dia, % Planejado e % Realizado. Deixe Realizado em branco para pontos futuros.';
-  s7.appendChild(note);
-  s7.appendChild(_drawerCurvaS(d));
-  body.appendChild(s7);
+  /* ─ Contextual: Curva S ─ */
+  if (_hasRegistryFields('curva_s', 'contextual')) {
+    var s7 = sec('Curva S — Dados do Gráfico');
+    var note = document.createElement('p'); note.className = 'drawer-note';
+    note.textContent = 'Informe Dia, % Planejado e % Realizado. Deixe Realizado em branco para pontos futuros.';
+    s7.appendChild(note);
+    s7.appendChild(_drawerCurvaS(d));
+    body.appendChild(s7);
+  }
+
+  /* ─ Readonly: derivados registrados ─ */
+  var readonly = _registry().fields
+    .filter(function (f) { return f.editorMode === 'readonly' && f.derived; })
+    .sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+  if (readonly.length) {
+    var s8 = sec('Campos automáticos (somente leitura)');
+    readonly.forEach(function (f) {
+      var val = _pathGet(d, f.path);
+      var txtVal;
+      if (typeof val === 'object' && val !== null) txtVal = JSON.stringify(val);
+      else txtVal = (val === undefined || val === null) ? '' : String(val);
+      var inp = document.createElement('input');
+      inp.type = 'text';
+      inp.className = 'drawer-input drawer-locked';
+      inp.value = txtVal;
+      inp.disabled = true;
+      inp.title = 'Campo derivado (somente leitura)';
+      addF(s8, f.label, inp);
+    });
+    body.appendChild(s8);
+  }
 }
 
 /* ─ Tabela Fases no drawer ─ */
