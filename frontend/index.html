@@ -24,16 +24,6 @@
   <button class="tb-btn tb-btn-soft tb-btn-hidden" onclick="safePrint()">Imprimir / PDF</button>
   <button class="tb-btn tb-btn-soft" onclick="requestPresentationMode()">Modo apresentação</button>
 </div>
-<div class="env-strip" id="envStrip" aria-label="Ambiente">
-  <span class="env-title">Ambiente</span>
-  <span id="appVersionLabel" class="env-meta">Versão atual: -</span>
-  <button id="btnCheckUpdate" class="tb-btn tb-btn-soft" onclick="checkForUpdates(true)">Verificar atualizações</button>
-  <button id="btnDownloadUpdate" class="tb-btn tb-btn-soft tb-btn-hidden" onclick="downloadUpdate()" type="button">Baixar atualização</button>
-  <button id="btnApplyUpdate" class="tb-btn tb-btn-primary tb-btn-hidden" onclick="applyUpdate()" type="button">Instalar e reiniciar</button>
-  <button id="btnOpenRelease" class="tb-btn tb-btn-soft tb-btn-hidden" onclick="openLatestRelease()" type="button">Abrir release</button>
-  <span id="updateStatusLabel" class="env-meta">Atualizações: não verificado</span>
-</div>
-
 <div id="editModeBar" class="edit-mode-bar" style="display:none" role="complementary" aria-label="Barra de edição">
   <div class="edit-mode-bar-inner">
     <span class="edit-mode-label">
@@ -118,6 +108,26 @@
     <div class="header-alert" id="alertBar" role="alert">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v5"/><path d="M12 17.4h.01"/></svg>
       <span id="alertText">ATENÇÃO</span>
+    </div>
+
+    <div class="update-rail" id="updateRail">
+      <button id="btnCheckUpdate" class="update-summary" type="button" onclick="openUpdateModal('details')">
+        <span class="update-summary-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/><path d="M12 7v5l3 3"/></svg>
+        </span>
+        <span class="update-summary-copy">
+          <span class="update-summary-label">Atualizações</span>
+          <span id="updateStatusLabel" class="update-summary-status">Não verificado</span>
+        </span>
+        <span class="update-summary-meta">
+          <span id="appVersionLabel" class="update-version">v-</span>
+          <span id="updateBadge" class="update-badge">Verificar</span>
+        </span>
+      </button>
+      <div id="updateInlineProgress" class="update-inline-progress tb-btn-hidden" aria-hidden="true">
+        <div class="update-inline-bar"><span id="updateInlineProgressFill"></span></div>
+        <span id="updateInlineProgressText" class="update-inline-text">0%</span>
+      </div>
     </div>
 
     <div class="top-kpis">
@@ -247,6 +257,70 @@
     <p id="closingDates">Data alvo: - | Go-Live: -</p>
   </section>
 </main>
+
+<div id="updateModal" class="app-modal" aria-hidden="true">
+  <div class="app-modal-backdrop" onclick="closeUpdateModal()"></div>
+  <div class="app-modal-dialog update-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="updateModalTitle">
+    <div class="app-modal-header">
+      <div>
+        <p class="app-modal-eyebrow">Updater</p>
+        <h3 id="updateModalTitle">Atualizações do aplicativo</h3>
+      </div>
+      <button class="app-modal-close" type="button" onclick="closeUpdateModal()" aria-label="Fechar">&times;</button>
+    </div>
+    <div class="app-modal-body">
+      <div class="update-modal-hero">
+        <div class="update-modal-hero-copy">
+          <p id="updateModalDescription" class="update-modal-description">Verifique novas versões, acompanhe o progresso e aplique a atualização com segurança.</p>
+          <div class="update-modal-meta">
+            <span id="updateModalCurrentVersion" class="update-modal-meta-item">Versão atual: -</span>
+            <span id="updateModalTargetVersion" class="update-modal-meta-item">Release: -</span>
+          </div>
+        </div>
+        <div class="update-modal-side">
+          <span id="updateBadgeLarge" class="update-badge large">Verificar</span>
+          <button id="btnOpenRelease" class="tb-btn tb-btn-soft tb-btn-hidden" onclick="openLatestRelease()" type="button">Abrir release</button>
+        </div>
+      </div>
+
+      <div class="update-progress-card">
+        <div class="update-progress-head">
+          <div>
+            <p class="update-progress-label">Progresso do fluxo</p>
+            <strong id="updateProgressTitle">Aguardando ação</strong>
+          </div>
+          <span id="updateProgressPercent" class="update-progress-percent">0%</span>
+        </div>
+        <div class="update-progress-track">
+          <span id="updateProgressFill"></span>
+        </div>
+        <div class="update-progress-meta">
+          <span id="updateProgressText">Nenhuma operação em andamento.</span>
+          <span id="updateProgressBytes">Percentual exato disponível quando informado pela etapa.</span>
+        </div>
+      </div>
+
+      <ol id="updateStepper" class="update-stepper" aria-label="Etapas de atualização">
+        <li data-step="checking"><span class="step-index">1</span><div><strong>Verificando</strong><p>Consulta de release disponível</p></div></li>
+        <li data-step="downloading"><span class="step-index">2</span><div><strong>Baixando</strong><p>Recebendo o pacote portable</p></div></li>
+        <li data-step="validating"><span class="step-index">3</span><div><strong>Validando integridade</strong><p>Conferência SHA-256</p></div></li>
+        <li data-step="preparing"><span class="step-index">4</span><div><strong>Preparando instalação</strong><p>Pacote pronto para apply</p></div></li>
+        <li data-step="installing"><span class="step-index">5</span><div><strong>Instalando</strong><p>Apply, backup e rollback seguro</p></div></li>
+        <li data-step="restarting"><span class="step-index">6</span><div><strong>Reiniciando</strong><p>Fechando e relançando o app</p></div></li>
+      </ol>
+
+      <div id="updateModalNotice" class="update-modal-notice">
+        O updater preserva <code>data</code>, <code>config</code>, <code>exports</code>, <code>logs</code>, <code>updates</code> e <code>app.lock</code>.
+      </div>
+    </div>
+    <div class="app-modal-footer">
+      <button id="btnCheckUpdateAction" class="tb-btn tb-btn-soft" type="button" onclick="checkForUpdates(true)">Verificar atualizações</button>
+      <button id="updateModalSecondary" class="tb-btn tb-btn-soft" type="button" onclick="closeUpdateModal()">Fechar</button>
+      <button id="btnDownloadUpdate" class="tb-btn tb-btn-soft tb-btn-hidden" onclick="downloadUpdate()" type="button">Baixar atualização</button>
+      <button id="btnApplyUpdate" class="tb-btn tb-btn-primary tb-btn-hidden" onclick="applyUpdate()" type="button">Instalar e reiniciar</button>
+    </div>
+  </div>
+</div>
 
 <script src="deckFieldRegistry.js"></script>
 <script src="app.js"></script>

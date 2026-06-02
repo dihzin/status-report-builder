@@ -5,9 +5,17 @@ param(
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $projectRoot
+$sourceVersionFile = Join-Path $projectRoot 'backend\VERSION'
 
 if (-not (Test-Path '.\backend\main.py')) {
     throw 'Execute este script dentro do repositório onepage-status-project.'
+}
+if (-not (Test-Path $sourceVersionFile)) {
+    throw 'Arquivo backend\VERSION não encontrado.'
+}
+$expectedVersion = (Get-Content $sourceVersionFile -Raw).Trim()
+if (-not $expectedVersion) {
+    throw 'Versão esperada vazia em backend\VERSION.'
 }
 
 if (-not $SkipTests) {
@@ -70,6 +78,20 @@ $hash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
 Set-Content -Path $checksumPath -Value "$hash  StatusReportBuilder_Portable.zip" -Encoding ascii
 
 $exePath = Join-Path $portableDir 'StatusReportBuilder.exe'
+$packagedVersionFiles = @(
+    (Join-Path $projectRoot 'dist\StatusReportBuilder\_internal\backend\VERSION'),
+    (Join-Path $portableDir '_internal\backend\VERSION')
+)
+foreach ($versionFile in $packagedVersionFiles) {
+    if (-not (Test-Path $versionFile)) {
+        throw "Arquivo de versão ausente no build: $versionFile"
+    }
+    $packagedVersion = (Get-Content $versionFile -Raw).Trim()
+    if ($packagedVersion -ne $expectedVersion) {
+        throw "Build desalinhado: esperado $expectedVersion, mas encontrado $packagedVersion em $versionFile"
+    }
+}
+Write-Host "App version: $expectedVersion"
 Write-Host "Portable EXE: $exePath"
 Write-Host "Portable ZIP: $zipPath"
 Write-Host "Portable SHA256: $checksumPath"

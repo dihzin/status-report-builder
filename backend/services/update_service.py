@@ -437,7 +437,7 @@ class UpdateService:
         checked.downloaded_file = str(target)
         return checked.as_dict()
 
-    def _build_apply_script(self, zip_path: Path) -> Path:
+    def _build_apply_script(self, zip_path: Path, current_pid: int) -> Path:
         install_dir = Path(os.getenv("STATUS_BUILDER_APP_ROOT", str(_portable_root()))).resolve()
         exe_name = Path(sys.executable).name if getattr(sys, "frozen", False) else "StatusReportBuilder.exe"
         script_path = _updates_dir() / "apply_update.ps1"
@@ -447,12 +447,21 @@ class UpdateService:
 $InstallDir = '{install_dir}'
 $ZipPath = '{zip_path}'
 $ExeName = '{exe_name}'
+$CurrentPid = {current_pid}
 $StageDir = Join-Path $InstallDir '{stage_name}'
 $BackupDir = Join-Path $InstallDir '{backup_name}'
 $LogFile = Join-Path $InstallDir 'updates\\apply_update.log'
 New-Item -ItemType Directory -Path (Join-Path $InstallDir 'updates') -Force *> $null
-Start-Sleep -Seconds 3
 Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] Iniciando apply."
+Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] InstallDir=$InstallDir ZipPath=$ZipPath ExeName=$ExeName CurrentPid=$CurrentPid"
+try {{
+  $proc = Get-Process -Id $CurrentPid -ErrorAction Stop
+  Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] Aguardando encerramento do processo antigo PID=$CurrentPid."
+  $proc.WaitForExit(20000) *> $null
+}} catch {{
+  Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] Processo antigo já não estava em execução."
+}}
+Start-Sleep -Milliseconds 800
 if (Test-Path $StageDir) {{ Remove-Item -Recurse -Force $StageDir }}
 New-Item -ItemType Directory -Path $StageDir -Force *> $null
 if (Test-Path $BackupDir) {{ Remove-Item -Recurse -Force $BackupDir }}
@@ -482,10 +491,12 @@ try {{
   foreach ($item in Get-ChildItem -Path $BackupDir) {{
     Copy-Item -Path $item.FullName -Destination (Join-Path $InstallDir $item.Name) -Recurse -Force
   }}
+  Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] Rollback concluído."
   throw
 }}
 Remove-Item -Recurse -Force $StageDir
 Remove-Item -Recurse -Force $BackupDir
+Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] Relançando executável: $(Join-Path $InstallDir $ExeName)"
 Start-Process -FilePath (Join-Path $InstallDir $ExeName) -WindowStyle Hidden
 """
         script_path.write_text(script, encoding="utf-8")
@@ -524,7 +535,7 @@ Start-Process -FilePath (Join-Path $InstallDir $ExeName) -WindowStyle Hidden
             }
 
         try:
-            script_path = self._build_apply_script(zip_path)
+            script_path = self._build_apply_script(zip_path, os.getpid())
             creation_flags = 0
             if os.name == "nt":
                 creation_flags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS  # type: ignore[attr-defined]

@@ -13,6 +13,31 @@ var _appReady = false;
 var _isLoadingData = false;
 var _appState = 'booting';
 var _appError = '';
+var _updateUiState = {
+  phase: 'idle',
+  progress: 0,
+  status: 'Não verificado',
+  detail: 'Nenhuma operação em andamento.',
+  bytes: 'Percentual exato disponível quando informado pela etapa.',
+  variant: 'neutral',
+  latestVersion: '',
+  downloaded: false,
+  modalMode: 'details'
+};
+var _updateConfirmPending = false;
+
+var UPDATE_PHASES = ['checking', 'downloading', 'validating', 'preparing', 'installing', 'restarting'];
+var UPDATE_PHASE_META = {
+  idle: { title: 'Aguardando ação', progress: 0 },
+  checking: { title: 'Verificando release', progress: 12 },
+  downloading: { title: 'Baixando atualização', progress: 46 },
+  validating: { title: 'Validando integridade', progress: 68 },
+  preparing: { title: 'Preparando instalação', progress: 82 },
+  installing: { title: 'Instalando pacote', progress: 92 },
+  restarting: { title: 'Reiniciando aplicativo', progress: 100 },
+  success: { title: 'Verificação concluída', progress: 100 },
+  error: { title: 'Ação interrompida', progress: 100 }
+};
 
 function _toErrorDetails(stage, err) {
   var fallback = err && err.message ? err.message : String(err || 'Erro desconhecido');
@@ -155,6 +180,148 @@ function showToast(message, kind) {
   t.className = 'app-toast show ' + (kind || 'info');
   clearTimeout(t._hideTimer);
   t._hideTimer = setTimeout(function () { t.className = 'app-toast'; }, 2800);
+}
+
+function _clampPercent(value) {
+  var n = Number(value);
+  if (!isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+function _setUpdatePhase(phase, options) {
+  options = options || {};
+  var meta = UPDATE_PHASE_META[phase] || UPDATE_PHASE_META.idle;
+  _updateUiState.phase = phase;
+  _updateUiState.progress = options.progress !== undefined ? _clampPercent(options.progress) : meta.progress;
+  _updateUiState.status = options.status || _updateUiState.status || meta.title;
+  _updateUiState.detail = options.detail || meta.title;
+  _updateUiState.bytes = options.bytes || _updateUiState.bytes || '';
+  _updateUiState.variant = options.variant || _updateUiState.variant || 'neutral';
+  if (options.downloaded !== undefined) _updateUiState.downloaded = !!options.downloaded;
+  if (options.latestVersion !== undefined) _updateUiState.latestVersion = options.latestVersion || '';
+  _renderUpdateSurface();
+}
+
+function _formatUpdateBadge() {
+  if (_updatePayload && _updatePayload.ok && _updatePayload.has_update) {
+    if (_updateUiState.downloaded) return 'Pronto';
+    return (_updatePayload.latest_version || 'Update').replace(/^v/i, 'v');
+  }
+  if (_updateUiState.phase === 'success') return 'Atualizado';
+  if (_updateUiState.phase === 'error') return 'Atenção';
+  if (_updateUiState.phase !== 'idle') return _updateUiState.progress + '%';
+  return 'Verificar';
+}
+
+function _renderUpdateSurface() {
+  var payload = _updatePayload || {};
+  var phase = _updateUiState.phase || 'idle';
+  var badgeText = _formatUpdateBadge();
+  var statusText = _updateUiState.status || 'Não verificado';
+  var detailText = _updateUiState.detail || 'Nenhuma operação em andamento.';
+  var progressValue = _clampPercent(_updateUiState.progress);
+  var variant = _updateUiState.variant || 'neutral';
+  var currentVersion = payload.current_version || '-';
+  var latestVersion = payload.latest_version || _updateUiState.latestVersion || '-';
+  var versionLabel = document.getElementById('appVersionLabel');
+  var statusLabel = document.getElementById('updateStatusLabel');
+  var badge = document.getElementById('updateBadge');
+  var badgeLarge = document.getElementById('updateBadgeLarge');
+  var rail = document.getElementById('updateRail');
+  var summary = document.querySelector('.update-summary');
+  var inlineWrap = document.getElementById('updateInlineProgress');
+  var inlineFill = document.getElementById('updateInlineProgressFill');
+  var inlineText = document.getElementById('updateInlineProgressText');
+  var modalCurrent = document.getElementById('updateModalCurrentVersion');
+  var modalTarget = document.getElementById('updateModalTargetVersion');
+  var modalDesc = document.getElementById('updateModalDescription');
+  var checkBtn = document.getElementById('btnCheckUpdateAction');
+  var progressTitle = document.getElementById('updateProgressTitle');
+  var progressText = document.getElementById('updateProgressText');
+  var progressBytes = document.getElementById('updateProgressBytes');
+  var progressPercent = document.getElementById('updateProgressPercent');
+  var progressFill = document.getElementById('updateProgressFill');
+  var releaseBtn = document.getElementById('btnOpenRelease');
+  var dlBtn = document.getElementById('btnDownloadUpdate');
+  var apBtn = document.getElementById('btnApplyUpdate');
+  var secondaryBtn = document.getElementById('updateModalSecondary');
+
+  if (versionLabel) versionLabel.textContent = 'v' + currentVersion;
+  if (statusLabel) statusLabel.textContent = statusText;
+  if (badge) {
+    badge.textContent = badgeText;
+    badge.className = 'update-badge ' + variant;
+  }
+  if (badgeLarge) {
+    badgeLarge.textContent = badgeText;
+    badgeLarge.className = 'update-badge large ' + variant;
+  }
+  if (summary) summary.dataset.variant = variant;
+  if (rail) rail.dataset.variant = variant;
+  if (modalCurrent) modalCurrent.textContent = 'Versão atual: ' + currentVersion;
+  if (modalTarget) modalTarget.textContent = 'Release: ' + latestVersion;
+  if (modalDesc) {
+    modalDesc.textContent = _updateConfirmPending
+      ? 'O aplicativo será fechado e reiniciado para aplicar a atualização com backup e validação de integridade.'
+      : detailText;
+  }
+  if (progressTitle) progressTitle.textContent = UPDATE_PHASE_META[phase] ? UPDATE_PHASE_META[phase].title : 'Aguardando ação';
+  if (progressText) progressText.textContent = detailText;
+  if (progressBytes) progressBytes.textContent = _updateUiState.bytes || 'Percentual exato disponível quando informado pela etapa.';
+  if (progressPercent) progressPercent.textContent = progressValue + '%';
+  if (progressFill) progressFill.style.width = progressValue + '%';
+  if (inlineWrap) inlineWrap.classList.toggle('tb-btn-hidden', !(phase !== 'idle' && phase !== 'success' && phase !== 'error'));
+  if (inlineFill) inlineFill.style.width = progressValue + '%';
+  if (inlineText) inlineText.textContent = progressValue + '%';
+  if (releaseBtn) releaseBtn.classList.toggle('tb-btn-hidden', !_latestReleaseUrl);
+  if (checkBtn) checkBtn.disabled = phase === 'checking' || phase === 'installing' || phase === 'restarting';
+
+  var canShowUpdateActions = !!(payload.ok && payload.has_update);
+  var canDownload = canShowUpdateActions && !_updateUiState.downloaded;
+  var canApply = canShowUpdateActions && _updateUiState.downloaded;
+  if (dlBtn) dlBtn.classList.toggle('tb-btn-hidden', !canDownload);
+  if (apBtn) apBtn.classList.toggle('tb-btn-hidden', !canApply);
+  if (secondaryBtn) secondaryBtn.textContent = _updateConfirmPending ? 'Cancelar' : 'Fechar';
+
+  var nodes = document.querySelectorAll('#updateStepper li');
+  nodes.forEach(function (node) {
+    var step = node.getAttribute('data-step');
+    var idx = UPDATE_PHASES.indexOf(step);
+    var currentIdx = UPDATE_PHASES.indexOf(phase);
+    node.classList.remove('is-done', 'is-active', 'is-waiting', 'is-error');
+    if (phase === 'error' && idx === currentIdx) {
+      node.classList.add('is-error');
+    } else if (idx > -1 && currentIdx > -1) {
+      if (idx < currentIdx) node.classList.add('is-done');
+      else if (idx === currentIdx) node.classList.add('is-active');
+      else node.classList.add('is-waiting');
+    } else {
+      node.classList.add('is-waiting');
+    }
+  });
+}
+
+function openUpdateModal(mode) {
+  var modal = document.getElementById('updateModal');
+  if (!modal) return;
+  _updateUiState.modalMode = mode || 'details';
+  if (_updateUiState.modalMode !== 'confirm') _updateConfirmPending = false;
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('modal-open');
+  _renderUpdateSurface();
+}
+
+function closeUpdateModal() {
+  if (_updateConfirmPending) {
+    _updateConfirmPending = false;
+    _renderUpdateSurface();
+  }
+  var modal = document.getElementById('updateModal');
+  if (!modal) return;
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('modal-open');
 }
 
 function _syncDirtyUi() {
@@ -1695,7 +1862,7 @@ function openLatestRelease() {
 
 function _setUpdateButtonsLoading(which, loading) {
   var map = {
-    check: { id: 'btnCheckUpdate', idle: 'Verificar atualizações', busy: 'Verificando...' },
+    check: { id: 'btnCheckUpdateAction', idle: 'Verificar atualizações', busy: 'Verificando...' },
     download: { id: 'btnDownloadUpdate', idle: 'Baixar atualização', busy: 'Baixando...' },
     apply: { id: 'btnApplyUpdate', idle: 'Instalar e reiniciar', busy: 'Instalando...' },
   };
@@ -1710,30 +1877,37 @@ function _setUpdateButtonsLoading(which, loading) {
 function _setUpdateUiState(payload) {
   payload = payload || {};
   _updatePayload = payload;
-  var versionLabel = document.getElementById('appVersionLabel');
-  var statusLabel = document.getElementById('updateStatusLabel');
-  var releaseBtn = document.getElementById('btnOpenRelease');
-  var dlBtn = document.getElementById('btnDownloadUpdate');
-  var apBtn = document.getElementById('btnApplyUpdate');
-  if (versionLabel) {
-    versionLabel.textContent = 'Versão atual: ' + (payload.current_version || '-');
-  }
-  if (statusLabel) {
-    statusLabel.textContent = payload.error
-      ? ('Atualizações: ' + payload.error)
-      : ('Atualizações: ' + (payload.message || 'não verificado'));
-  }
   _latestReleaseUrl = payload.release_url || '';
-  var canShowUpdateActions = !!(payload.ok && payload.has_update);
-
-  if (releaseBtn) releaseBtn.classList.toggle('tb-btn-hidden', !(_latestReleaseUrl && canShowUpdateActions));
-  if (dlBtn) dlBtn.classList.toggle('tb-btn-hidden', !canShowUpdateActions);
-  if (apBtn) apBtn.classList.toggle('tb-btn-hidden', !canShowUpdateActions);
-  if (dlBtn) dlBtn.disabled = false;
-  if (apBtn) apBtn.disabled = false;
+  var variant = payload.error ? 'danger' : (payload.ok && payload.has_update ? 'accent' : 'success');
+  var downloaded = !!(payload.downloaded_file && payload.ok && payload.has_update);
+  var phase = payload.error ? 'error' : downloaded ? 'preparing' : (payload.ok && payload.has_update ? 'idle' : 'success');
+  var detail = payload.error
+    ? payload.error
+    : downloaded
+      ? 'Pacote validado e pronto para instalação com reinício seguro.'
+      : (payload.message || 'Não verificado');
+  var bytes = downloaded
+    ? 'Download concluído, SHA-256 validado e pacote aceito pelo updater.'
+    : (payload.ok && payload.has_update ? 'Download sob demanda para manter a barra discreta.' : 'Nenhum pacote pendente.');
+  _updateConfirmPending = false;
+  _setUpdatePhase(phase, {
+    progress: phase === 'success' ? 100 : (phase === 'preparing' ? 82 : 0),
+    status: payload.error ? 'Erro na atualização' : (payload.message || 'Não verificado'),
+    detail: detail,
+    bytes: bytes,
+    variant: variant,
+    downloaded: downloaded,
+    latestVersion: payload.latest_version || ''
+  });
 }
 
 async function checkForUpdates(manual) {
+  _setUpdatePhase('checking', {
+    status: 'Verificando atualizações',
+    detail: 'Consultando a release pública configurada para este app.',
+    bytes: 'Etapa rápida sem transferência de pacote.',
+    variant: 'neutral'
+  });
   _setUpdateButtonsLoading('check', true);
   try {
     var resp = await fetch('/api/update/check');
@@ -1770,17 +1944,47 @@ async function downloadUpdate() {
     showToast('Atualização automática disponível apenas na versão portátil.', 'info');
     return;
   }
+  openUpdateModal('details');
+  _setUpdatePhase('downloading', {
+    status: 'Baixando atualização',
+    detail: 'Recebendo o pacote portable e preparando a validação.',
+    bytes: 'Percentual estimado por etapa. O backend conclui o download antes de responder.',
+    progress: 42,
+    variant: 'accent'
+  });
   _setUpdateButtonsLoading('download', true);
   try {
     var resp = await fetch('/api/update/download', { method: 'POST' });
     var payload = await resp.json();
     if (!resp.ok || !payload.ok) {
+      _setUpdatePhase('error', {
+        status: 'Falha no download',
+        detail: (payload && payload.error) || 'Falha ao baixar atualização.',
+        bytes: 'Nenhum pacote foi mantido para instalação.',
+        variant: 'danger'
+      });
+      openUpdateModal('details');
       showToast((payload && payload.error) || 'Falha ao baixar atualização.', 'error');
       return;
     }
+    _setUpdatePhase('validating', {
+      status: 'Validando integridade',
+      detail: 'SHA-256 conferido com sucesso e ZIP aceito pelo updater.',
+      bytes: 'Pacote recebido com segurança.',
+      progress: 76,
+      variant: 'accent'
+    });
     _setUpdateUiState(payload);
+    openUpdateModal('details');
     showToast('Pacote de atualização baixado com sucesso.', 'success');
   } catch (_) {
+    _setUpdatePhase('error', {
+      status: 'Erro de conexão',
+      detail: 'Erro de conexão ao baixar atualização.',
+      bytes: 'A operação foi interrompida antes da validação.',
+      variant: 'danger'
+    });
+    openUpdateModal('details');
     showToast('Erro de conexão ao baixar atualização.', 'error');
   } finally {
     _setUpdateButtonsLoading('download', false);
@@ -1796,18 +2000,56 @@ async function applyUpdate() {
     showToast('Atualização automática disponível apenas na versão portátil.', 'info');
     return;
   }
-  var ok = confirm('O app será fechado e reiniciado para aplicar a atualização. Deseja continuar?');
-  if (!ok) return;
+  if (!_updateUiState.downloaded || !_updateConfirmPending) {
+    _updateConfirmPending = true;
+    _setUpdatePhase('preparing', {
+      status: 'Pronto para instalar',
+      detail: 'A atualização foi validada. Confirme para fechar e reiniciar o aplicativo.',
+      bytes: 'Backup, rollback e arquivos preservados continuam ativos durante o apply.',
+      progress: 82,
+      variant: 'accent'
+    });
+    openUpdateModal('confirm');
+    return;
+  }
+  _updateConfirmPending = false;
+  openUpdateModal('details');
+  _setUpdatePhase('installing', {
+    status: 'Preparando instalação',
+    detail: 'Disparando o apply seguro do pacote validado.',
+    bytes: 'O app será reiniciado automaticamente após o apply.',
+    progress: 92,
+    variant: 'accent'
+  });
   _setUpdateButtonsLoading('apply', true);
   try {
     var resp = await fetch('/api/update/apply', { method: 'POST' });
     var payload = await resp.json();
     if (!resp.ok || !payload.ok) {
+      _setUpdatePhase('error', {
+        status: 'Falha ao iniciar instalação',
+        detail: (payload && payload.error) || 'Falha ao iniciar instalação.',
+        bytes: 'Consulte o log do updater para diagnóstico detalhado.',
+        variant: 'danger'
+      });
       showToast((payload && payload.error) || 'Falha ao iniciar instalação.', 'error');
       return;
     }
+    _setUpdatePhase('restarting', {
+      status: 'Reinício em andamento',
+      detail: 'Instalação iniciada. O aplicativo será fechado e reaberto em seguida.',
+      bytes: 'Se algo impedir o apply, o log registrará rollback ou falha.',
+      progress: 100,
+      variant: 'accent'
+    });
     showToast('Instalação iniciada. O app será reiniciado.', 'success');
   } catch (_) {
+    _setUpdatePhase('error', {
+      status: 'Erro de conexão',
+      detail: 'Erro de conexão ao iniciar instalação.',
+      bytes: 'Nenhuma etapa adicional foi iniciada.',
+      variant: 'danger'
+    });
     showToast('Erro de conexão ao iniciar instalação.', 'error');
   } finally {
     _setUpdateButtonsLoading('apply', false);
@@ -2825,6 +3067,9 @@ document.addEventListener('DOMContentLoaded', function () {
       syncDeckHeights();
     });
     document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape') {
+        closeUpdateModal();
+      }
       if (!_isPresentationMode) return;
       if (ev.key === 'ArrowRight' || ev.key === 'PageDown') {
         ev.preventDefault();

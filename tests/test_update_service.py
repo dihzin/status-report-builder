@@ -298,7 +298,7 @@ def test_apply_happy_path_preserved_after_checksum_validation(monkeypatch, porta
 
     script_path = portable_env / "updates" / "apply_update.ps1"
     script_path.write_text("Write-Host ok", encoding="utf-8")
-    monkeypatch.setattr("backend.services.update_service.UpdateService._build_apply_script", lambda self, path: script_path)
+    monkeypatch.setattr("backend.services.update_service.UpdateService._build_apply_script", lambda self, path, pid: script_path)
 
     popen_calls = []
 
@@ -319,3 +319,17 @@ def test_apply_happy_path_preserved_after_checksum_validation(monkeypatch, porta
     assert payload["ok"] is True
     assert "Instalação iniciada" in payload["message"]
     assert len(popen_calls) == 1
+
+
+def test_build_apply_script_waits_for_old_process_and_logs_restart(monkeypatch, portable_env):
+    monkeypatch.setattr("backend.services.update_service.sys.executable", str(portable_env / "StatusReportBuilder.exe"))
+    monkeypatch.setattr("backend.services.update_service.time.time", lambda: 1717333200)
+
+    svc = UpdateService()
+    script_path = svc._build_apply_script(portable_env / "updates" / "pkg.zip", 4242)
+    content = script_path.read_text(encoding="utf-8")
+
+    assert "$CurrentPid = 4242" in content
+    assert "Aguardando encerramento do processo antigo" in content
+    assert "Rollback concluído." in content
+    assert "Relançando executável" in content
