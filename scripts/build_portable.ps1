@@ -58,17 +58,18 @@ if (Test-Path $msPlaywright) {
 }
 
 $zipPath = Join-Path $projectRoot 'dist\StatusReportBuilder_Portable.zip'
+$checksumPath = Join-Path $projectRoot 'dist\StatusReportBuilder_Portable.zip.sha256'
 if (Test-Path $zipPath) {
-    try {
-        Remove-Item $zipPath -Force -ErrorAction Stop
-    } catch {
-        Write-Warning "Não foi possível remover $zipPath (arquivo em uso). Gerando ZIP com timestamp."
-        $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
-        $zipPath = Join-Path $projectRoot "dist\StatusReportBuilder_Portable_$stamp.zip"
-    }
+    Remove-Item $zipPath -Force
+}
+if (Test-Path $checksumPath) {
+    Remove-Item $checksumPath -Force
 }
 Compress-Archive -Path (Join-Path $portableDir '*') -DestinationPath $zipPath -Force
+$hash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+Set-Content -Path $checksumPath -Value "$hash  StatusReportBuilder_Portable.zip" -Encoding ascii
 
 $exePath = Join-Path $portableDir 'StatusReportBuilder.exe'
 Write-Host "Portable EXE: $exePath"
 Write-Host "Portable ZIP: $zipPath"
+Write-Host "Portable SHA256: $checksumPath"

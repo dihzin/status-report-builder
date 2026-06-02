@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -16,6 +17,8 @@ import zipfile
 from backend.app_version import APP_VERSION
 
 EXPECTED_PORTABLE_ASSET = "StatusReportBuilder_Portable.zip"
+EXPECTED_PORTABLE_CHECKSUM_ASSET = f"{EXPECTED_PORTABLE_ASSET}.sha256"
+SHA256_HEX_RE = re.compile(r"^[a-fA-F0-9]{64}$")
 
 
 def _normalize_version(raw: str) -> tuple[int, ...]:
@@ -69,6 +72,9 @@ class UpdateCheckResult:
     expected_asset_name: str
     expected_asset_found: bool
     expected_asset_url: str | None
+    expected_checksum_asset_name: str
+    expected_checksum_asset_found: bool
+    expected_checksum_asset_url: str | None
     mode: str
     check_only: bool
     message: str | None = None
@@ -87,6 +93,9 @@ class UpdateCheckResult:
             "expected_asset_name": self.expected_asset_name,
             "expected_asset_found": self.expected_asset_found,
             "expected_asset_url": self.expected_asset_url,
+            "expected_checksum_asset_name": self.expected_checksum_asset_name,
+            "expected_checksum_asset_found": self.expected_checksum_asset_found,
+            "expected_checksum_asset_url": self.expected_checksum_asset_url,
             "downloaded_file": self.downloaded_file,
             "mode": self.mode,
             "capabilities": {
@@ -107,25 +116,92 @@ class UpdateService:
             "STATUS_BUILDER_GITHUB_RELEASES_API",
             f"https://api.github.com/repos/{self.repo}/releases/latest",
         )
-        self._last_download_path: Path | None = self._load_last_download_path()
+        self._last_download_path, self._last_download_sha256 = self._load_download_state()
 
-    def _load_last_download_path(self) -> Path | None:
+    def _load_download_state(self) -> tuple[Path | None, str | None]:
         sf = _state_file()
         if not sf.exists():
-            return None
+            return None, None
         try:
             payload = json.loads(sf.read_text(encoding="utf-8"))
             path = payload.get("downloaded_file")
+            checksum = payload.get("expected_sha256")
+            if checksum is not None:
+                checksum = str(checksum).strip().lower()
+                if not SHA256_HEX_RE.fullmatch(checksum):
+                    checksum = None
             if not path:
-                return None
+                return None, checksum
             p = Path(path)
-            return p if p.exists() else None
+            return (p if p.exists() else None), checksum
         except Exception:
-            return None
+            return None, None
 
-    def _persist_last_download_path(self, path: Path | None) -> None:
-        payload = {"downloaded_file": str(path) if path else None, "updated_at": int(time.time())}
+    def _persist_download_state(self, path: Path | None, checksum: str | None) -> None:
+        payload = {
+            "downloaded_file": str(path) if path else None,
+            "expected_sha256": checksum if checksum else None,
+            "updated_at": int(time.time()),
+        }
         _state_file().write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def _reset_download_state(self) -> None:
+        self._last_download_path = None
+        self._last_download_sha256 = None
+        self._persist_download_state(None, None)
+
+    def _download_bytes(self, url: str, timeout: int) -> bytes:
+        req = Request(url, headers={"User-Agent": "StatusReportBuilder-Updater/1.0"})
+        with urlopen(req, timeout=timeout) as resp:
+            return resp.read()
+
+    def _download_to_file(self, url: str, target: Path, timeout: int) -> None:
+        req = Request(url, headers={"User-Agent": "StatusReportBuilder-Updater/1.0"})
+        with urlopen(req, timeout=timeout) as resp, open(target, "wb") as out:
+            while True:
+                chunk = resp.read(1024 * 256)
+                if not chunk:
+                    break
+                out.write(chunk)
+
+    def _parse_checksum(self, raw_text: str, expected_name: str = EXPECTED_PORTABLE_ASSET) -> str | None:
+        text = (raw_text or "").strip()
+        if not text:
+            return None
+        for line in text.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            match = re.fullmatch(r"([A-Fa-f0-9]{64})(?:\s+\*?(.+))?", stripped)
+            if not match:
+                return None
+            digest = match.group(1).lower()
+            file_name = (match.group(2) or "").strip()
+            if file_name and Path(file_name).name != expected_name:
+                return None
+            return digest
+        return None
+
+    def _calculate_sha256(self, path: Path) -> str:
+        hasher = hashlib.sha256()
+        with open(path, "rb") as fh:
+            while True:
+                chunk = fh.read(1024 * 1024)
+                if not chunk:
+                    break
+                hasher.update(chunk)
+        return hasher.hexdigest()
+
+    def _validate_download_checksum(self, zip_path: Path, expected_hash: str | None) -> tuple[bool, str | None]:
+        digest = (expected_hash or "").strip().lower()
+        if not digest:
+            return False, "Checksum SHA-256 ausente para o pacote baixado."
+        if not SHA256_HEX_RE.fullmatch(digest):
+            return False, "Checksum SHA-256 inválido para o pacote baixado."
+        actual = self._calculate_sha256(zip_path)
+        if actual != digest:
+            return False, "Checksum SHA-256 divergente. O pacote foi bloqueado por segurança."
+        return True, None
 
     def _validate_zip_payload(self, zip_path: Path) -> tuple[bool, str | None]:
         try:
@@ -175,6 +251,9 @@ class UpdateService:
                 expected_asset_name=EXPECTED_PORTABLE_ASSET,
                 expected_asset_found=False,
                 expected_asset_url=None,
+                expected_checksum_asset_name=EXPECTED_PORTABLE_CHECKSUM_ASSET,
+                expected_checksum_asset_found=False,
+                expected_checksum_asset_url=None,
                 mode=mode,
                 check_only=False,
                 error="GitHub indisponível no momento. Tente novamente em instantes.",
@@ -191,6 +270,9 @@ class UpdateService:
                 expected_asset_name=EXPECTED_PORTABLE_ASSET,
                 expected_asset_found=False,
                 expected_asset_url=None,
+                expected_checksum_asset_name=EXPECTED_PORTABLE_CHECKSUM_ASSET,
+                expected_checksum_asset_found=False,
+                expected_checksum_asset_url=None,
                 mode=mode,
                 check_only=False,
                 error="Sem conexão com a internet para verificar atualizações.",
@@ -207,6 +289,9 @@ class UpdateService:
                 expected_asset_name=EXPECTED_PORTABLE_ASSET,
                 expected_asset_found=False,
                 expected_asset_url=None,
+                expected_checksum_asset_name=EXPECTED_PORTABLE_CHECKSUM_ASSET,
+                expected_checksum_asset_found=False,
+                expected_checksum_asset_url=None,
                 mode=mode,
                 check_only=False,
                 error="Não foi possível verificar atualizações agora.",
@@ -219,17 +304,22 @@ class UpdateService:
         has_update = bool(latest_version and _is_newer(latest_version, self.current_version))
 
         expected_asset_url = None
+        expected_checksum_asset_url = None
         assets = payload.get("assets") or []
         for asset in assets:
             if asset.get("name") == EXPECTED_PORTABLE_ASSET:
                 expected_asset_url = asset.get("browser_download_url")
-                break
+            elif asset.get("name") == EXPECTED_PORTABLE_CHECKSUM_ASSET:
+                expected_checksum_asset_url = asset.get("browser_download_url")
 
         found_asset = bool(expected_asset_url)
-        if has_update and found_asset:
+        found_checksum_asset = bool(expected_checksum_asset_url)
+        if has_update and found_asset and found_checksum_asset:
             message = f"Nova versão disponível: {latest_version}"
         elif has_update and not found_asset:
             message = "Nova versão encontrada, mas sem pacote portable esperado."
+        elif has_update and not found_checksum_asset:
+            message = "Nova versão encontrada, mas sem checksum SHA-256 esperado."
         else:
             message = "Você está usando a versão mais recente."
 
@@ -244,6 +334,9 @@ class UpdateService:
             expected_asset_name=EXPECTED_PORTABLE_ASSET,
             expected_asset_found=found_asset,
             expected_asset_url=expected_asset_url,
+            expected_checksum_asset_name=EXPECTED_PORTABLE_CHECKSUM_ASSET,
+            expected_checksum_asset_found=found_checksum_asset,
+            expected_checksum_asset_url=expected_checksum_asset_url,
             mode=mode,
             check_only=False,
             message=message,
@@ -273,22 +366,19 @@ class UpdateService:
                 "ok": False,
                 "error": "Release sem pacote portable esperado.",
             }
+        if not checked.expected_checksum_asset_url:
+            return {
+                **checked.as_dict(),
+                "ok": False,
+                "error": "Release sem checksum SHA-256 esperado.",
+            }
 
         updates_dir = _updates_dir()
         file_name = f"StatusReportBuilder_Portable_{(checked.latest_version or 'latest').replace('/', '_')}.zip"
         target = updates_dir / file_name
 
         try:
-            req = Request(
-                checked.expected_asset_url,
-                headers={"User-Agent": "StatusReportBuilder-Updater/1.0"},
-            )
-            with urlopen(req, timeout=20) as resp, open(target, "wb") as out:
-                while True:
-                    chunk = resp.read(1024 * 256)
-                    if not chunk:
-                        break
-                    out.write(chunk)
+            self._download_to_file(checked.expected_asset_url, target, timeout=20)
         except Exception:
             return {
                 **checked.as_dict(),
@@ -296,8 +386,54 @@ class UpdateService:
                 "error": "Falha ao baixar pacote de atualização.",
             }
 
+        try:
+            checksum_text = self._download_bytes(checked.expected_checksum_asset_url, timeout=8).decode("utf-8")
+        except Exception:
+            if target.exists():
+                target.unlink()
+            self._reset_download_state()
+            return {
+                **checked.as_dict(),
+                "ok": False,
+                "error": "Falha ao obter checksum SHA-256 da atualização.",
+            }
+
+        expected_hash = self._parse_checksum(checksum_text)
+        if not expected_hash:
+            if target.exists():
+                target.unlink()
+            self._reset_download_state()
+            return {
+                **checked.as_dict(),
+                "ok": False,
+                "error": "Checksum SHA-256 ausente ou inválido para o pacote de atualização.",
+            }
+
+        valid_checksum, checksum_err = self._validate_download_checksum(target, expected_hash)
+        if not valid_checksum:
+            if target.exists():
+                target.unlink()
+            self._reset_download_state()
+            return {
+                **checked.as_dict(),
+                "ok": False,
+                "error": checksum_err or "Falha na validação SHA-256 do pacote baixado.",
+            }
+
+        valid_zip, zip_err = self._validate_zip_payload(target)
+        if not valid_zip:
+            if target.exists():
+                target.unlink()
+            self._reset_download_state()
+            return {
+                **checked.as_dict(),
+                "ok": False,
+                "error": zip_err or "Pacote inválido para instalação.",
+            }
+
         self._last_download_path = target
-        self._persist_last_download_path(target)
+        self._last_download_sha256 = expected_hash
+        self._persist_download_state(target, expected_hash)
         checked.downloaded_file = str(target)
         return checked.as_dict()
 
@@ -368,6 +504,14 @@ Start-Process -FilePath (Join-Path $InstallDir $ExeName) -WindowStyle Hidden
             return {
                 "ok": False,
                 "error": "Nenhum pacote baixado. Faça o download da atualização primeiro.",
+                "mode": _runtime_mode(),
+            }
+
+        valid_checksum, checksum_err = self._validate_download_checksum(zip_path, self._last_download_sha256)
+        if not valid_checksum:
+            return {
+                "ok": False,
+                "error": checksum_err or "Falha na validação SHA-256 do pacote baixado.",
                 "mode": _runtime_mode(),
             }
 

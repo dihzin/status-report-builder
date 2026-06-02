@@ -9,6 +9,71 @@ var _isPresentationMode = false;
 var _latestReleaseUrl = '';
 var _updatePayload = null;
 var EXPORT_TIMEOUT_MS = 45000;
+var _appReady = false;
+var _isLoadingData = false;
+var _appState = 'booting';
+var _appError = '';
+
+function _toErrorDetails(stage, err) {
+  var fallback = err && err.message ? err.message : String(err || 'Erro desconhecido');
+  return {
+    stage: stage || 'unknown',
+    message: fallback,
+    stack: err && err.stack ? String(err.stack) : ''
+  };
+}
+
+function _renderBootError(details) {
+  var shell = document.querySelector('.page-shell');
+  if (!shell) return;
+  shell.innerHTML =
+    '<div style="padding:60px;text-align:center;color:var(--red-700)">' +
+    '<h2>Erro ao inicializar aplicação</h2><p>' + esc(details.message) + '</p></div>';
+}
+
+function markAppBooting() {
+  _appReady = false;
+  _appState = 'booting';
+  _appError = '';
+  if (window.__appInitError) window.__appInitError = null;
+  _syncAppStateUi();
+}
+
+function markAppReady() {
+  _appReady = true;
+  _appState = 'ready';
+  _appError = '';
+  window.__appInitError = null;
+  _syncAppStateUi();
+}
+
+function markAppInitError(stage, err) {
+  var details = _toErrorDetails(stage, err);
+  _appReady = false;
+  _appState = 'error';
+  _appError = details.message;
+  window.__appInitError = details;
+  console.error('[app-init:' + details.stage + ']', details.message, details.stack || '');
+  _renderBootError(details);
+  document.body.style.opacity = '1';
+  _syncAppStateUi();
+}
+
+function _syncAppStateUi() {
+  if (!document.body) return;
+  document.body.dataset.appReady = _appReady ? 'true' : 'false';
+  document.body.dataset.loading = _isLoadingData ? 'loading' : 'idle';
+  document.body.dataset.mode = editMode ? 'edit' : 'view';
+  document.body.dataset.appState = _appState;
+  document.body.dataset.appError = _appError;
+  var btn = document.getElementById('btnEdit');
+  if (btn) {
+    var canEnterEdit = _appReady && _appState === 'ready' && !_isLoadingData;
+    btn.disabled = !canEnterEdit;
+    btn.setAttribute('aria-disabled', canEnterEdit ? 'false' : 'true');
+  }
+  window.__renderComplete = _appReady && !_isLoadingData;
+}
 
 /** Retorna x se não for nulo/vazio, senão fallback */
 function v(x, fb) {
@@ -182,16 +247,28 @@ var MARCO_ICONS = {
 /* ===== Carga de dados ===== */
 async function loadData(force) {
   if (!force && hasUnsavedChanges() && !confirmLoseUnsaved('atualização')) return;
+  var initialBoot = !_lastRenderData;
+  _isLoadingData = true;
+  if (initialBoot) {
+    markAppBooting();
+  } else {
+    _syncAppStateUi();
+  }
   try {
     var resp = await fetch('/api/status');
     var json = await resp.json();
     renderAll(json);
     if (!editMode) clearDirty();
   } catch (err) {
-    document.querySelector('.page-shell').innerHTML =
-      '<div style="padding:60px;text-align:center;color:var(--red-700)">' +
-      '<h2>Erro ao carregar dados</h2><p>' + esc(err.message) + '</p></div>';
-    document.body.style.opacity = '1';
+    if (initialBoot) {
+      markAppInitError('loadData', err);
+    } else {
+      console.error('[app-refresh:loadData]', err && err.message ? err.message : String(err), err && err.stack ? err.stack : '');
+      showToast('Não foi possível atualizar os dados agora.', 'error');
+    }
+  } finally {
+    _isLoadingData = false;
+    _syncAppStateUi();
   }
 }
 
@@ -291,7 +368,9 @@ var _lastRenderData = null;   // para re-renderizar Curva S no resize
 function renderAll(json) {
   _lastRenderData = json;
   var d = json.reportData || json.data || {};
-  if (!d.config) return;
+  if (!d.config) {
+    throw new Error('Payload inicial sem reportData.config');
+  }
   var cfg = d.config;
 
   document.getElementById('projectTitle').textContent    = v(cfg.project_name, 'Projeto Executivo');
@@ -318,8 +397,8 @@ function renderAll(json) {
   document.body.style.transition = 'opacity 0.18s ease';
   document.body.style.opacity    = '1';
 
-  // Sinaliza ao Playwright que o rendering está completo
-  window.__renderComplete = true;
+  // Sinaliza estado pronto para UI e testes E2E.
+  markAppReady();
 }
 
 function setSlide(n) {
@@ -1755,18 +1834,17 @@ function toggleEditMode() {
     cancelEditMode();
     return;
   }
-  if (_lastRenderData && (_lastRenderData.data || _lastRenderData.reportData)) {
-    enterEditMode();
+  if (!_appReady || _isLoadingData) {
+    showToast('Aguarde o carregamento dos dados para entrar em edição.', 'info');
     return;
   }
-  loadData(true).then(function () {
-    if (!editMode && _lastRenderData && (_lastRenderData.data || _lastRenderData.reportData)) enterEditMode();
-  }).catch(function () {
-    showToast('Aguarde o carregamento dos dados para entrar em edição.', 'info');
-  });
+  if (_lastRenderData && (_lastRenderData.data || _lastRenderData.reportData)) {
+    enterEditMode();
+  }
 }
 
 function enterEditMode() {
+  if (!_appReady || _isLoadingData) return;
   if (!_lastRenderData || (!_lastRenderData.data && !_lastRenderData.reportData)) return;
   _editSnapshotData = JSON.parse(JSON.stringify(_lastRenderData.reportData || _lastRenderData.data));
   editMode = true;
@@ -1776,6 +1854,7 @@ function enterEditMode() {
   var btn = document.getElementById('btnEdit');
   if (btn) btn.classList.add('active');
   _attachAllEditHandlers();
+  _syncAppStateUi();
 }
 
 function cancelEditMode() {
@@ -1799,6 +1878,7 @@ function _exitEditMode() {
   // Remove any floating date pickers
   document.querySelectorAll('.date-overlay-input').forEach(function(el){ el.remove(); });
   _syncDirtyUi();
+  _syncAppStateUi();
 }
 
 /* ── contenteditable sem quebra de layout ── */
@@ -2715,47 +2795,63 @@ function _drawerCurvaS(d) {
 
 /* ===== Init ===== */
 document.addEventListener('DOMContentLoaded', function () {
-  _exitEditMode();
-  loadData(true);
-  connectWebSocket();
-  window.addEventListener('beforeunload', function(e) {
-    if (!hasUnsavedChanges()) return;
-    e.preventDefault();
-    e.returnValue = '';
-  });
-  window.addEventListener('resize', function () {
-    syncDeckHeights();
-    if (_lastRenderData) renderCurvaS(_lastRenderData.data || {});
-  });
-  /* Re-render Curva S ao entrar/sair do modo impressão para usar dimensões corretas */
-  window.addEventListener('beforeprint', function () {
-    if (_lastRenderData) renderCurvaS(_lastRenderData.data || {});
-  });
-  window.addEventListener('afterprint', function () {
-    if (_lastRenderData) renderCurvaS(_lastRenderData.data || {});
-  });
-  checkForUpdates(false);
-  document.addEventListener('fullscreenchange', function () {
-    if (!document.fullscreenElement) {
-      _isPresentationMode = false;
-      document.body.classList.remove('presentation-mode');
-    }
-    syncDeckHeights();
-  });
-  document.addEventListener('keydown', function (ev) {
-    if (!_isPresentationMode) return;
-    if (ev.key === 'ArrowRight' || ev.key === 'PageDown') {
-      ev.preventDefault();
-      nextSlide();
-    } else if (ev.key === 'ArrowLeft' || ev.key === 'PageUp') {
-      ev.preventDefault();
-      prevSlide();
-    } else if (ev.key === 'Home') {
-      ev.preventDefault();
-      setSlide(1);
-    } else if (ev.key === 'End') {
-      ev.preventDefault();
-      setSlide(totalSlides);
-    }
-  });
+  try {
+    _exitEditMode();
+    markAppBooting();
+    loadData(true);
+    connectWebSocket();
+    window.addEventListener('beforeunload', function(e) {
+      if (!hasUnsavedChanges()) return;
+      e.preventDefault();
+      e.returnValue = '';
+    });
+    window.addEventListener('resize', function () {
+      syncDeckHeights();
+      if (_lastRenderData) renderCurvaS(_lastRenderData.data || {});
+    });
+    /* Re-render Curva S ao entrar/sair do modo impressão para usar dimensões corretas */
+    window.addEventListener('beforeprint', function () {
+      if (_lastRenderData) renderCurvaS(_lastRenderData.data || {});
+    });
+    window.addEventListener('afterprint', function () {
+      if (_lastRenderData) renderCurvaS(_lastRenderData.data || {});
+    });
+    checkForUpdates(false);
+    document.addEventListener('fullscreenchange', function () {
+      if (!document.fullscreenElement) {
+        _isPresentationMode = false;
+        document.body.classList.remove('presentation-mode');
+      }
+      syncDeckHeights();
+    });
+    document.addEventListener('keydown', function (ev) {
+      if (!_isPresentationMode) return;
+      if (ev.key === 'ArrowRight' || ev.key === 'PageDown') {
+        ev.preventDefault();
+        nextSlide();
+      } else if (ev.key === 'ArrowLeft' || ev.key === 'PageUp') {
+        ev.preventDefault();
+        prevSlide();
+      } else if (ev.key === 'Home') {
+        ev.preventDefault();
+        setSlide(1);
+      } else if (ev.key === 'End') {
+        ev.preventDefault();
+        setSlide(totalSlides);
+      }
+    });
+  } catch (err) {
+    markAppInitError('bootstrap', err);
+  }
+});
+
+window.addEventListener('error', function (ev) {
+  if (_appState === 'ready' && !_isLoadingData) return;
+  markAppInitError('window.error', ev.error || new Error(ev.message || 'Erro JS não tratado'));
+});
+
+window.addEventListener('unhandledrejection', function (ev) {
+  if (_appState === 'ready' && !_isLoadingData) return;
+  var reason = ev.reason instanceof Error ? ev.reason : new Error(String(ev.reason || 'Promise rejeitada sem tratamento'));
+  markAppInitError('unhandledrejection', reason);
 });

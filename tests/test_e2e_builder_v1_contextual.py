@@ -2,23 +2,92 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
+import socket
 import sys
+import threading
 import time
 import urllib.request
+import importlib
 from pathlib import Path
 
 import pytest
+import uvicorn
 
 try:
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
     from playwright.sync_api import sync_playwright
 except Exception:  # pragma: no cover
     sync_playwright = None
+    PlaywrightTimeoutError = Exception
 
 
-E2E_PORT = int(os.getenv("E2E_PORT", "8010"))
+def _pick_free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+E2E_PORT = int(os.getenv("E2E_PORT", "0")) or _pick_free_port()
 BASE_URL = f"http://127.0.0.1:{E2E_PORT}"
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _collect_app_debug(page, console_messages: list[str], page_errors: list[str]) -> str:
+    snapshot = page.evaluate(
+        """
+        () => ({
+            dataset: document.body ? { ...document.body.dataset } : null,
+            initError: window.__appInitError || null,
+            renderComplete: window.__renderComplete,
+            title: document.getElementById('projectTitle')?.textContent || null,
+            editDisabled: document.querySelector('[data-testid="btn-edit"]')?.disabled ?? null,
+            hasEditButton: !!document.querySelector('[data-testid="btn-edit"]'),
+            shellHtml: document.querySelector('.page-shell')?.outerHTML?.slice(0, 2500) || null
+        })
+        """
+    )
+    return (
+        f"dataset={snapshot.get('dataset')!r}\n"
+        f"initError={snapshot.get('initError')!r}\n"
+        f"renderComplete={snapshot.get('renderComplete')!r}\n"
+        f"title={snapshot.get('title')!r}\n"
+        f"editDisabled={snapshot.get('editDisabled')!r}\n"
+        f"hasEditButton={snapshot.get('hasEditButton')!r}\n"
+        f"console={console_messages!r}\n"
+        f"pageErrors={page_errors!r}\n"
+        f"shellHtml={snapshot.get('shellHtml')!r}"
+    )
+
+
+def _wait_for_app_ready(page, console_messages: list[str], page_errors: list[str]) -> None:
+    try:
+        page.wait_for_function(
+            """
+            () => {
+                const body = document.body;
+                const btn = document.querySelector('[data-testid="btn-edit"]');
+                const title = document.getElementById('projectTitle');
+                if (!body) return false;
+                if (body.dataset.appState === 'error') return true;
+                return body.dataset.appState === 'ready'
+                    && body.dataset.appReady === 'true'
+                    && body.dataset.loading === 'idle'
+                    && body.dataset.mode === 'view'
+                    && !!btn
+                    && !btn.disabled
+                    && !!title
+                    && title.textContent
+                    && title.textContent.trim() !== ''
+                    && title.textContent.trim() !== 'Carregando...';
+            }
+            """
+        )
+    except PlaywrightTimeoutError as exc:
+        raise AssertionError("App não atingiu estado pronto observável.\n" + _collect_app_debug(page, console_messages, page_errors)) from exc
+
+    app_state = page.evaluate("() => document.body?.dataset.appState || null")
+    if app_state != "ready":
+        raise AssertionError("App terminou bootstrap em estado não pronto.\n" + _collect_app_debug(page, console_messages, page_errors))
 
 
 def _http_json(method: str, path: str, payload: dict | None = None) -> dict:
@@ -52,25 +121,31 @@ def _wait_server(timeout_s: int = 40) -> None:
 
 @pytest.fixture(scope="module")
 def app_server():
-    env = os.environ.copy()
-    env["WATCH_EXCEL"] = "false"
-    env["VALIDATE_EXCEL_SCHEMA"] = "false"
-    proc = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", str(E2E_PORT)],
-        cwd=str(ROOT),
-        env=env,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    prev_watch_excel = os.environ.get("WATCH_EXCEL")
+    prev_validate_excel = os.environ.get("VALIDATE_EXCEL_SCHEMA")
+    os.environ["WATCH_EXCEL"] = "false"
+    os.environ["VALIDATE_EXCEL_SCHEMA"] = "false"
+
+    backend_main = importlib.import_module("backend.main")
+    backend_main = importlib.reload(backend_main)
+    config = uvicorn.Config(backend_main.app, host="127.0.0.1", port=E2E_PORT, log_level="warning")
+    server = uvicorn.Server(config)
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
     try:
         _wait_server()
         yield
     finally:
-        proc.terminate()
-        try:
-            proc.wait(timeout=8)
-        except subprocess.TimeoutExpired:
-            proc.kill()
+        server.should_exit = True
+        thread.join(timeout=10)
+        if prev_watch_excel is None:
+            os.environ.pop("WATCH_EXCEL", None)
+        else:
+            os.environ["WATCH_EXCEL"] = prev_watch_excel
+        if prev_validate_excel is None:
+            os.environ.pop("VALIDATE_EXCEL_SCHEMA", None)
+        else:
+            os.environ["VALIDATE_EXCEL_SCHEMA"] = prev_validate_excel
 
 
 @pytest.mark.skipif(sync_playwright is None, reason="playwright nao disponivel")
@@ -80,17 +155,24 @@ def test_builder_v1_contextual_e2e(app_server):
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
         page = browser.new_page()
+        console_messages = []
+        page_errors = []
+        page.on("console", lambda msg: console_messages.append(f"{msg.type}: {msg.text}"))
+        page.on("pageerror", lambda err: page_errors.append(str(err)))
         page.goto(BASE_URL, wait_until="domcontentloaded")
+        _wait_for_app_ready(page, console_messages, page_errors)
 
         # Regressão: botão "Adicionar" deve sumir ao cancelar edição.
         page.get_by_test_id("btn-edit").click()
+        page.wait_for_function("() => document.body?.dataset.mode === 'edit'")
         assert page.locator(".edit-add-wrap").count() > 0
         page.get_by_test_id("btn-cancel-edits").click()
-        page.wait_for_timeout(250)
+        page.wait_for_function("() => document.body?.dataset.mode === 'view'")
         assert page.locator(".edit-add-wrap").count() == 0
         assert page.locator("#editModeBar").evaluate("el => getComputedStyle(el).display") == "none"
 
         page.get_by_test_id("btn-edit").click()
+        page.wait_for_function("() => document.body?.dataset.mode === 'edit'")
         page.get_by_test_id("btn-open-drawer").click()
         drawer = page.get_by_test_id("config-drawer-body")
         expect_texts = [
@@ -126,7 +208,9 @@ def test_builder_v1_contextual_e2e(app_server):
         owner_pm.fill("PM E2E")
 
         page.locator(".config-drawer-close").click()
-        page.wait_for_timeout(250)
+        page.wait_for_function(
+            "() => document.querySelector('[data-testid=\"config-drawer\"]')?.getAttribute('aria-hidden') === 'true'"
+        )
 
         # Resumo Executivo (inline)
         page.get_by_test_id("section-resumo").locator(".resumo-text").first.click()
@@ -151,13 +235,13 @@ def test_builder_v1_contextual_e2e(app_server):
         requests_before = []
         page.on("request", lambda req: requests_before.append(req.url))
         page.get_by_test_id("btn-export-pdf").click()
-        page.wait_for_timeout(600)
+        page.wait_for_load_state("networkidle")
         assert not any("/api/export/pdf" in u for u in requests_before)
         page.evaluate("window.confirm = () => true;")
 
         # Salvar, validar status e export
         page.get_by_test_id("btn-save-edits").click()
-        page.wait_for_timeout(1200)
+        _wait_for_app_ready(page, console_messages, page_errors)
         assert page.evaluate("hasUnsavedChanges()") is False
 
         status_after = _http_json("GET", "/api/status")
@@ -171,7 +255,6 @@ def test_builder_v1_contextual_e2e(app_server):
         resumo_after = status_after.get("reportData", {}).get("resumo_executivo", [])
         assert any("[e2e]" in str((it or {}).get("texto", "")) for it in resumo_after)
 
+        # restore baseline before closing the browser to keep the app server lifecycle stable
+        _http_json("POST", "/api/save", {"reportData": baseline})
         browser.close()
-
-    # restore baseline
-    _http_json("POST", "/api/save", {"reportData": baseline})
