@@ -1188,6 +1188,7 @@ function _priorityLabel(priority) {
 }
 
 function _riskTypeForBoard(item) {
+  if (item.tipo) return String(item.tipo).trim(); // override explícito do usuário
   var status = String(item.status || '').toLowerCase();
   var prio = _priorityNum(item.prioridade);
   if (status.indexOf('control') >= 0 || status.indexOf('conclu') >= 0) return 'Action';
@@ -1293,7 +1294,10 @@ function _buildRiskBoardModel(d) {
   var summaryImpact = _nextPhaseLabel(fases, cfg.current_phase);
   var summaryDecision = acoes[0] && acoes[0].texto ? _truncateForBoard(acoes[0].texto, 40) : 'Definir decisão executiva';
 
-  var boardRows = sorted.slice(0, 5).map(function (item) {
+  // Em edit mode: ordem original (sem sort, sem limite) → novo item sempre no final
+  // Em view mode: top 5 ordenados por prioridade (comportamento padrão)
+  var displayItems = editMode ? pendencias : sorted.slice(0, 5);
+  var boardRows = displayItems.map(function (item) {
     return {
       origIdx: pendencias.indexOf(item),
       type: _riskTypeForBoard(item),
@@ -2845,6 +2849,7 @@ function _attachAllEditHandlers() {
 
 /* ── Risk & Issue Board (Slide 3) ── */
 var _RISK_STATUSES = ['Em atenção', 'Mitigate', 'Monitor', 'Aberto', 'Controlado', 'Concluído'];
+var _RISK_TIPOS    = ['Risk', 'Issue', 'Action'];
 
 function _riskPillPriorityClass(val) {
   return 'risk-priority-pill p' + _priorityNum(val);
@@ -2852,6 +2857,12 @@ function _riskPillPriorityClass(val) {
 
 function _riskPillStatusClass(val) {
   return 'risk-status-pill tone-' + _riskStatusTone(val);
+}
+
+function _riskTypeChipClass(val) {
+  var t = String(val || 'Risk');
+  var tone = t === 'Issue' ? 'critical' : (t === 'Action' ? 'steady' : 'watch');
+  return 'risk-type-chip tone-' + tone;
 }
 
 /* Re-renderiza apenas a seção do Risk Board sem re-renderizar o deck todo */
@@ -2915,7 +2926,7 @@ function addRiskItem() {
   if (!_editSnapshotData) return;
   if (!_editSnapshotData.pendencias_criticas) _editSnapshotData.pendencias_criticas = [];
   _editSnapshotData.pendencias_criticas.push({
-    prioridade: 'P3', item: 'Novo risco/issue', responsaveis: '',
+    tipo: 'Risk', prioridade: 'P3', item: 'Novo risco/issue', responsaveis: '',
     status: 'Em atenção', nivel: 'warning',
     id_origem: null, categoria: null, score: null, probabilidade: null,
     impacto: null, estrategia: null, data_limite: null, comentarios: null
@@ -2988,6 +2999,17 @@ function _attachRiskBoardHandlers() {
           markDirty();
         }, function (newRaw, formatted) {
           return formatted || fmtDateShort(newRaw) || newRaw;
+        });
+      }
+
+      /* Tipo (badge dropdown: Risk / Issue / Action) */
+      var typeEl = tr.querySelector('.risk-type-chip');
+      if (typeEl && !typeEl.parentNode.classList.contains('badge-sel-wrap')) {
+        _badgeDropdown(typeEl, _RISK_TIPOS, pendArr[idx].tipo || _riskTypeForBoard(pendArr[idx]), _riskTypeChipClass, function (val) {
+          if ((_editSnapshotData.pendencias_criticas || [])[idx]) {
+            _editSnapshotData.pendencias_criticas[idx].tipo = val;
+            markDirty();
+          }
         });
       }
 
