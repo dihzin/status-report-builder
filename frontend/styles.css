@@ -93,9 +93,12 @@ body { padding: 0; }
   position: sticky;
   top: 0;
   z-index: 3000;
-  background: transparent;
-  backdrop-filter: none;
-  border-radius: 0;
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  border-bottom: 1px solid rgba(0,0,0,0.07);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 2px 10px rgba(0,0,0,0.05);
+  border-radius: 0 0 14px 14px;
   overflow: visible;
 }
 
@@ -276,6 +279,9 @@ body { padding: 0; }
   min-width: 86px;
   font-weight: 800;
   color: var(--gray-700);
+  cursor: default;
+  pointer-events: none;
+  opacity: 1 !important;
 }
 .tb-btn-hidden {
   display: none !important;
@@ -504,11 +510,16 @@ body.modal-open {
   background-color: rgba(59, 130, 246, 0.04);
 }
 .edit-mode .edit-date-field:hover::after {
-  content: ' 📅';
-  font-size: 10px;
-  opacity: 0.5;
-  margin-left: 2px;
-  vertical-align: baseline;
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-left: 4px;
+  vertical-align: middle;
+  opacity: 0.45;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
 }
 
 /* Input date invisível (overlay para picker) */
@@ -827,6 +838,26 @@ body.presentation-mode .page-shell {
   transition: background 0.15s;
 }
 .config-drawer-close:hover { background: rgba(255,255,255,0.28); }
+
+/* Scrollbars premium — finos e discretos */
+.config-drawer-body::-webkit-scrollbar,
+.risk-board-table-wrap::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.config-drawer-body::-webkit-scrollbar-track,
+.risk-board-table-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+.config-drawer-body::-webkit-scrollbar-thumb,
+.risk-board-table-wrap::-webkit-scrollbar-thumb {
+  background: var(--gray-300);
+  border-radius: 999px;
+}
+.config-drawer-body::-webkit-scrollbar-thumb:hover,
+.risk-board-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-400);
+}
 
 .config-drawer-body {
   flex: 1;
@@ -2166,14 +2197,14 @@ body.presentation-mode .page-shell {
 }
 
 .hkpi-label {
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: rgba(255,255,255,0.48);
   line-height: 1;
 }
-.hkpi-label sup { font-size: 6px; }
+.hkpi-label sup { font-size: 7px; }
 
 /* Reduz SVG dos gauges via CSS para não ficarem colados nas bordas */
 .hkpi-svg { line-height: 0; }
@@ -2401,7 +2432,7 @@ body.presentation-mode .page-shell {
 }
 
 .phase .date {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--gray-500);
   font-weight: 500;
 }
@@ -2428,11 +2459,6 @@ body.presentation-mode .page-shell {
   border-left: 3px solid transparent;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
   cursor: default;
-}
-
-.kpi-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lift);
 }
 
 .kpi-card:hover {
@@ -2464,7 +2490,7 @@ body.presentation-mode .page-shell {
 .kpi-body { min-width: 0; flex: 1; }
 
 .kpi-body .label {
-  font-size: 9px;
+  font-size: 10px;
   color: #6b7280;
   font-weight: 700;
   margin-bottom: 2px;
@@ -3104,7 +3130,7 @@ body.presentation-mode .page-shell {
 
 .foot-text .foot-title {
   color: var(--gray-500);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;

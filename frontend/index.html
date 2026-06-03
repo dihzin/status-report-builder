@@ -46,9 +46,13 @@
       <span id="updateInlineProgressText" class="update-inline-text">0%</span>
     </div>
   </div>
-  <button class="tb-btn tb-btn-nav" onclick="prevSlide()" aria-label="Slide anterior">&#9664;</button>
-  <button class="tb-btn tb-btn-indicator" id="slideIndicator" disabled>Slide 2/5</button>
-  <button class="tb-btn tb-btn-nav" onclick="nextSlide()" aria-label="Próximo slide">&#9654;</button>
+  <button class="tb-btn tb-btn-nav" onclick="prevSlide()" aria-label="Slide anterior">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;display:block"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
+  <span class="tb-btn tb-btn-indicator" id="slideIndicator" aria-live="polite">Slide 2/5</span>
+  <button class="tb-btn tb-btn-nav" onclick="nextSlide()" aria-label="Próximo slide">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;display:block"><polyline points="9 18 15 12 9 6"/></svg>
+  </button>
   <button class="tb-btn tb-btn-soft tb-btn-hidden" onclick="safePrint()">Imprimir / PDF</button>
   <button class="tb-btn tb-btn-soft" onclick="requestPresentationMode()" title="Modo apresentação" aria-label="Modo apresentação">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;display:inline-block;vertical-align:-2px">
