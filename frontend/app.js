@@ -1422,8 +1422,10 @@ function renderDeckSlides(d) {
     return '<tr class="risk-board-row tone-' + esc(row.tone) + '" data-edit-idx="' + row.origIdx + '">' +
       '<td><span class="risk-type-chip tone-' + esc(row.tone) + '">' + esc(row.type) + '</span></td>' +
       '<td><span class="risk-priority-pill p' + esc(String(_priorityNum(row.priority))) + '">' + esc(row.priority) + '</span></td>' +
-      '<td><div class="risk-board-theme">' + esc(row.theme) + '</div><div class="risk-board-meta">' + esc(row.meta) + '</div></td>' +
-      '<td><div class="risk-board-impact">' + esc(row.impact) + '</div><div class="risk-board-meta">' + esc(row.impactMeta) + '</div></td>' +
+      '<td><div class="risk-board-theme">' + esc(row.theme) + '</div>' +
+          '<div class="risk-board-meta risk-board-meta-edit" data-edit-field="contexto">' + esc(row.meta) + '</div></td>' +
+      '<td><div class="risk-board-impact">' + esc(row.impact) + '</div>' +
+          '<div class="risk-board-meta risk-board-score-edit" data-edit-field="score">' + esc(row.impactMeta) + '</div></td>' +
       '<td><div class="risk-board-mitigation">' + esc(row.mitigation) + '</div></td>' +
       '<td><div class="risk-board-owner">' + esc(row.owner) + '</div></td>' +
       '<td><div class="risk-board-due" data-raw-due="' + esc(row.rawDue) + '">' + esc(row.due) + '</div></td>' +
@@ -2852,6 +2854,77 @@ function _riskPillStatusClass(val) {
   return 'risk-status-pill tone-' + _riskStatusTone(val);
 }
 
+/* Re-renderiza apenas a seção do Risk Board sem re-renderizar o deck todo */
+function _rerenderRiskBoard() {
+  if (!_editSnapshotData) return;
+  var d = _editSnapshotData;
+  var riskBoard = _buildRiskBoardModel(d);
+
+  function _sh(id, html) { var e = document.getElementById(id); if (e) e.innerHTML = html; }
+  function _st(id, txt)  { var e = document.getElementById(id); if (e) e.textContent = txt; }
+
+  _st('riskSummaryExecutive', riskBoard.summaryExecutive);
+  _st('riskSummaryTopRisk',   riskBoard.summaryTopRisk);
+  _st('riskSummaryImpact',    riskBoard.summaryImpact);
+  _st('riskSummaryDecision',  riskBoard.summaryDecision);
+
+  _sh('riskBoardLegend', riskBoard.legend.map(function (item) {
+    return '<span class="risk-legend-pill"><strong>' + esc(String(item.count)) + '</strong> ' + esc(item.label) + '</span>';
+  }).join(''));
+
+  _sh('riskBoardRows', riskBoard.boardRows.length
+    ? riskBoard.boardRows.map(function (row) {
+        return '<tr class="risk-board-row tone-' + esc(row.tone) + '" data-edit-idx="' + row.origIdx + '">' +
+          '<td><span class="risk-type-chip tone-' + esc(row.tone) + '">' + esc(row.type) + '</span></td>' +
+          '<td><span class="risk-priority-pill p' + esc(String(_priorityNum(row.priority))) + '">' + esc(row.priority) + '</span></td>' +
+          '<td><div class="risk-board-theme">' + esc(row.theme) + '</div>' +
+              '<div class="risk-board-meta risk-board-meta-edit" data-edit-field="contexto">' + esc(row.meta) + '</div></td>' +
+          '<td><div class="risk-board-impact">' + esc(row.impact) + '</div>' +
+              '<div class="risk-board-meta risk-board-score-edit" data-edit-field="score">' + esc(row.impactMeta) + '</div></td>' +
+          '<td><div class="risk-board-mitigation">' + esc(row.mitigation) + '</div></td>' +
+          '<td><div class="risk-board-owner">' + esc(row.owner) + '</div></td>' +
+          '<td><div class="risk-board-due" data-raw-due="' + esc(row.rawDue) + '">' + esc(row.due) + '</div></td>' +
+          '<td><span class="risk-status-pill tone-' + esc(row.statusTone) + '">' + esc(row.status) + '</span></td>' +
+        '</tr>';
+      }).join('')
+    : '<tr><td colspan="8" class="risk-board-empty">Nenhum risco ou issue cadastrado.</td></tr>'
+  );
+
+  _sh('riskDecisionList', riskBoard.decisions.map(function (item, idx) {
+    return '<li data-edit-idx="' + idx + '"><span class="risk-decision-index">' + esc(String(idx + 1)) + '.</span>' +
+      '<div><strong>' + esc(item.title) + '</strong><p>' + esc(item.body) + '</p></div></li>';
+  }).join(''));
+
+  _sh('riskHeatmapGrid',
+    '<div class="risk-heatmap-head-spacer"></div>' +
+    riskBoard.heatCols.map(function (col) {
+      return '<div class="risk-heatmap-colhead">' + esc(col) + '</div>';
+    }).join('') +
+    riskBoard.heatRows.map(function (hrow) {
+      return '<div class="risk-heatmap-rowhead">' + esc(hrow) + '</div>' +
+        riskBoard.heatCols.map(function (col) {
+          var count = riskBoard.heatmap[hrow][col] || 0;
+          var tone = count === 0 ? 'zero' : (col === 'Crítico' ? 'critical' : (col === 'Alto' ? 'high' : (col === 'Médio' ? 'medium' : 'low')));
+          return '<div class="risk-heatmap-cell tone-' + esc(tone) + '">' + esc(String(count)) + '</div>';
+        }).join('');
+    }).join('')
+  );
+}
+
+function addRiskItem() {
+  if (!_editSnapshotData) return;
+  if (!_editSnapshotData.pendencias_criticas) _editSnapshotData.pendencias_criticas = [];
+  _editSnapshotData.pendencias_criticas.push({
+    prioridade: 'P3', item: 'Novo risco/issue', responsaveis: '',
+    status: 'Em atenção', nivel: 'warning',
+    id_origem: null, categoria: null, score: null, probabilidade: null,
+    impacto: null, estrategia: null, data_limite: null, comentarios: null
+  });
+  markDirty();
+  _rerenderRiskBoard();
+  _attachRiskBoardHandlers();
+}
+
 function _attachRiskBoardHandlers() {
   if (!_editSnapshotData) return;
 
@@ -2939,7 +3012,64 @@ function _attachRiskBoardHandlers() {
           }
         });
       }
+
+      /* Meta/contexto (id_origem + categoria — texto livre) */
+      var metaEl = tr.querySelector('.risk-board-meta-edit');
+      if (metaEl) {
+        _ce(metaEl);
+        if (!metaEl.dataset.syncBound) {
+          metaEl.dataset.syncBound = '1';
+          metaEl.addEventListener('input', function () {
+            if (!(_editSnapshotData.pendencias_criticas || [])[idx]) return;
+            _editSnapshotData.pendencias_criticas[idx].id_origem = String(metaEl.textContent || '').trim() || null;
+            markDirty();
+          });
+        }
+      }
+
+      /* Score (impacto meta — texto livre) */
+      var scoreEl = tr.querySelector('.risk-board-score-edit');
+      if (scoreEl) {
+        _ce(scoreEl);
+        if (!scoreEl.dataset.syncBound) {
+          scoreEl.dataset.syncBound = '1';
+          scoreEl.addEventListener('input', function () {
+            if (!(_editSnapshotData.pendencias_criticas || [])[idx]) return;
+            var raw = String(scoreEl.textContent || '').trim();
+            var num = parseFloat(raw);
+            _editSnapshotData.pendencias_criticas[idx].score = isFinite(num) ? num : (raw || null);
+            markDirty();
+          });
+        }
+      }
+
+      /* Botão remover linha */
+      if (!tr.querySelector('.edit-rm-btn')) {
+        (function (capturedIdx) {
+          var td = document.createElement('td');
+          td.style.verticalAlign = 'middle';
+          td.appendChild(_rmBtn(function () {
+            if (!_editSnapshotData || !_editSnapshotData.pendencias_criticas) return;
+            _editSnapshotData.pendencias_criticas.splice(capturedIdx, 1);
+            markDirty();
+            _rerenderRiskBoard();
+            _attachRiskBoardHandlers();
+          }));
+          tr.appendChild(td);
+        }(idx));
+      }
     });
+
+    /* Botão adicionar novo risco/issue */
+    var mainPanel = tbody && tbody.closest('.risk-board-main');
+    if (mainPanel) {
+      mainPanel.classList.add('edit-add-host');
+      var prevWrap = mainPanel.querySelector('.edit-add-wrap[data-for="riskBoardRows"]');
+      if (prevWrap) prevWrap.remove();
+      var addWrapEl = _addWrap('Adicionar risco/issue', addRiskItem);
+      addWrapEl.dataset.for = 'riskBoardRows';
+      mainPanel.appendChild(addWrapEl);
+    }
   }
 
   /* ── Decisões necessárias: título da ação ── */
