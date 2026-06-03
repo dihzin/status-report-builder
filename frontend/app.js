@@ -1448,7 +1448,7 @@ function renderDeckSlides(d) {
         riskBoard.heatCols.map(function (col) {
           var count = riskBoard.heatmap[row][col] || 0;
           var tone = count === 0 ? 'zero' : (col === 'Crítico' ? 'critical' : (col === 'Alto' ? 'high' : (col === 'Médio' ? 'medium' : 'low')));
-          return '<div class="risk-heatmap-cell tone-' + esc(tone) + '">' + esc(String(count)) + '</div>';
+          return '<div class="risk-heatmap-cell tone-' + esc(tone) + '">' + (count === 0 ? '—' : esc(String(count))) + '</div>';
         }).join('');
     }).join('')
   );
@@ -2917,7 +2917,7 @@ function _rerenderRiskBoard() {
         riskBoard.heatCols.map(function (col) {
           var count = riskBoard.heatmap[hrow][col] || 0;
           var tone = count === 0 ? 'zero' : (col === 'Crítico' ? 'critical' : (col === 'Alto' ? 'high' : (col === 'Médio' ? 'medium' : 'low')));
-          return '<div class="risk-heatmap-cell tone-' + esc(tone) + '">' + esc(String(count)) + '</div>';
+          return '<div class="risk-heatmap-cell tone-' + esc(tone) + '">' + (count === 0 ? '—' : esc(String(count))) + '</div>';
         }).join('');
     }).join('')
   );
@@ -3128,6 +3128,22 @@ function _attachRiskBoardHandlers() {
             markDirty();
           });
         }
+      }
+
+      /* Botão remover decisão (só para decisões com acao real) */
+      if (!li.querySelector('.edit-rm-btn')) {
+        (function (capturedIdx) {
+          li.appendChild(_rmBtn(function () {
+            if (!_editSnapshotData || !_editSnapshotData.proximas_acoes) return;
+            _editSnapshotData.proximas_acoes.splice(capturedIdx, 1);
+            markDirty();
+            _rerenderRiskBoard();
+            _attachRiskBoardHandlers();
+            /* Sincroniza slide 2 — proximas_acoes mudou */
+            renderAcoes({ proximas_acoes: _editSnapshotData.proximas_acoes });
+            if (typeof _attachAcoesHandlers === 'function') _attachAcoesHandlers();
+          }));
+        }(idx));
       }
     });
   }
