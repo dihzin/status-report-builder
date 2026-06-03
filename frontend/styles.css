@@ -733,6 +733,7 @@ body.modal-open {
 body.export-clean #editModeBar,
 body.export-clean #configDrawer,
 body.export-clean #configDrawerBackdrop,
+body.export-clean #updateModal,
 body.export-clean .toolbar,
 body.export-clean .validation-banner,
 body.export-clean .edit-rm-btn,
@@ -759,6 +760,7 @@ body.export-clean .edit-date-field {
 @media print {
   .edit-mode-bar, #editModeBar,
   #configDrawer, #configDrawerBackdrop,
+  #updateModal,
   .edit-rm-btn, .edit-add-wrap, .edit-add-row,
   .badge-sel-menu, .date-overlay-input,
   #btnEdit { display: none !important; }
