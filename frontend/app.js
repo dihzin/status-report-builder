@@ -1251,6 +1251,7 @@ function _nextPhaseLabel(fases, currentPhase) {
 }
 
 function _riskImpactSummary(item) {
+  if (item.impacto_display) return String(item.impacto_display).trim();
   var impact = _humanLevel(item.impacto);
   var prob = _humanLevel(item.probabilidade);
   if (prob && impact) return prob + ' prob. • ' + impact + ' impacto';
@@ -3033,6 +3034,20 @@ function _attachRiskBoardHandlers() {
             markDirty();
           }
         });
+      }
+
+      /* Impacto linha 1 (impacto_display — texto livre) */
+      var impactEl = tr.querySelector('.risk-board-impact');
+      if (impactEl) {
+        _ce(impactEl);
+        if (!impactEl.dataset.syncBound) {
+          impactEl.dataset.syncBound = '1';
+          impactEl.addEventListener('input', function () {
+            if (!(_editSnapshotData.pendencias_criticas || [])[idx]) return;
+            _editSnapshotData.pendencias_criticas[idx].impacto_display = String(impactEl.textContent || '').trim() || null;
+            markDirty();
+          });
+        }
       }
 
       /* Meta/contexto (id_origem + categoria — texto livre) */

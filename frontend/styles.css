@@ -575,12 +575,14 @@ body.modal-open {
   overflow: visible;
 }
 .edit-mode #pendencias tr { position: relative; }
+.edit-mode #riskBoardRows tr { position: relative; overflow: visible; }
 .edit-mode .milestone-row { position: relative; overflow: visible; }
 
 /* Revelar botão no hover do pai */
 .edit-mode #resumo li:hover > .edit-rm-btn,
 .edit-mode #acoes li:hover > .edit-rm-btn,
 .edit-mode #pendencias tr:hover .edit-rm-btn,
+.edit-mode #riskBoardRows tr:hover .edit-rm-btn,
 .edit-mode .milestone-row:hover .edit-rm-btn { opacity: 1; }
 .edit-rm-btn:hover { background: var(--red-050); }
 
