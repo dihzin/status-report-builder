@@ -1325,12 +1325,16 @@ function _buildRiskBoardModel(d) {
       body: linked ? _truncateForBoard((_riskMitigationSummary(linked) || '') + ' • ' + (linked.responsaveis || 'Owner a definir'), 112) : 'Formalizar owner, prazo e desbloqueio para a frente seguinte.'
     };
   });
-  while (decisions.length < 3) {
-    var fallback = sorted[decisions.length] || topRisk;
-    decisions.push({
-      title: fallback ? _truncateForBoard(fallback.item, 56) : 'Sem decisão adicional',
-      body: fallback ? _truncateForBoard(_riskMitigationSummary(fallback), 112) : 'Nenhuma decisão crítica adicional cadastrada.'
-    });
+  // Em view mode: preenche até 3 usando fallback dos riscos
+  // Em edit mode: mostra só decisões reais (para que o botão de exclusão funcione corretamente)
+  if (!editMode) {
+    while (decisions.length < 3) {
+      var fallback = sorted[decisions.length] || topRisk;
+      decisions.push({
+        title: fallback ? _truncateForBoard(fallback.item, 56) : 'Sem decisão adicional',
+        body: fallback ? _truncateForBoard(_riskMitigationSummary(fallback), 112) : 'Nenhuma decisão crítica adicional cadastrada.'
+      });
+    }
   }
 
   var legend = ['P1', 'P2', 'P3', 'P4'].map(function (p) {
@@ -3115,8 +3119,9 @@ function _attachRiskBoardHandlers() {
     decList.querySelectorAll('li[data-edit-idx]').forEach(function (li) {
       var idx = parseInt(li.dataset.editIdx, 10);
       var acoesArr = _editSnapshotData.proximas_acoes || [];
-      if (idx < 0 || idx >= acoesArr.length) return; /* decisão derivada (fallback) — não editar */
+      if (idx < 0 || idx >= acoesArr.length) return;
 
+      /* Edição do título */
       var strongEl = li.querySelector('strong');
       if (strongEl) {
         _ce(strongEl);
@@ -3130,7 +3135,7 @@ function _attachRiskBoardHandlers() {
         }
       }
 
-      /* Botão remover decisão (só para decisões com acao real) */
+      /* Botão remover */
       if (!li.querySelector('.edit-rm-btn')) {
         (function (capturedIdx) {
           li.appendChild(_rmBtn(function () {
@@ -3139,13 +3144,33 @@ function _attachRiskBoardHandlers() {
             markDirty();
             _rerenderRiskBoard();
             _attachRiskBoardHandlers();
-            /* Sincroniza slide 2 — proximas_acoes mudou */
             renderAcoes({ proximas_acoes: _editSnapshotData.proximas_acoes });
             if (typeof _attachAcoesHandlers === 'function') _attachAcoesHandlers();
           }));
         }(idx));
       }
     });
+
+    /* Botão adicionar nova decisão */
+    var decPanel = decList.closest('.risk-board-panel') || decList.parentNode;
+    if (decPanel) {
+      decPanel.classList.add('edit-add-host');
+      var prevDecWrap = decPanel.querySelector('.edit-add-wrap[data-for="riskDecisionList"]');
+      if (prevDecWrap) prevDecWrap.remove();
+      var decAddWrap = _addWrap('Adicionar decisão', function () {
+        if (!_editSnapshotData) return;
+        if (!_editSnapshotData.proximas_acoes) _editSnapshotData.proximas_acoes = [];
+        if (_editSnapshotData.proximas_acoes.length >= 3) return;
+        _editSnapshotData.proximas_acoes.push({ texto: 'Nova decisão', status: 'Em andamento' });
+        markDirty();
+        _rerenderRiskBoard();
+        _attachRiskBoardHandlers();
+        renderAcoes({ proximas_acoes: _editSnapshotData.proximas_acoes });
+        if (typeof _attachAcoesHandlers === 'function') _attachAcoesHandlers();
+      });
+      decAddWrap.dataset.for = 'riskDecisionList';
+      decPanel.appendChild(decAddWrap);
+    }
   }
 }
 
