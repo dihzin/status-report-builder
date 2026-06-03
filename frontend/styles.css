@@ -1396,7 +1396,7 @@ body.presentation-mode .page-shell {
   margin-bottom: 16px;
 }
 
-.risk-summary-card,
+/* ── Risk board panels (tabela + decisões + heatmap) ── */
 .risk-board-panel {
   background: rgba(255,255,255,0.92);
   border: 1px solid rgba(140,160,190,0.18);
@@ -1406,51 +1406,70 @@ body.presentation-mode .page-shell {
     inset 0 1px 0 rgba(255,255,255,0.85);
 }
 
+/* ── Summary cards (os 4 KPIs no topo do slide 3) ── */
 .risk-summary-card {
-  min-height: 102px;
+  background: #ffffff;
+  border: 1px solid rgba(120,145,185,0.22);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  position: relative;
+  overflow: hidden;
+  min-height: 98px;
   display: grid;
-  grid-template-columns: 48px 1fr;
+  grid-template-columns: 52px 1fr;
   gap: 14px;
   align-items: center;
-  padding: 18px 18px 18px 16px;
+  padding: 16px 18px 16px 16px;
 }
 
+/* Acento colorido no topo — ancora cada card semanticamente */
+.risk-summary-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+.risk-summary-card.executive::before { background: linear-gradient(90deg, #c65548, #d97060); }
+.risk-summary-card.risk::before      { background: linear-gradient(90deg, #cc8a16, #dba030); }
+.risk-summary-card.impact::before    { background: linear-gradient(90deg, #365891, #4d72a8); }
+.risk-summary-card.decision::before  { background: linear-gradient(90deg, #4e9365, #62a87a); }
+
 .risk-summary-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 900;
   color: #294677;
   background: rgba(226,236,250,0.82);
-  border: 1px solid rgba(113,145,196,0.22);
+  border: 1px solid rgba(113,145,196,0.26);
 }
 
 .risk-summary-card.executive .risk-summary-icon {
   color: #c65548;
-  background: rgba(251,234,231,0.94);
-  border-color: rgba(206,106,91,0.22);
+  background: rgba(220,100,85,0.12);
+  border-color: rgba(206,106,91,0.30);
 }
 
 .risk-summary-card.risk .risk-summary-icon {
   color: #cc8a16;
-  background: rgba(253,244,223,0.96);
-  border-color: rgba(216,166,70,0.24);
+  background: rgba(220,155,28,0.12);
+  border-color: rgba(216,166,70,0.32);
 }
 
 .risk-summary-card.impact .risk-summary-icon {
   color: #365891;
-  background: rgba(231,238,252,0.96);
-  border-color: rgba(109,138,193,0.2);
+  background: rgba(65,105,175,0.10);
+  border-color: rgba(109,138,193,0.30);
 }
 
 .risk-summary-card.decision .risk-summary-icon {
   color: #4e9365;
-  background: rgba(232,246,236,0.96);
-  border-color: rgba(99,167,118,0.2);
+  background: rgba(75,155,100,0.10);
+  border-color: rgba(99,167,118,0.30);
 }
 
 .risk-summary-icon .icon {
@@ -1464,21 +1483,21 @@ body.presentation-mode .page-shell {
 }
 
 .risk-summary-label {
-  margin: 0 0 6px;
-  color: #72809f;
-  font-size: 12px;
+  margin: 0 0 5px;
+  color: #7a8aab;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .risk-summary-value {
   margin: 0;
-  font-size: 22px;
-  line-height: 1.12;
-  letter-spacing: -0.03em;
-  color: #27334d;
-  font-weight: 850;
+  font-size: 20px;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  color: #1e2d4a;
+  font-weight: 800;
 }
 
 .risk-board-grid {

@@ -1290,7 +1290,7 @@ function _buildRiskBoardModel(d) {
   var openCount = openItems.length;
   var summaryExecutive = p1Count > 0
     ? p1Count + ' issue' + (p1Count > 1 ? 's críticos' : ' crítico')
-    : (openCount > 0 ? openCount + ' itens em atenção' : 'Nenhum item crítico');
+    : (openCount > 0 ? openCount + (openCount === 1 ? ' item' : ' itens') + ' em atenção' : 'Nenhum item crítico');
   var summaryTopRisk = topRisk ? _truncateForBoard(topRisk.item, 42) : 'Sem riscos críticos';
   var summaryImpact = _nextPhaseLabel(fases, cfg.current_phase);
   var summaryDecision = acoes[0] && acoes[0].texto ? _truncateForBoard(acoes[0].texto, 40) : 'Definir decisão executiva';
