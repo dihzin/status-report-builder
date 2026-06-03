@@ -14,6 +14,7 @@
 <div class="toolbar">
   <button class="tb-btn tb-btn-primary" id="btnEdit" data-testid="btn-edit" onclick="toggleEditMode()" title="Editar dados do relatório diretamente na tela" aria-label="Editar dados do relatório diretamente na tela">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:-2px"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg>
+    <span class="tb-btn-label">Editar</span>
   </button>
   <button class="tb-btn" data-testid="btn-export-pdf" onclick="exportPDF(event)" title="Exportar PDF" aria-label="Exportar PDF">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;display:inline-block;vertical-align:-2px">
@@ -24,6 +25,7 @@
       <path d="M8.5 17h7"/>
       <circle cx="17.5" cy="11.8" r=".6" fill="currentColor" stroke="none"/>
     </svg>
+    <span class="tb-btn-label">PDF</span>
   </button>
   <button class="tb-btn tb-btn-hidden" data-testid="btn-export-pptx" onclick="exportPPTX(event)">Exportar PPTX</button>
   <div class="update-rail" id="updateRail">

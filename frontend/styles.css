@@ -286,6 +286,13 @@ body { padding: 0; }
   display: none !important;
 }
 
+.tb-btn-label {
+  margin-left: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
 /* ── Botão Editar ── */
 #btnEdit.active {
   background: var(--blue-800);
@@ -1835,21 +1842,19 @@ body.presentation-mode .page-shell {
 }
 .deck-closing-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 4px;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 48px;
   align-items: center;
-  justify-items: center;
   flex: 1 1 auto;
-  align-content: center;
   position: relative;
   z-index: 2;
 }
 .deck-closing-copy {
-  max-width: 900px;
-  text-align: center;
+  max-width: none;
+  text-align: left;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
 }
 .deck-closing-eyebrow {
   margin: 0 0 28px;
@@ -1879,7 +1884,7 @@ body.presentation-mode .page-shell {
   letter-spacing: -0.065em;
 }
 .deck-closing-lead {
-  margin: 18px auto 0;
+  margin: 18px 0 0;
   max-width: 700px;
   font-size: 26px;
   line-height: 1.48;
@@ -1888,8 +1893,8 @@ body.presentation-mode .page-shell {
 .deck-closing-side {
   display: flex;
   justify-content: center;
+  align-items: center;
   width: 100%;
-  margin-top: -4px;
 }
 .deck-closing-card {
   width: min(100%, 560px);
@@ -1943,7 +1948,7 @@ body.presentation-mode .page-shell {
 .topbar {
   height: 90px;
   background:
-    linear-gradient(105deg, var(--green-950) 0%, var(--green-900) 38%, var(--green-850) 70%, var(--green-900) 100%);
+    linear-gradient(105deg, #082542 0%, #0d335d 38%, #123d6c 70%, #0d335d 100%);
   color: #fff;
   display: grid;
   grid-template-columns: 100px minmax(320px, 1fr) minmax(250px, 320px);
@@ -2009,7 +2014,7 @@ body.presentation-mode .page-shell {
 
 .title-block p {
   margin: 6px 0 0 0;
-  color: #f2fff4;
+  color: rgba(229,236,247,0.82);
   font-size: 14px;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -3633,8 +3638,16 @@ body.presentation-mode .page-shell {
     height: 430px;
   }
   .deck-closing-grid {
-    align-items: start;
+    grid-template-columns: 1fr;
+    align-items: center;
+    justify-items: center;
   }
+  .deck-closing-copy {
+    text-align: center;
+    align-items: center;
+    max-width: 900px;
+  }
+  .deck-closing-lead { margin: 18px auto 0; }
   .deck-closing-grid::before {
     right: 40px;
     top: 24px;
