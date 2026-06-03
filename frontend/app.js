@@ -1295,6 +1295,7 @@ function _buildRiskBoardModel(d) {
 
   var boardRows = sorted.slice(0, 5).map(function (item) {
     return {
+      origIdx: pendencias.indexOf(item),
       type: _riskTypeForBoard(item),
       tone: _riskToneForBoard(item),
       priority: String(item.prioridade || 'P?').toUpperCase(),
@@ -1306,6 +1307,7 @@ function _buildRiskBoardModel(d) {
       mitigation: _riskMitigationSummary(item),
       owner: _truncateForBoard(item.responsaveis || 'A definir', 18),
       due: item.data_limite ? fmtDateShort(item.data_limite) : '-',
+      rawDue: item.data_limite || '',
       status: _truncateForBoard(item.status || 'Aberto', 18),
       statusTone: _riskStatusTone(item.status)
     };
@@ -1417,19 +1419,19 @@ function renderDeckSlides(d) {
     return '<span class="risk-legend-pill"><strong>' + esc(String(item.count)) + '</strong> ' + esc(item.label) + '</span>';
   }).join(''));
   setHtml('riskBoardRows', riskBoard.boardRows.length ? riskBoard.boardRows.map(function (row) {
-    return '<tr class="risk-board-row tone-' + esc(row.tone) + '">' +
+    return '<tr class="risk-board-row tone-' + esc(row.tone) + '" data-edit-idx="' + row.origIdx + '">' +
       '<td><span class="risk-type-chip tone-' + esc(row.tone) + '">' + esc(row.type) + '</span></td>' +
       '<td><span class="risk-priority-pill p' + esc(String(_priorityNum(row.priority))) + '">' + esc(row.priority) + '</span></td>' +
       '<td><div class="risk-board-theme">' + esc(row.theme) + '</div><div class="risk-board-meta">' + esc(row.meta) + '</div></td>' +
       '<td><div class="risk-board-impact">' + esc(row.impact) + '</div><div class="risk-board-meta">' + esc(row.impactMeta) + '</div></td>' +
       '<td><div class="risk-board-mitigation">' + esc(row.mitigation) + '</div></td>' +
       '<td><div class="risk-board-owner">' + esc(row.owner) + '</div></td>' +
-      '<td><div class="risk-board-due">' + esc(row.due) + '</div></td>' +
+      '<td><div class="risk-board-due" data-raw-due="' + esc(row.rawDue) + '">' + esc(row.due) + '</div></td>' +
       '<td><span class="risk-status-pill tone-' + esc(row.statusTone) + '">' + esc(row.status) + '</span></td>' +
     '</tr>';
   }).join('') : '<tr><td colspan="8" class="risk-board-empty">Nenhum risco ou issue cadastrado.</td></tr>');
   setHtml('riskDecisionList', riskBoard.decisions.map(function (item, idx) {
-    return '<li><span class="risk-decision-index">' + esc(String(idx + 1)) + '.</span><div><strong>' + esc(item.title) + '</strong><p>' + esc(item.body) + '</p></div></li>';
+    return '<li data-edit-idx="' + idx + '"><span class="risk-decision-index">' + esc(String(idx + 1)) + '.</span><div><strong>' + esc(item.title) + '</strong><p>' + esc(item.body) + '</p></div></li>';
   }).join(''));
   setHtml('riskHeatmapGrid',
     '<div class="risk-heatmap-head-spacer"></div>' +
@@ -2836,6 +2838,132 @@ function _attachAllEditHandlers() {
   _attachAcoesHandlers();
   _attachMarcosHandlers();
   _attachFooterHandlers();
+  _attachRiskBoardHandlers();
+}
+
+/* ── Risk & Issue Board (Slide 3) ── */
+var _RISK_STATUSES = ['Em atenção', 'Mitigate', 'Monitor', 'Aberto', 'Controlado', 'Concluído'];
+
+function _riskPillPriorityClass(val) {
+  return 'risk-priority-pill p' + _priorityNum(val);
+}
+
+function _riskPillStatusClass(val) {
+  return 'risk-status-pill tone-' + _riskStatusTone(val);
+}
+
+function _attachRiskBoardHandlers() {
+  if (!_editSnapshotData) return;
+
+  /* ── Linhas do board: tema, mitigação, owner, prazo, prioridade, status ── */
+  var tbody = document.getElementById('riskBoardRows');
+  if (tbody) {
+    tbody.querySelectorAll('tr[data-edit-idx]').forEach(function (tr) {
+      var idx = parseInt(tr.dataset.editIdx, 10);
+      var pendArr = _editSnapshotData.pendencias_criticas || [];
+      if (idx < 0 || idx >= pendArr.length) return;
+
+      /* Tema (item) */
+      var themeEl = tr.querySelector('.risk-board-theme');
+      if (themeEl) {
+        _ce(themeEl);
+        if (!themeEl.dataset.syncBound) {
+          themeEl.dataset.syncBound = '1';
+          themeEl.addEventListener('input', function () {
+            if (!(_editSnapshotData.pendencias_criticas || [])[idx]) return;
+            _editSnapshotData.pendencias_criticas[idx].item = String(themeEl.textContent || '').trim();
+            markDirty();
+          });
+        }
+      }
+
+      /* Mitigação (comentarios, com fallback para estrategia) */
+      var mitEl = tr.querySelector('.risk-board-mitigation');
+      if (mitEl) {
+        _ce(mitEl);
+        if (!mitEl.dataset.syncBound) {
+          mitEl.dataset.syncBound = '1';
+          mitEl.addEventListener('input', function () {
+            if (!(_editSnapshotData.pendencias_criticas || [])[idx]) return;
+            _editSnapshotData.pendencias_criticas[idx].comentarios = String(mitEl.textContent || '').trim() || null;
+            markDirty();
+          });
+        }
+      }
+
+      /* Owner (responsaveis) */
+      var ownerEl = tr.querySelector('.risk-board-owner');
+      if (ownerEl) {
+        _ce(ownerEl);
+        if (!ownerEl.dataset.syncBound) {
+          ownerEl.dataset.syncBound = '1';
+          ownerEl.addEventListener('input', function () {
+            if (!(_editSnapshotData.pendencias_criticas || [])[idx]) return;
+            _editSnapshotData.pendencias_criticas[idx].responsaveis = String(ownerEl.textContent || '').trim() || null;
+            markDirty();
+          });
+        }
+      }
+
+      /* Prazo (data_limite) — date picker */
+      var dueEl = tr.querySelector('.risk-board-due');
+      if (dueEl) {
+        _dateField(dueEl, dueEl.dataset.rawDue || '', function (newRaw) {
+          dueEl.dataset.rawDue = newRaw;
+          if (!(_editSnapshotData.pendencias_criticas || [])[idx]) return;
+          _editSnapshotData.pendencias_criticas[idx].data_limite = newRaw;
+          markDirty();
+        }, function (newRaw, formatted) {
+          return formatted || fmtDateShort(newRaw) || newRaw;
+        });
+      }
+
+      /* Prioridade (badge dropdown) */
+      var prioEl = tr.querySelector('.risk-priority-pill');
+      if (prioEl && !prioEl.parentNode.classList.contains('badge-sel-wrap')) {
+        _badgeDropdown(prioEl, _PEND_PRIORIDADES, pendArr[idx].prioridade, _riskPillPriorityClass, function (val) {
+          if ((_editSnapshotData.pendencias_criticas || [])[idx]) {
+            _editSnapshotData.pendencias_criticas[idx].prioridade = val;
+            markDirty();
+          }
+        });
+      }
+
+      /* Status (badge dropdown) */
+      var statusEl = tr.querySelector('.risk-status-pill');
+      if (statusEl && !statusEl.parentNode.classList.contains('badge-sel-wrap')) {
+        _badgeDropdown(statusEl, _RISK_STATUSES, pendArr[idx].status, _riskPillStatusClass, function (val) {
+          if ((_editSnapshotData.pendencias_criticas || [])[idx]) {
+            _editSnapshotData.pendencias_criticas[idx].status = val;
+            markDirty();
+          }
+        });
+      }
+    });
+  }
+
+  /* ── Decisões necessárias: título da ação ── */
+  var decList = document.getElementById('riskDecisionList');
+  if (decList) {
+    decList.querySelectorAll('li[data-edit-idx]').forEach(function (li) {
+      var idx = parseInt(li.dataset.editIdx, 10);
+      var acoesArr = _editSnapshotData.proximas_acoes || [];
+      if (idx < 0 || idx >= acoesArr.length) return; /* decisão derivada (fallback) — não editar */
+
+      var strongEl = li.querySelector('strong');
+      if (strongEl) {
+        _ce(strongEl);
+        if (!strongEl.dataset.syncBound) {
+          strongEl.dataset.syncBound = '1';
+          strongEl.addEventListener('input', function () {
+            if (!(_editSnapshotData.proximas_acoes || [])[idx]) return;
+            _editSnapshotData.proximas_acoes[idx].texto = String(strongEl.textContent || '').trim();
+            markDirty();
+          });
+        }
+      }
+    });
+  }
 }
 
 /* ── Encerramento / Slide 4 ── */
