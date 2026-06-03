@@ -1219,6 +1219,9 @@ body.presentation-mode .page-shell {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.22em;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
 }
 .deck-eyebrow::before {
   content: "";
@@ -1845,6 +1848,7 @@ body.presentation-mode .page-shell {
   grid-template-columns: 1.15fr 0.85fr;
   gap: 48px;
   align-items: center;
+  align-content: center;
   flex: 1 1 auto;
   position: relative;
   z-index: 2;
@@ -1866,6 +1870,9 @@ body.presentation-mode .page-shell {
   font-weight: 650;
   letter-spacing: 0.22em;
   text-transform: uppercase;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
 }
 .deck-closing-eyebrow::before {
   content: "";
