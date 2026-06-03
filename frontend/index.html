@@ -12,17 +12,52 @@
 <body data-app-ready="false" data-loading="idle" data-mode="view" data-app-state="booting" data-app-error="">
 
 <div class="toolbar">
-  <button class="tb-btn tb-btn-soft" onclick="loadData()">&#8635; Atualizar</button>
-  <button class="tb-btn tb-btn-primary" id="btnEdit" data-testid="btn-edit" onclick="toggleEditMode()" title="Editar dados do relatório diretamente na tela">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:-2px;margin-right:4px"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg>Editar
+  <button class="tb-btn tb-btn-primary" id="btnEdit" data-testid="btn-edit" onclick="toggleEditMode()" title="Editar dados do relatório diretamente na tela" aria-label="Editar dados do relatório diretamente na tela">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;display:inline-block;vertical-align:-2px"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg>
   </button>
-  <button class="tb-btn" data-testid="btn-export-pdf" onclick="exportPDF(event)">Exportar PDF</button>
+  <button class="tb-btn" data-testid="btn-export-pdf" onclick="exportPDF(event)" title="Exportar PDF" aria-label="Exportar PDF">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;display:inline-block;vertical-align:-2px">
+      <path d="M7 9V4h10v5"/>
+      <rect x="6" y="14" width="12" height="6" rx="1.8"/>
+      <path d="M6 10H5a2 2 0 0 0-2 2v4h3"/>
+      <path d="M18 10h1a2 2 0 0 1 2 2v4h-3"/>
+      <path d="M8.5 17h7"/>
+      <circle cx="17.5" cy="11.8" r=".6" fill="currentColor" stroke="none"/>
+    </svg>
+  </button>
   <button class="tb-btn tb-btn-hidden" data-testid="btn-export-pptx" onclick="exportPPTX(event)">Exportar PPTX</button>
+  <div class="update-rail" id="updateRail">
+    <button id="btnCheckUpdate" class="update-summary" type="button" onclick="openUpdateModal('details')">
+      <span class="update-summary-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 10v6"></path><path d="M12 7h.01"></path></svg>
+      </span>
+      <span class="sr-only" id="updateToolbarA11y">Atualizações</span>
+      <span class="update-summary-copy">
+        <span class="update-summary-label">Atualizações</span>
+        <span id="updateStatusLabel" class="update-summary-status">Não verificado</span>
+      </span>
+      <span class="update-summary-meta">
+        <span id="appVersionLabel" class="update-version">v-</span>
+        <span id="updateBadge" class="update-badge">Verificar</span>
+      </span>
+    </button>
+    <div id="updateInlineProgress" class="update-inline-progress tb-btn-hidden" aria-hidden="true">
+      <div class="update-inline-bar"><span id="updateInlineProgressFill"></span></div>
+      <span id="updateInlineProgressText" class="update-inline-text">0%</span>
+    </div>
+  </div>
   <button class="tb-btn tb-btn-nav" onclick="prevSlide()" aria-label="Slide anterior">&#9664;</button>
   <button class="tb-btn tb-btn-indicator" id="slideIndicator" disabled>Slide 2/5</button>
   <button class="tb-btn tb-btn-nav" onclick="nextSlide()" aria-label="Próximo slide">&#9654;</button>
   <button class="tb-btn tb-btn-soft tb-btn-hidden" onclick="safePrint()">Imprimir / PDF</button>
-  <button class="tb-btn tb-btn-soft" onclick="requestPresentationMode()">Modo apresentação</button>
+  <button class="tb-btn tb-btn-soft" onclick="requestPresentationMode()" title="Modo apresentação" aria-label="Modo apresentação">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;display:inline-block;vertical-align:-2px">
+      <rect x="3.5" y="5" width="17" height="11" rx="2"/>
+      <path d="M8.5 20h7"/>
+      <path d="M12 16v4"/>
+      <path d="m10 9 5 2.5-5 2.5z" fill="currentColor" stroke="none"/>
+    </svg>
+  </button>
 </div>
 <div id="editModeBar" class="edit-mode-bar" style="display:none" role="complementary" aria-label="Barra de edição">
   <div class="edit-mode-bar-inner">
@@ -62,11 +97,13 @@
 <main class="page-shell deck-slide" id="slide1">
   <section class="deck-cover">
     <div class="deck-cover-accent" aria-hidden="true"></div>
+    <div class="deck-cover-grid" aria-hidden="true"></div>
+    <div class="deck-cover-orb deck-cover-orb-a" aria-hidden="true"></div>
+    <div class="deck-cover-orb deck-cover-orb-b" aria-hidden="true"></div>
     <div class="deck-cover-top">
       <div class="deck-brand-left">
         <div class="deck-cover-logo"><img id="coverLogo" src="assets/logo.svg" alt="Logo"/></div>
       </div>
-      <div class="deck-brand-right" id="coverPartner">Stratesys</div>
     </div>
     <div class="deck-cover-main">
       <p class="deck-eyebrow" id="coverEyebrow">STATUS REPORT DO PROJETO · FASE</p>
@@ -74,18 +111,10 @@
       <p id="coverSubtitle">Procurement digital integrado ao S/4HANA.</p>
     </div>
     <div class="deck-cover-meta">
-      <div><small>CLIENTE</small><strong id="coverClient">-</strong></div>
-      <div><small>APRESENTADOR</small><strong id="coverOwner">-</strong></div>
-      <div><small>DATA</small><strong id="coverDate">-</strong></div>
-      <div><small>DURAÇÃO</small><strong id="coverDuration">30 minutos</strong></div>
-    </div>
-    <div class="deck-cover-bottom">
-      <span id="coverTagline">EDF × Stratesys, parceria estratégica</span>
-      <span id="coverRestriction">USO RESTRITO</span>
-    </div>
-    <div class="deck-cover-bottomline">
-      <span id="coverFooterLeft">Implementação SAP Ariba</span>
-      <span id="coverFooterRight">EDF × Stratesys</span>
+      <div><small id="coverClientLabel">CLIENTE</small><strong id="coverClient">-</strong></div>
+      <div><small id="coverOwnerLabel">APRESENTADOR</small><strong id="coverOwner">-</strong></div>
+      <div><small id="coverDateLabel">DATA</small><strong id="coverDate">-</strong></div>
+      <div><small id="coverDurationLabel">DURAÇÃO</small><strong id="coverDuration">30 minutos</strong></div>
     </div>
   </section>
 </main>
@@ -103,31 +132,6 @@
     <div class="title-block">
       <h1 id="projectTitle">Carregando...</h1>
       <p id="projectSubtitle"></p>
-    </div>
-
-    <div class="header-alert" id="alertBar" role="alert">
-      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v5"/><path d="M12 17.4h.01"/></svg>
-      <span id="alertText">ATENÇÃO</span>
-    </div>
-
-    <div class="update-rail" id="updateRail">
-      <button id="btnCheckUpdate" class="update-summary" type="button" onclick="openUpdateModal('details')">
-        <span class="update-summary-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/><path d="M12 7v5l3 3"/></svg>
-        </span>
-        <span class="update-summary-copy">
-          <span class="update-summary-label">Atualizações</span>
-          <span id="updateStatusLabel" class="update-summary-status">Não verificado</span>
-        </span>
-        <span class="update-summary-meta">
-          <span id="appVersionLabel" class="update-version">v-</span>
-          <span id="updateBadge" class="update-badge">Verificar</span>
-        </span>
-      </button>
-      <div id="updateInlineProgress" class="update-inline-progress tb-btn-hidden" aria-hidden="true">
-        <div class="update-inline-bar"><span id="updateInlineProgressFill"></span></div>
-        <span id="updateInlineProgressText" class="update-inline-text">0%</span>
-      </div>
     </div>
 
     <div class="top-kpis">
@@ -226,19 +230,182 @@
 </main>
 
 <main class="page-shell deck-slide" id="slide3">
-  <section class="deck-gantt">
+  <header class="topbar deck-shared-topbar">
+    <div class="brand">
+      <div class="logo-box">
+        <div class="logo-mark">
+          <img data-shared-logo src="assets/logo.svg" alt="Logo" style="width:100%;height:100%;object-fit:contain;"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="title-block">
+      <h1 data-shared-project-title>Carregando...</h1>
+      <p data-shared-project-subtitle></p>
+    </div>
+
+    <div class="top-kpis">
+      <div class="hkpi">
+        <span class="hkpi-label">Plano</span>
+        <div data-top-ring="plano" class="hkpi-svg"></div>
+      </div>
+      <div class="hkpi">
+        <span class="hkpi-label">Real</span>
+        <div data-top-ring="real" class="hkpi-svg"></div>
+      </div>
+      <div class="hkpi hkpi-spi">
+        <span class="hkpi-label">SPI<sup>*</sup></span>
+        <div data-top-ring="spi" class="hkpi-svg"></div>
+      </div>
+    </div>
+  </header>
+
+  <section class="content deck-shared-content">
+  <section class="deck-risk-board deck-framed-content">
+    <div class="risk-board-summary">
+      <article class="risk-summary-card executive">
+        <div class="risk-summary-icon" aria-hidden="true">!</div>
+        <div class="risk-summary-copy">
+          <p class="risk-summary-label">Prioridade Executiva</p>
+          <p class="risk-summary-value" id="riskSummaryExecutive">-</p>
+        </div>
+      </article>
+      <article class="risk-summary-card risk">
+        <div class="risk-summary-icon" aria-hidden="true">
+          <svg class="icon sm" viewBox="0 0 24 24"><path d="m12 3 9 17H3Z"/><path d="M12 9v4M12 17h.01"/></svg>
+        </div>
+        <div class="risk-summary-copy">
+          <p class="risk-summary-label">Principal Risco</p>
+          <p class="risk-summary-value" id="riskSummaryTopRisk">-</p>
+        </div>
+      </article>
+      <article class="risk-summary-card impact">
+        <div class="risk-summary-icon" aria-hidden="true">
+          <svg class="icon sm" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M9 7h8v8"/></svg>
+        </div>
+        <div class="risk-summary-copy">
+          <p class="risk-summary-label">Impacto Potencial</p>
+          <p class="risk-summary-value" id="riskSummaryImpact">-</p>
+        </div>
+      </article>
+      <article class="risk-summary-card decision">
+        <div class="risk-summary-icon" aria-hidden="true">
+          <svg class="icon sm" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg>
+        </div>
+        <div class="risk-summary-copy">
+          <p class="risk-summary-label">Decisão Necessária</p>
+          <p class="risk-summary-value" id="riskSummaryDecision">-</p>
+        </div>
+      </article>
+    </div>
+
+    <div class="risk-board-grid">
+      <article class="risk-board-panel risk-board-main">
+        <div class="risk-board-head">
+          <div class="risk-board-title-wrap">
+            <div class="risk-board-title">
+              <span class="title-badge blue" aria-hidden="true">
+                <svg class="icon sm" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/><path d="M8 8h8v8H8z"/></svg>
+              </span>
+              Risk &amp; Issue Board
+            </div>
+            <div class="panel-rule blue"></div>
+          </div>
+          <div class="risk-board-legend" id="riskBoardLegend"></div>
+        </div>
+
+        <div class="risk-board-table-wrap">
+          <table class="risk-board-table">
+            <caption class="sr-only">Board de riscos e issues do projeto</caption>
+            <thead>
+              <tr>
+                <th scope="col">Tipo</th>
+                <th scope="col">Prior.</th>
+                <th scope="col">Tema</th>
+                <th scope="col">Impacto</th>
+                <th scope="col">Ação / Mitigação</th>
+                <th scope="col">Owner</th>
+                <th scope="col">Prazo</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody id="riskBoardRows"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <div class="risk-board-side">
+        <article class="risk-board-panel risk-decision-panel">
+          <div class="risk-board-title">
+            <span class="title-badge blue" aria-hidden="true">◆</span>
+            Decisões Necessárias
+          </div>
+          <div class="panel-rule blue"></div>
+          <ol class="risk-decision-list" id="riskDecisionList"></ol>
+        </article>
+
+        <article class="risk-board-panel risk-heatmap-panel">
+          <div class="risk-board-title">
+            <span class="title-badge blue" aria-hidden="true">
+              <svg class="icon sm" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/></svg>
+            </span>
+            Heatmap
+          </div>
+          <div class="panel-rule blue"></div>
+          <div class="risk-heatmap" id="riskHeatmapGrid"></div>
+        </article>
+      </div>
+    </div>
+  </section>
+  <footer class="footer-strip deck-shared-footer" data-shared-footer="true" role="contentinfo"></footer>
+  </section>
+</main>
+
+<main class="page-shell deck-slide" id="slide4">
+  <header class="topbar deck-shared-topbar">
+    <div class="brand">
+      <div class="logo-box">
+        <div class="logo-mark">
+          <img data-shared-logo src="assets/logo.svg" alt="Logo" style="width:100%;height:100%;object-fit:contain;"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="title-block">
+      <h1 data-shared-project-title>Carregando...</h1>
+      <p data-shared-project-subtitle></p>
+    </div>
+
+    <div class="top-kpis">
+      <div class="hkpi">
+        <span class="hkpi-label">Plano</span>
+        <div data-top-ring="plano" class="hkpi-svg"></div>
+      </div>
+      <div class="hkpi">
+        <span class="hkpi-label">Real</span>
+        <div data-top-ring="real" class="hkpi-svg"></div>
+      </div>
+      <div class="hkpi hkpi-spi">
+        <span class="hkpi-label">SPI<sup>*</sup></span>
+        <div data-top-ring="spi" class="hkpi-svg"></div>
+      </div>
+    </div>
+  </header>
+
+  <section class="content deck-shared-content">
+  <section class="deck-gantt deck-framed-content">
     <div class="gantt-header">
       <h2 id="ganttTitle">Cronograma &amp; Marcos Críticos</h2>
       <p id="ganttSubtitle">-</p>
     </div>
+
+    <div class="gantt-phase-cards" id="ganttPhaseCards"></div>
 
     <div class="gantt-wrap" id="ganttWrap" style="display:none">
       <div class="gantt-canvas" id="ganttCanvas">
         <svg id="ganttSvg" viewBox="0 0 1200 420" role="img" aria-label="Cronograma Gantt" shape-rendering="geometricPrecision"></svg>
       </div>
     </div>
-
-    <div class="gantt-phase-cards" id="ganttPhaseCards"></div>
 
     <div class="gantt-empty" id="ganttEmpty" style="display:none">
       <svg class="icon lg" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
@@ -247,14 +414,30 @@
 
     <div class="gantt-legend" id="ganttLegend"></div>
   </section>
+  <footer class="footer-strip deck-shared-footer" data-shared-footer="true" role="contentinfo"></footer>
+  </section>
 </main>
 
-<main class="page-shell deck-slide" id="slide4">
+<main class="page-shell deck-slide" id="slide5">
   <section class="deck-closing">
-    <h2 id="closingTitle">STATUS REPORT</h2>
-    <h3>Obrigado.</h3>
-    <p id="closingMilestone">Próximo marco: -</p>
-    <p id="closingDates">Data alvo: - | Go-Live: -</p>
+    <div class="deck-closing-grid">
+      <div class="deck-closing-copy">
+        <p class="deck-closing-eyebrow" id="closingTitle">STATUS REPORT</p>
+        <h2 id="closingThanks">Obrigado.</h2>
+        <p class="deck-closing-lead" id="closingLead">Seguimos com alinhamento claro para a proxima entrega.</p>
+      </div>
+      <div class="deck-closing-side">
+        <div class="deck-closing-card">
+          <p class="deck-closing-card-label" id="closingCardLabel">Próximo passo</p>
+          <h3 id="closingMilestone">-</h3>
+          <p id="closingDates">Data alvo: - | Go-Live: -</p>
+        </div>
+      </div>
+    </div>
+    <div class="deck-closing-footer">
+      <span id="closingFooterLabel">Encerramento Executivo</span>
+      <span id="closingFooterMeta">EDF · E2E</span>
+    </div>
   </section>
 </main>
 

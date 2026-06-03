@@ -1,8 +1,9 @@
 /* ===== Utilitários ===== */
 
 var ws = null;
-var currentSlide = 2;
-var totalSlides = 4;
+var SLIDE_STORAGE_KEY = 'statusDeck.currentSlide';
+var currentSlide = _readStoredSlide();
+var totalSlides = 5;
 var _isDirty = false;
 var _pendingAction = null;
 var _isPresentationMode = false;
@@ -25,6 +26,22 @@ var _updateUiState = {
   modalMode: 'details'
 };
 var _updateConfirmPending = false;
+
+function _readStoredSlide() {
+  try {
+    var raw = window.sessionStorage ? window.sessionStorage.getItem(SLIDE_STORAGE_KEY) : null;
+    var n = parseInt(raw, 10);
+    return Number.isFinite(n) && n > 0 ? n : 2;
+  } catch (_) {
+    return 2;
+  }
+}
+
+function _writeStoredSlide(n) {
+  try {
+    if (window.sessionStorage) window.sessionStorage.setItem(SLIDE_STORAGE_KEY, String(n));
+  } catch (_) {}
+}
 
 var UPDATE_PHASES = ['checking', 'downloading', 'validating', 'preparing', 'installing', 'restarting'];
 var UPDATE_PHASE_META = {
@@ -146,6 +163,34 @@ function fmtDateShort(val) {
   return day + '/' + month + '/' + year;
 }
 
+function _coverMetaDefault(key) {
+  var defaults = {
+    client: 'CLIENTE',
+    owner: 'APRESENTADOR',
+    date: 'DATA',
+    duration: 'DURAÇÃO'
+  };
+  return defaults[key] || '';
+}
+
+function _coverTitleToStorage(text) {
+  return String(text || '')
+    .replace(/\u00a0/g, ' ')
+    .split(/\r?\n+/)
+    .map(function (line) { return line.trim(); })
+    .filter(Boolean)
+    .join(' | ');
+}
+
+function _renderCoverTitleHtml(rawTitle, highlight) {
+  var titleRaw = v(rawTitle, 'Projeto').replace(/\|/g, '<br/>');
+  var titleHtml = esc(titleRaw);
+  if (highlight) {
+    titleHtml = titleHtml.replace(new RegExp(reEsc(highlight), 'gi'), '<em>' + esc(highlight) + '</em>');
+  }
+  return titleHtml.replace(/&lt;br\/&gt;/g, '<br/>');
+}
+
 function markDirty() {
   _isDirty = true;
   _syncDirtyUi();
@@ -213,11 +258,30 @@ function _formatUpdateBadge() {
   return 'Verificar';
 }
 
+function _getToolbarUpdateStatus(payload, phase) {
+  payload = payload || {};
+  if (phase === 'checking') return 'Verificando';
+  if (phase === 'downloading') return 'Baixando';
+  if (phase === 'validating') return 'Validando';
+  if (phase === 'preparing') return _updateUiState.downloaded ? 'Pronto para instalar' : 'Preparando';
+  if (phase === 'installing') return 'Instalando';
+  if (phase === 'restarting') return 'Reiniciando';
+  if (phase === 'error') return 'Atenção';
+  if (payload.ok && payload.has_update) {
+    return _updateUiState.downloaded
+      ? 'Pronto para instalar'
+      : ((payload.latest_version || 'Nova versão') + ' disponível');
+  }
+  if (phase === 'success') return 'Sem novidades';
+  return 'Não verificado';
+}
+
 function _renderUpdateSurface() {
   var payload = _updatePayload || {};
   var phase = _updateUiState.phase || 'idle';
   var badgeText = _formatUpdateBadge();
   var statusText = _updateUiState.status || 'Não verificado';
+  var toolbarStatusText = _getToolbarUpdateStatus(payload, phase);
   var detailText = _updateUiState.detail || 'Nenhuma operação em andamento.';
   var progressValue = _clampPercent(_updateUiState.progress);
   var variant = _updateUiState.variant || 'neutral';
@@ -229,6 +293,7 @@ function _renderUpdateSurface() {
   var badgeLarge = document.getElementById('updateBadgeLarge');
   var rail = document.getElementById('updateRail');
   var summary = document.querySelector('.update-summary');
+  var toolbarA11y = document.getElementById('updateToolbarA11y');
   var inlineWrap = document.getElementById('updateInlineProgress');
   var inlineFill = document.getElementById('updateInlineProgressFill');
   var inlineText = document.getElementById('updateInlineProgressText');
@@ -247,7 +312,7 @@ function _renderUpdateSurface() {
   var secondaryBtn = document.getElementById('updateModalSecondary');
 
   if (versionLabel) versionLabel.textContent = 'v' + currentVersion;
-  if (statusLabel) statusLabel.textContent = statusText;
+  if (statusLabel) statusLabel.textContent = toolbarStatusText;
   if (badge) {
     badge.textContent = badgeText;
     badge.className = 'update-badge ' + variant;
@@ -257,6 +322,19 @@ function _renderUpdateSurface() {
     badgeLarge.className = 'update-badge large ' + variant;
   }
   if (summary) summary.dataset.variant = variant;
+  if (summary) {
+    var toolbarHint = 'Atualizações';
+    if (toolbarStatusText) toolbarHint += ': ' + toolbarStatusText;
+    if (currentVersion && currentVersion !== '-') toolbarHint += '. Versão atual ' + currentVersion;
+    if (payload.latest_version) toolbarHint += '. Release ' + payload.latest_version;
+    summary.setAttribute('title', toolbarHint);
+    summary.setAttribute('aria-label', toolbarHint);
+  }
+  if (toolbarA11y) {
+    toolbarA11y.textContent = toolbarStatusText
+      ? ('Atualizações: ' + toolbarStatusText)
+      : 'Atualizações';
+  }
   if (rail) rail.dataset.variant = variant;
   if (modalCurrent) modalCurrent.textContent = 'Versão atual: ' + currentVersion;
   if (modalTarget) modalTarget.textContent = 'Release: ' + latestVersion;
@@ -481,15 +559,25 @@ function applyBranding(branding) {
   root.style.setProperty('--green-100', lighten(primary, 0.88));
   var logoPath = (branding && branding.logo_path) || '';
   var img  = document.getElementById('logoImg');
-  var mark = document.getElementById('logoMark');
+  var marks = document.querySelectorAll('.topbar .logo-mark');
   if (logoPath && img) {
     img.src = logoPath;
-    if (mark) {
-      mark.style.background    = 'rgba(255,255,255,0.95)';
-      mark.style.borderRadius  = '10px';
-      mark.style.padding       = '6px';
-      mark.style.boxSizing     = 'border-box';
-    }
+  }
+  marks.forEach(function (mark) {
+    mark.style.background   = 'rgba(255,255,255,0.95)';
+    mark.style.borderRadius = '10px';
+    mark.style.padding      = '6px';
+    mark.style.boxSizing    = 'border-box';
+    mark.style.boxShadow    = '0 6px 18px rgba(0,0,0,0.12)';
+  });
+  if (!logoPath) {
+    marks.forEach(function (mark) {
+      mark.style.background = '';
+      mark.style.borderRadius = '';
+      mark.style.padding = '';
+      mark.style.boxSizing = '';
+      mark.style.boxShadow = '';
+    });
   }
 }
 
@@ -540,8 +628,12 @@ function renderAll(json) {
   }
   var cfg = d.config;
 
-  document.getElementById('projectTitle').textContent    = v(cfg.project_name, 'Projeto Executivo');
-  document.getElementById('projectSubtitle').textContent = v(cfg.project_subtitle, '');
+  document.querySelectorAll('#projectTitle,[data-shared-project-title]').forEach(function (el) {
+    el.textContent = v(cfg.project_name, 'Projeto Executivo');
+  });
+  document.querySelectorAll('#projectSubtitle,[data-shared-project-subtitle]').forEach(function (el) {
+    el.textContent = v(cfg.project_subtitle, '');
+  });
   document.title = v(cfg.report_title, 'Status Executivo do Projeto');
 
   applyBranding(d.branding || {});
@@ -570,6 +662,7 @@ function renderAll(json) {
 
 function setSlide(n) {
   currentSlide = Math.max(1, Math.min(totalSlides, n));
+  _writeStoredSlide(currentSlide);
   updateSlideView();
 }
 
@@ -634,6 +727,14 @@ function formatMonthYear(d) {
 function formatShortDate(d) {
   var meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   return d.getDate() + ' ' + meses[d.getMonth()];
+}
+
+function _statusToneKey(status) {
+  var s = String(status || '').toLowerCase();
+  if (s.indexOf('conclu') >= 0) return 'done';
+  if (s.indexOf('andamento') >= 0) return 'live';
+  if (s.indexOf('atrasado') >= 0) return 'risk';
+  return 'planned';
 }
 
 function renderGantt(d) {
@@ -741,8 +842,10 @@ function renderGantt(d) {
   }
 
   // Config SVG
-  var W = canvas ? Math.max(760, canvas.clientWidth - 2) : 1200;
-  var H = 460;
+  var configuredDayW = Math.max(14, Math.min(36, parseInt(ganttCfg.largura_dia, 10) || 18));
+  var configuredRowH = Math.max(38, Math.min(64, parseInt(ganttCfg.altura_linha, 10) || 40));
+  var W = canvas ? Math.max(860, canvas.clientWidth - 2) : 1200;
+  var H = 520;
   var headH = 55;
   var padB = 18;
   var padL = 12;
@@ -789,25 +892,69 @@ function renderGantt(d) {
 
   var taskList = entries.filter(function(e) { return e.type === 'task'; });
   var msList   = entries.filter(function(e) { return e.type === 'milestone'; });
+  var showProgress = String(ganttCfg.exibir_progresso || 'TRUE').toLowerCase() !== 'false';
+
+  if (cards) {
+    var activeTask = taskList.find(function (e) { return e.status.indexOf('andamento') >= 0; }) || taskList[0] || null;
+    var avgProgress = taskList.length
+      ? Math.round(taskList.reduce(function (sum, e) { return sum + (Number(e.progress) || 0); }, 0) / taskList.length)
+      : 0;
+    var nextMilestone = msList.slice().sort(function (a, b) { return a.start - b.start; }).find(function (m) { return m.start >= today; }) || msList[0] || null;
+    var windowLabel = formatShortDate(minDate) + ' → ' + formatShortDate(maxDate);
+    var summaryCards = [
+      {
+        label: 'Frente ativa',
+        value: activeTask ? activeTask.name : 'Sem tarefa ativa',
+        meta: activeTask ? ((activeTask.progress || 0) + '% concluído') : 'Aguardando definição',
+        tone: activeTask ? _statusToneKey(activeTask.status) : 'planned'
+      },
+      {
+        label: 'Janela do cronograma',
+        value: windowLabel,
+        meta: totalWorkdays + ' dias úteis mapeados',
+        tone: 'calendar'
+      },
+      {
+        label: 'Progresso médio',
+        value: avgProgress + '%',
+        meta: taskList.length + ' fases monitoradas',
+        tone: avgProgress >= 90 ? 'done' : (avgProgress >= 40 ? 'live' : 'planned')
+      },
+      {
+        label: 'Próximo marco',
+        value: nextMilestone ? nextMilestone.name : 'Sem marco',
+        meta: nextMilestone ? formatDateBR(nextMilestone.start) : 'Sem data cadastrada',
+        tone: nextMilestone ? 'milestone' : 'planned'
+      }
+    ];
+    cards.innerHTML = summaryCards.map(function (card) {
+      return '<article class="gantt-summary-card tone-' + esc(card.tone) + '">' +
+        '<p class="gantt-summary-label">' + esc(card.label) + '</p>' +
+        '<h3>' + esc(card.value) + '</h3>' +
+        '<p class="gantt-summary-meta">' + esc(card.meta) + '</p>' +
+      '</article>';
+    }).join('');
+  }
 
   // Coluna esquerda com nomes das fases
-  var leftColW = 144;
+  var leftColW = 210;
   var origPadL = padL;
   padL  = origPadL + leftColW + 4;
-  chartW = W - padL - padR;
+  chartW = Math.max(W - padL - padR, totalWorkdays * configuredDayW);
+  W = padL + chartW + padR;
 
   // Layout executivo clean
   var msAnnotH  = 0;
-  var monthRowH = 24;
-  var weekRowH  = 16;
+  var monthRowH = 32;
+  var weekRowH  = 20;
   var headerH   = monthRowH + weekRowH;
-  var rowH      = 46;
-  var barH      = 26;
+  var rowH      = configuredRowH;
+  var barH      = Math.max(24, rowH - 16);
   var barPadY   = Math.floor((rowH - barH) / 2);
   var chartTop  = headerH;
 
-  var bottomZone = 52; // espaço para diamante + pill do marco abaixo das linhas
-  H = Math.max(320, headerH + taskList.length * rowH + bottomZone);
+  var bottomZone = 70; // espaço para diamante + pill do marco abaixo das linhas
+  H = Math.max(360, headerH + taskList.length * rowH + bottomZone);
   svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
 
   var html = '';
@@ -973,7 +1120,7 @@ function renderGantt(d) {
       html += '<rect x="' + (x1 + 1).toFixed(1) + '" y="' + (barY + 2).toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + barH + '" rx="' + rr + '" fill="' + color + '" opacity="0.12"/>';
       html += '<rect x="' + x1.toFixed(1) + '" y="' + barY.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + barH + '" rx="' + rr + '" fill="' + color + '"/>';
       var progW = barW * Math.min(Math.max(e.progress / 100, 0), 1);
-      if (progW > 4) {
+      if (showProgress && progW > 4) {
         html += '<rect x="' + x1.toFixed(1) + '" y="' + barY.toFixed(1) + '" width="' + progW.toFixed(1) + '" height="' + barH + '" rx="' + rr + '" fill="rgba(0,0,0,0.18)"/>';
       }
       html += '<line x1="' + (x1 + rr).toFixed(1) + '" y1="' + (barY + 3).toFixed(1) + '" x2="' + (x1 + barW - rr).toFixed(1) + '" y2="' + (barY + 3).toFixed(1) + '" stroke="rgba(255,255,255,0.28)" stroke-width="1.5"/>';
@@ -981,9 +1128,9 @@ function renderGantt(d) {
       var pctTxt = pctNum + '%';
       if (barW > 76) {
         html += '<text x="' + (x1 + barW / 2).toFixed(1) + '" y="' + (midBarY - 3).toFixed(1) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9.5" font-weight="600" fill="rgba(255,255,255,0.92)">' + esc(dLbl) + '</text>';
-        html += '<text x="' + (x1 + barW / 2).toFixed(1) + '" y="' + (midBarY + 8).toFixed(1) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9" font-weight="800" fill="rgba(255,255,255,0.7)">' + pctTxt + '</text>';
+        if (showProgress) html += '<text x="' + (x1 + barW / 2).toFixed(1) + '" y="' + (midBarY + 8).toFixed(1) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9" font-weight="800" fill="rgba(255,255,255,0.7)">' + pctTxt + '</text>';
       } else if (barW > 32) {
-        html += '<text x="' + (x1 + barW / 2).toFixed(1) + '" y="' + midBarY.toFixed(1) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9" font-weight="800" fill="rgba(255,255,255,0.85)">' + pctTxt + '</text>';
+        if (showProgress) html += '<text x="' + (x1 + barW / 2).toFixed(1) + '" y="' + midBarY.toFixed(1) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9" font-weight="800" fill="rgba(255,255,255,0.85)">' + pctTxt + '</text>';
       } else {
         var extX = x1 + barW + 5;
         if (extX + 70 < W - padR) {
@@ -998,15 +1145,14 @@ function renderGantt(d) {
     var statusLabel = statusKey ? statusLabels[statusKey] : 'Em execução';
     var nameY = rowY + rowH / 2 - 7;
     var statusY = rowY + rowH / 2 + 8;
-    var maxNameW = leftColW - 22;
-    var nameStr = e.name.length > 17 ? e.name.slice(0, 16) + '…' : e.name;
+    var maxNameW = leftColW - 30;
+    var nameStr = e.name.length > 24 ? e.name.slice(0, 23) + '…' : e.name;
     html += '<circle cx="' + (origPadL + 9) + '" cy="' + nameY.toFixed(1) + '" r="4.5" fill="' + color + '" opacity="' + (isPlanned ? '0.38' : '1') + '"/>';
     html += '<text x="' + (origPadL + 20) + '" y="' + nameY.toFixed(1) + '" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="' + (isPlanned ? '#94a3b8' : '#1e293b') + '">' + esc(nameStr) + '</text>';
     html += '<text x="' + (origPadL + 20) + '" y="' + statusY.toFixed(1) + '" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9" font-weight="500" fill="' + color + '" opacity="' + (isPlanned ? '0.5' : '0.75') + '">' + esc(statusLabel) + '</text>';
   });
 
   svg.innerHTML = html;
-  if (cards) cards.innerHTML = '';
 
   // —— Legenda ——
   if (legend) {
@@ -1027,6 +1173,194 @@ function renderGantt(d) {
   }
 }
 
+function _priorityNum(priority) {
+  var m = String(priority || '').toUpperCase().match(/P(\d+)/);
+  return m ? parseInt(m[1], 10) : 99;
+}
+
+function _priorityLabel(priority) {
+  var n = _priorityNum(priority);
+  if (n === 1) return 'P1 Crítico';
+  if (n === 2) return 'P2 Alto';
+  if (n === 3) return 'P3 Médio';
+  if (n === 4) return 'P4 Baixo';
+  return String(priority || 'Sem prior.');
+}
+
+function _riskTypeForBoard(item) {
+  var status = String(item.status || '').toLowerCase();
+  var prio = _priorityNum(item.prioridade);
+  if (status.indexOf('control') >= 0 || status.indexOf('conclu') >= 0) return 'Action';
+  if (prio <= 2 || Number(item.score || 0) >= 8) return 'Issue';
+  return 'Risk';
+}
+
+function _riskToneForBoard(item) {
+  var type = _riskTypeForBoard(item);
+  if (type === 'Issue') return 'critical';
+  if (type === 'Action') return 'steady';
+  return 'watch';
+}
+
+function _riskStatusTone(status) {
+  var s = String(status || '').toLowerCase();
+  if (s.indexOf('aberto') >= 0) return 'critical';
+  if (s.indexOf('ação') >= 0 || s.indexOf('acao') >= 0 || s.indexOf('mitiga') >= 0 || s.indexOf('aten') >= 0) return 'attention';
+  if (s.indexOf('monitor') >= 0) return 'watch';
+  if (s.indexOf('control') >= 0 || s.indexOf('conclu') >= 0) return 'steady';
+  return 'neutral';
+}
+
+function _humanLevel(val) {
+  var s = String(val || '').trim();
+  if (!s) return '';
+  var low = s.toLowerCase();
+  if (low === 'high') return 'Alto';
+  if (low === 'medium') return 'Médio';
+  if (low === 'low') return 'Baixo';
+  return s;
+}
+
+function _isRiskOpen(item) {
+  var s = String(item.status || '').toLowerCase();
+  return s.indexOf('control') === -1 && s.indexOf('conclu') === -1 && s.indexOf('cancel') === -1;
+}
+
+function _truncateForBoard(text, max) {
+  var raw = String(text || '').trim();
+  if (!raw) return '-';
+  return raw.length > max ? raw.slice(0, max - 1) + '…' : raw;
+}
+
+function _nextPhaseLabel(fases, currentPhase) {
+  var current = String(currentPhase || '').trim().toLowerCase();
+  var list = Array.isArray(fases) ? fases : [];
+  var idx = -1;
+  list.forEach(function (f, i) {
+    if (idx >= 0) return;
+    var nome = String((f && f.nome) || '').trim().toLowerCase();
+    var status = String((f && f.status) || '').trim().toLowerCase();
+    if ((current && nome === current) || status.indexOf('andamento') >= 0 || status.indexOf('em andamento') >= 0) idx = i;
+  });
+  if (idx >= 0 && list[idx + 1] && list[idx].nome && list[idx + 1].nome) {
+    return String(list[idx].nome) + ' → ' + String(list[idx + 1].nome);
+  }
+  if (idx >= 0 && list[idx] && list[idx].nome) return String(list[idx].nome);
+  return String(currentPhase || '-');
+}
+
+function _riskImpactSummary(item) {
+  var impact = _humanLevel(item.impacto);
+  var prob = _humanLevel(item.probabilidade);
+  if (prob && impact) return prob + ' prob. • ' + impact + ' impacto';
+  if (impact) return 'Impacto ' + impact;
+  if (Number(item.score || 0) > 0) return 'Score ' + item.score;
+  return 'Avaliar impacto';
+}
+
+function _riskMitigationSummary(item) {
+  var raw = String(item.comentarios || item.estrategia || '').trim();
+  if (!raw) return 'Definir plano de mitigação e owner final';
+  return _truncateForBoard(raw, 72);
+}
+
+function _riskMetaSummary(item) {
+  var parts = [];
+  if (item.responsaveis) parts.push(item.responsaveis);
+  if (item.id_origem) parts.push(item.id_origem);
+  if (item.categoria) parts.push(item.categoria);
+  return parts.length ? parts.join(' • ') : 'Sem contexto adicional';
+}
+
+function _buildRiskBoardModel(d) {
+  var cfg = d.config || {};
+  var fases = Array.isArray(d.fases) ? d.fases : [];
+  var pendencias = (d.pendencias_criticas || []).slice();
+  var acoes = (d.proximas_acoes || []).slice();
+  var openItems = pendencias.filter(_isRiskOpen);
+  var sorted = pendencias.slice().sort(function (a, b) {
+    var p = _priorityNum(a.prioridade) - _priorityNum(b.prioridade);
+    if (p !== 0) return p;
+    return Number(b.score || 0) - Number(a.score || 0);
+  });
+  var topRisk = sorted[0] || null;
+  var p1Count = openItems.filter(function (item) { return _priorityNum(item.prioridade) === 1; }).length;
+  var openCount = openItems.length;
+  var summaryExecutive = p1Count > 0
+    ? p1Count + ' issue' + (p1Count > 1 ? 's críticos' : ' crítico')
+    : (openCount > 0 ? openCount + ' itens em atenção' : 'Nenhum item crítico');
+  var summaryTopRisk = topRisk ? _truncateForBoard(topRisk.item, 42) : 'Sem riscos críticos';
+  var summaryImpact = _nextPhaseLabel(fases, cfg.current_phase);
+  var summaryDecision = acoes[0] && acoes[0].texto ? _truncateForBoard(acoes[0].texto, 40) : 'Definir decisão executiva';
+
+  var boardRows = sorted.slice(0, 5).map(function (item) {
+    return {
+      type: _riskTypeForBoard(item),
+      tone: _riskToneForBoard(item),
+      priority: String(item.prioridade || 'P?').toUpperCase(),
+      priorityLabel: _priorityLabel(item.prioridade),
+      theme: _truncateForBoard(item.item, 44),
+      meta: _truncateForBoard(_riskMetaSummary(item), 56),
+      impact: _riskImpactSummary(item),
+      impactMeta: item.score ? 'Score ' + item.score : (item.estrategia ? _humanLevel(item.estrategia) : 'Sem score'),
+      mitigation: _riskMitigationSummary(item),
+      owner: _truncateForBoard(item.responsaveis || 'A definir', 18),
+      due: item.data_limite ? fmtDateShort(item.data_limite) : '-',
+      status: _truncateForBoard(item.status || 'Aberto', 18),
+      statusTone: _riskStatusTone(item.status)
+    };
+  });
+
+  var decisions = acoes.slice(0, 3).map(function (acao, idx) {
+    var linked = sorted[idx] || null;
+    return {
+      title: _truncateForBoard(acao.texto || 'Definir encaminhamento', 56),
+      body: linked ? _truncateForBoard((_riskMitigationSummary(linked) || '') + ' • ' + (linked.responsaveis || 'Owner a definir'), 112) : 'Formalizar owner, prazo e desbloqueio para a frente seguinte.'
+    };
+  });
+  while (decisions.length < 3) {
+    var fallback = sorted[decisions.length] || topRisk;
+    decisions.push({
+      title: fallback ? _truncateForBoard(fallback.item, 56) : 'Sem decisão adicional',
+      body: fallback ? _truncateForBoard(_riskMitigationSummary(fallback), 112) : 'Nenhuma decisão crítica adicional cadastrada.'
+    });
+  }
+
+  var legend = ['P1', 'P2', 'P3', 'P4'].map(function (p) {
+    var count = openItems.filter(function (item) { return String(item.prioridade || '').toUpperCase() === p; }).length;
+    return { label: _priorityLabel(p), count: count };
+  });
+
+  var heatRows = ['Alto', 'Médio', 'Baixo'];
+  var heatCols = ['Baixo', 'Médio', 'Alto', 'Crítico'];
+  var heatmap = {};
+  heatRows.forEach(function (row) {
+    heatmap[row] = {};
+    heatCols.forEach(function (col) { heatmap[row][col] = 0; });
+  });
+  openItems.forEach(function (item) {
+    var row = _humanLevel(item.probabilidade) || 'Médio';
+    var col = _humanLevel(item.impacto) || 'Médio';
+    if (Number(item.score || 0) >= 10 || _priorityNum(item.prioridade) === 1) col = 'Crítico';
+    if (!heatmap[row]) row = 'Médio';
+    if (!(col in heatmap[row])) col = col === 'Crítico' ? 'Crítico' : 'Médio';
+    heatmap[row][col] += 1;
+  });
+
+  return {
+    summaryExecutive: summaryExecutive,
+    summaryTopRisk: summaryTopRisk,
+    summaryImpact: summaryImpact,
+    summaryDecision: summaryDecision,
+    boardRows: boardRows,
+    decisions: decisions,
+    legend: legend,
+    heatRows: heatRows,
+    heatCols: heatCols,
+    heatmap: heatmap
+  };
+}
+
 function renderDeckSlides(d) {
   var cfg = d.config || {};
   var branding = d.branding || {};
@@ -1040,8 +1374,9 @@ function renderDeckSlides(d) {
   var logo = v(branding.logo_path, 'assets/logo.svg');
   var coverLogo = document.getElementById('coverLogo');
   if (coverLogo) coverLogo.src = logo;
-  var logoImg = document.getElementById('logoImg');
-  if (logoImg && logo) logoImg.src = logo;
+  document.querySelectorAll('#logoImg,[data-shared-logo]').forEach(function (el) {
+    if (logo) el.src = logo;
+  });
 
   var set = function (id, text) {
     var e = document.getElementById(id);
@@ -1052,15 +1387,14 @@ function renderDeckSlides(d) {
     if (e) e.innerHTML = html;
   };
   set('coverTitle', v(cfg.report_title, 'STATUS REPORT'));
-  var coverTitleRaw = v(cfg.cover_main_title, v(cfg.project_name, 'Projeto'));
-  coverTitleRaw = coverTitleRaw.replace(/\|/g, '<br/>');
-
   var highlight = v(cfg.cover_highlight, '');
-  var coverTitleHtml = esc(coverTitleRaw).replace(new RegExp(reEsc(highlight), 'gi'), '<em>' + esc(highlight) + '</em>');
-  coverTitleHtml = coverTitleHtml.replace(/&lt;br\/&gt;/g, '<br/>');
-  setHtml('coverMainTitle', coverTitleHtml);
+  setHtml('coverMainTitle', _renderCoverTitleHtml(v(cfg.cover_main_title, v(cfg.project_name, 'Projeto')), highlight));
   set('coverEyebrow', v(cfg.cover_eyebrow, ''));
   set('coverSubtitle', v(cfg.cover_subtitle, v(cfg.project_subtitle, '')));
+  set('coverClientLabel', v(cfg.cover_client_label, _coverMetaDefault('client')));
+  set('coverOwnerLabel', v(cfg.cover_owner_label, _coverMetaDefault('owner')));
+  set('coverDateLabel', v(cfg.cover_date_label, _coverMetaDefault('date')));
+  set('coverDurationLabel', v(cfg.cover_duration_label, _coverMetaDefault('duration')));
   set('coverClient', v(cfg.sponsor, '-'));
   set('coverOwner', v(cfg.owner_name, '-'));
   set('coverDate', v(cfg.report_date, '-'));
@@ -1073,6 +1407,42 @@ function renderDeckSlides(d) {
   set('deckSummaryLine', 'Fase atual: ' + v(cfg.current_phase, '-') + ' | Dia ' + v(cfg.current_day, '-') + ' de ' + v(cfg.total_days, '-'));
   set('ganttTitle', v(ganttCfg.titulo, 'Cronograma & Marcos Críticos'));
   set('ganttSubtitle', v(ganttCfg.subtitulo, 'Fase atual: ' + v(cfg.current_phase, '-') + ' | Dia ' + v(cfg.current_day, '-') + ' de ' + v(cfg.total_days, '-')));
+
+  var riskBoard = _buildRiskBoardModel(d);
+  set('riskSummaryExecutive', riskBoard.summaryExecutive);
+  set('riskSummaryTopRisk', riskBoard.summaryTopRisk);
+  set('riskSummaryImpact', riskBoard.summaryImpact);
+  set('riskSummaryDecision', riskBoard.summaryDecision);
+  setHtml('riskBoardLegend', riskBoard.legend.map(function (item) {
+    return '<span class="risk-legend-pill"><strong>' + esc(String(item.count)) + '</strong> ' + esc(item.label) + '</span>';
+  }).join(''));
+  setHtml('riskBoardRows', riskBoard.boardRows.length ? riskBoard.boardRows.map(function (row) {
+    return '<tr class="risk-board-row tone-' + esc(row.tone) + '">' +
+      '<td><span class="risk-type-chip tone-' + esc(row.tone) + '">' + esc(row.type) + '</span></td>' +
+      '<td><span class="risk-priority-pill p' + esc(String(_priorityNum(row.priority))) + '">' + esc(row.priority) + '</span></td>' +
+      '<td><div class="risk-board-theme">' + esc(row.theme) + '</div><div class="risk-board-meta">' + esc(row.meta) + '</div></td>' +
+      '<td><div class="risk-board-impact">' + esc(row.impact) + '</div><div class="risk-board-meta">' + esc(row.impactMeta) + '</div></td>' +
+      '<td><div class="risk-board-mitigation">' + esc(row.mitigation) + '</div></td>' +
+      '<td><div class="risk-board-owner">' + esc(row.owner) + '</div></td>' +
+      '<td><div class="risk-board-due">' + esc(row.due) + '</div></td>' +
+      '<td><span class="risk-status-pill tone-' + esc(row.statusTone) + '">' + esc(row.status) + '</span></td>' +
+    '</tr>';
+  }).join('') : '<tr><td colspan="8" class="risk-board-empty">Nenhum risco ou issue cadastrado.</td></tr>');
+  setHtml('riskDecisionList', riskBoard.decisions.map(function (item, idx) {
+    return '<li><span class="risk-decision-index">' + esc(String(idx + 1)) + '.</span><div><strong>' + esc(item.title) + '</strong><p>' + esc(item.body) + '</p></div></li>';
+  }).join(''));
+  setHtml('riskHeatmapGrid',
+    '<div class="risk-heatmap-head-spacer"></div>' +
+    riskBoard.heatCols.map(function (col) { return '<div class="risk-heatmap-colhead">' + esc(col) + '</div>'; }).join('') +
+    riskBoard.heatRows.map(function (row) {
+      return '<div class="risk-heatmap-rowhead">' + esc(row) + '</div>' +
+        riskBoard.heatCols.map(function (col) {
+          var count = riskBoard.heatmap[row][col] || 0;
+          var tone = count === 0 ? 'zero' : (col === 'Crítico' ? 'critical' : (col === 'Alto' ? 'high' : (col === 'Médio' ? 'medium' : 'low')));
+          return '<div class="risk-heatmap-cell tone-' + esc(tone) + '">' + esc(String(count)) + '</div>';
+        }).join('');
+    }).join('')
+  );
 
   renderGantt(d);
 
@@ -1101,9 +1471,14 @@ function renderDeckSlides(d) {
     }).join('') : '<li>Nenhuma ação cadastrada</li>';
   }
 
-  set('closingTitle', v(cfg.report_title, 'STATUS REPORT'));
-  set('closingMilestone', 'Próximo marco: ' + v(rodape.milestone_alvo, v(cfg.current_phase, '-')));
-  set('closingDates', 'Data alvo: ' + (rodape.data_alvo ? fmtDateShort(rodape.data_alvo) : '-') + ' | Go-Live: ' + (rodape.go_live_previsto ? fmtDateShort(rodape.go_live_previsto) : '-'));
+  set('closingTitle', v(cfg.closing_eyebrow, 'Encerramento executivo'));
+  set('closingThanks', v(cfg.closing_thanks, 'Obrigado.'));
+  set('closingLead', v(cfg.closing_lead, 'Seguimos para o proximo marco com clareza, governanca e prontidao para a etapa seguinte.'));
+  set('closingCardLabel', v(cfg.closing_next_step_label, 'Próximo passo'));
+  set('closingMilestone', v(cfg.closing_milestone_text, v(rodape.milestone_alvo, v(cfg.current_phase, '-'))));
+  set('closingDates', v(cfg.closing_dates_text, 'Data alvo ' + (rodape.data_alvo ? fmtDateShort(rodape.data_alvo) : '-') + '  •  Go-Live ' + (rodape.go_live_previsto ? fmtDateShort(rodape.go_live_previsto) : '-')));
+  set('closingFooterLabel', v(cfg.closing_footer_label, 'Encerramento Executivo'));
+  set('closingFooterMeta', v(cfg.closing_footer_meta, v(cfg.owner_name, 'PMO') + ' · ' + (cfg.report_date ? fmtDateShort(cfg.report_date) : '')));
 }
 
 /* ===== Erros de validação ===== */
@@ -1124,6 +1499,7 @@ function renderValidationErrors(json) {
 /* ===== Alerta no header ===== */
 function renderAlert(cfg) {
   var el    = document.getElementById('alertBar');
+  if (!el) return;
   var label = v(cfg.alert_label, '');
   var level = v(cfg.alert_level, 'warning');
   var root = getComputedStyle(document.documentElement);
@@ -1263,8 +1639,9 @@ function renderTopInfo(cfg, curvaS) {
 
   // ── Plano ────────────────────────────────────────────────────────────
   var plano = parseInt(cfg.progress_percent) || 0;
-  var planoEl = document.getElementById('infoPlanoRing');
-  if (planoEl) planoEl.innerHTML = makeRingSvg(plano, primaryColor);
+  document.querySelectorAll('#infoPlanoRing,[data-top-ring="plano"]').forEach(function (el) {
+    el.innerHTML = makeRingSvg(plano, primaryColor);
+  });
 
   // ── Real ─────────────────────────────────────────────────────────────
   // Usa o último ponto da Curva S onde "realizado" foi preenchido,
@@ -1285,21 +1662,21 @@ function renderTopInfo(cfg, curvaS) {
       planoPct = Math.round(parseFloat(best.planejado) || 0) || plano;
     }
   }
-  var realEl = document.getElementById('infoRealRing');
-  if (realEl) realEl.innerHTML = makeRingSvg(realPct, '#4BA8D8');
+  document.querySelectorAll('#infoRealRing,[data-top-ring="real"]').forEach(function (el) {
+    el.innerHTML = makeRingSvg(realPct, '#4BA8D8');
+  });
 
   // ── SPI = Real ÷ Plano ───────────────────────────────────────────────
-  var spiGauge = document.getElementById('spiGauge');
-  if (spiGauge) {
+  document.querySelectorAll('#spiGauge,[data-top-ring="spi"]').forEach(function (el) {
     if (planoPct > 0) {
       var spi = realPct / planoPct;
       var lbl = spi >= 0.95 ? 'No prazo' : spi >= 0.80 ? 'Atenção' : 'Crítico';
       var nc  = spi >= 0.95 ? '#6ecf8e' : spi >= 0.80 ? '#f0d060' : '#ff7878';
-      spiGauge.innerHTML = makeGaugeSvg(spi, spi.toFixed(2), lbl, nc);
+      el.innerHTML = makeGaugeSvg(spi, spi.toFixed(2), lbl, nc);
     } else {
-      spiGauge.innerHTML = makeGaugeSvg(0, '--', '', '#fff');
+      el.innerHTML = makeGaugeSvg(0, '--', '', '#fff');
     }
-  }
+  });
 }
 
 /* ===== Timeline ===== */
@@ -1432,27 +1809,31 @@ function renderPendencias(d) {
     return;
   }
   el.innerHTML = items.map(function (p, idx) {
-    var statusCls = sc(p.nivel || p.status || '');
-
     // Pill de prioridade — escala de vermelho (P1 mais escuro → P4 mais suave)
     var prioKey = (p.prioridade || '').toLowerCase().replace(/\s/g, '');
     var prioCls = 'prio-' + (prioKey || 'p1');
 
     var meta = [];
-    if (p.responsaveis) meta.push(esc(p.responsaveis));
-    if (p.id_origem)    meta.push('ID ' + esc(p.id_origem));
-    if (p.score)        meta.push('Score ' + esc(String(p.score)));
-    if (p.categoria)    meta.push(esc(p.categoria));
-    if (p.estrategia)   meta.push(esc(p.estrategia));
-    if (p.data_limite)  meta.push('Prazo: ' + esc(p.data_limite));
+    if (p.responsaveis) meta.push('<span class="risk-meta-val" data-edit-pend-meta="responsaveis">' + esc(p.responsaveis) + '</span>');
+    if (p.id_origem)    meta.push('<span class="risk-meta-label">ID </span><span class="risk-meta-val" data-edit-pend-meta="id_origem">' + esc(p.id_origem) + '</span>');
+    if (p.score !== null && p.score !== undefined && String(p.score) !== '') {
+      meta.push('<span class="risk-meta-label">Score </span><span class="risk-meta-val" data-edit-pend-meta="score">' + esc(String(p.score)) + '</span>');
+    }
+    if (p.categoria)    meta.push('<span class="risk-meta-val" data-edit-pend-meta="categoria">' + esc(p.categoria) + '</span>');
+    if (p.estrategia)   meta.push('<span class="risk-meta-val" data-edit-pend-meta="estrategia">' + esc(p.estrategia) + '</span>');
+    if (p.data_limite)  meta.push('<span class="risk-meta-label">Prazo: </span><span class="risk-meta-val risk-meta-date" data-edit-pend-date="data_limite" data-raw-val="' + esc(p.data_limite) + '">' + esc(p.data_limite) + '</span>');
+    if (!meta.length && editMode) {
+      meta.push('<span class="risk-meta-val risk-meta-placeholder is-placeholder" data-edit-pend-meta="responsaveis" data-placeholder="Detalhes da pendência">Detalhes da pendência</span>');
+    }
     var metaHtml = meta.length
-      ? '<div class="risk-meta">' + meta.join(' &middot; ') + '</div>'
+      ? '<div class="risk-meta">' + meta.map(function(part) {
+          return '<span class="risk-meta-part">' + part + '</span>';
+        }).join('<span class="risk-meta-sep" aria-hidden="true">&middot;</span>') + '</div>'
       : '';
 
     return '<tr data-edit-idx="' + idx + '">' +
       '<td><span class="priority-pill ' + prioCls + '">' + esc(p.prioridade) + '</span></td>' +
       '<td><div class="risk-title">' + esc(p.item) + '</div>' + metaHtml + '</td>' +
-      '<td><span class="status-pill ' + statusCls + '">' + esc(v(p.status, '')).toUpperCase() + '</span></td>' +
       '</tr>';
   }).join('');
 }
@@ -1473,6 +1854,107 @@ function renderAcoes(d) {
   }).join('');
 }
 
+function _toFiniteNumber(value) {
+  var n = parseFloat(value);
+  return isFinite(n) ? n : null;
+}
+
+function _clampCurvePercent(value) {
+  if (!isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, value));
+}
+
+function _roundCurvePercent(value) {
+  return Math.round(_clampCurvePercent(value));
+}
+
+function _normalizeCurvaSPoints(pontos) {
+  return (pontos || [])
+    .map(function (p) {
+      return {
+        dia: _toFiniteNumber(p && p.dia),
+        planejado: _toFiniteNumber(p && p.planejado),
+        realizado: _toFiniteNumber(p && p.realizado),
+      };
+    })
+    .filter(function (p) { return p.dia !== null; })
+    .sort(function (a, b) { return a.dia - b.dia; });
+}
+
+function _interpolateCurveValue(points, key, day) {
+  if (!points.length) return null;
+  var usable = points.filter(function (p) { return p[key] !== null; });
+  if (!usable.length) return null;
+  if (day <= usable[0].dia) return usable[0][key];
+  if (day >= usable[usable.length - 1].dia) return usable[usable.length - 1][key];
+  for (var i = 0; i < usable.length; i++) {
+    if (usable[i].dia === day) return usable[i][key];
+  }
+  for (var j = 0; j < usable.length - 1; j++) {
+    var left = usable[j];
+    var right = usable[j + 1];
+    if (day > left.dia && day < right.dia) {
+      var span = right.dia - left.dia;
+      if (span <= 0) return left[key];
+      var ratio = (day - left.dia) / span;
+      return left[key] + ((right[key] - left[key]) * ratio);
+    }
+  }
+  return usable[usable.length - 1][key];
+}
+
+function getCurvaSCurrentMetrics(d) {
+  d = d || {};
+  var cfg = d.config || {};
+  var points = _normalizeCurvaSPoints(d.curva_s || []);
+  if (!points.length) {
+    return {
+      day: 0,
+      planned: 0,
+      real: 0,
+      delta: 0,
+      pointValue: 0,
+      deltaLabel: 'Δ 0 p.p.',
+      deltaVariant: 'neutral'
+    };
+  }
+
+  var fallbackDay = points[points.length - 1].dia || 0;
+  var currentDay = _toFiniteNumber(cfg.current_day);
+  if (currentDay === null) currentDay = fallbackDay;
+
+  var fallbackProgress = _toFiniteNumber(cfg.progress_percent);
+  var plannedRaw = _interpolateCurveValue(points, 'planejado', currentDay);
+  if (plannedRaw === null) plannedRaw = fallbackProgress !== null ? fallbackProgress : 0;
+
+  var exactReal = null;
+  var latestReal = null;
+  points.forEach(function (p) {
+    if (p.realizado === null) return;
+    if (p.dia === currentDay) exactReal = p.realizado;
+    if (p.dia <= currentDay) latestReal = p.realizado;
+  });
+  var realRaw = exactReal !== null ? exactReal : latestReal;
+  if (realRaw === null) realRaw = fallbackProgress !== null ? fallbackProgress : plannedRaw;
+
+  plannedRaw = _clampCurvePercent(plannedRaw);
+  realRaw = _clampCurvePercent(realRaw);
+
+  var planned = _roundCurvePercent(plannedRaw);
+  var real = _roundCurvePercent(realRaw);
+  var delta = real - planned;
+
+  return {
+    day: currentDay,
+    planned: planned,
+    real: real,
+    delta: delta,
+    pointValue: real,
+    deltaLabel: 'Δ ' + (delta > 0 ? '+' : '') + delta + ' p.p.',
+    deltaVariant: delta > 0 ? 'positive' : (delta < 0 ? 'negative' : 'neutral')
+  };
+}
+
 /* ===== Curva S ===== */
 function renderCurvaS(d) {
   var svg    = document.getElementById('curvaSvg');
@@ -1480,8 +1962,9 @@ function renderCurvaS(d) {
   var cfg    = d.config   || {};
   if (!pontos.length) { svg.innerHTML = ''; return; }
 
-  var currentDay = parseFloat(cfg.current_day)      || 0;
-  var currentPct = parseFloat(cfg.progress_percent) || 0;
+  var currentMetrics = getCurvaSCurrentMetrics(d);
+  var currentDay = currentMetrics.day;
+  var currentPct = currentMetrics.pointValue;
 
   // ── Dimensões dinâmicas: o SVG se encaixa no container real ──────────────
   var W = 820;
@@ -1576,8 +2059,26 @@ function renderCurvaS(d) {
 
   var cx = sx(currentDay);
   var cy = sy(currentPct);
-  var bubbleX = Math.min(Math.max(padL + 5, cx - 41), W - padR - 82);
-  var bubbleY = padT - 10;
+  var cardW = 138;
+  var cardH = 84;
+  var cardGap = 14;
+  var cardX = cx + cardGap;
+  if (cardX + cardW > W - padR) cardX = cx - cardGap - cardW;
+  cardX = Math.max(padL + 4, Math.min(cardX, W - padR - cardW));
+  var cardY = cy - cardH - 18;
+  if (cardY < padT + 6) cardY = cy + 16;
+  cardY = Math.max(padT + 6, Math.min(cardY, padT + chartH - cardH - 6));
+  var cardTextX = cardX + 12;
+  var cardTitleY = cardY + 20;
+  var planLineY = cardY + 40;
+  var realLineY = cardY + 56;
+  var deltaLineY = cardY + 72;
+  var connectorY = cardY > cy ? cardY + cardH : cardY;
+  var planColor = '#3b5f85';
+  var realColor = '#dd6b20';
+  var deltaColor = currentMetrics.deltaVariant === 'positive'
+    ? '#2d9d5f'
+    : (currentMetrics.deltaVariant === 'negative' ? '#dd6b20' : '#636b76');
 
   svg.innerHTML =
     '<text x="0" y="13" class="chart-label">% Conclusão</text>' +
@@ -1606,10 +2107,13 @@ function renderCurvaS(d) {
     '<line x1="' + cx + '" y1="' + (padT + chartH) + '" x2="' + cx + '" y2="' + cy + '" class="current-line"/>' +
     '<circle cx="' + cx + '" cy="' + cy + '" r="7" class="current-dot"/>' +
 
-    // Bubble de progresso
-    '<rect x="' + bubbleX + '" y="' + bubbleY + '" width="82" height="63" rx="7" class="chart-bubble"/>' +
-    '<text x="' + (bubbleX + 41) + '" y="' + (bubbleY + 24) + '" class="chart-bubble-text-small">Atual</text>' +
-    '<text x="' + (bubbleX + 41) + '" y="' + (bubbleY + 52) + '" class="chart-bubble-text">' + currentPct + '%</text>' +
+    // Card executivo do ponto atual
+    '<line x1="' + cx + '" y1="' + cy + '" x2="' + (cardX + (cardX > cx ? 0 : cardW)) + '" y2="' + connectorY + '" class="chart-current-connector"/>' +
+    '<rect x="' + cardX + '" y="' + cardY + '" width="' + cardW + '" height="' + cardH + '" rx="10" class="chart-current-card"/>' +
+    '<text x="' + cardTextX + '" y="' + cardTitleY + '" class="chart-current-card-title">Hoje</text>' +
+    '<text x="' + cardTextX + '" y="' + planLineY + '" class="chart-current-card-line chart-current-card-plan" fill="' + planColor + '">Plano: ' + currentMetrics.planned + '%</text>' +
+    '<text x="' + cardTextX + '" y="' + realLineY + '" class="chart-current-card-line chart-current-card-real" fill="' + realColor + '">Real: ' + currentMetrics.real + '%</text>' +
+    '<text x="' + cardTextX + '" y="' + deltaLineY + '" class="chart-current-card-line chart-current-card-delta" fill="' + deltaColor + '">' + currentMetrics.deltaLabel + '</text>' +
 
     // Labels eixo X
     dayLabels.map(function (dv) {
@@ -1674,12 +2178,13 @@ function renderMarcos(d) {
 
 /* ===== Rodapé ===== */
 function renderRodape(d) {
-  var el  = document.getElementById('footerStrip');
   var r   = d.rodape || {};
   var cfg = d.config || {};
 
+  var reportNameRaw = v(cfg.report_name, v(r.nome_relatorio, 'Status Executivo'));
+  var relDateSource = v(cfg.report_date, v(r.data_relatorio, ''));
   // ── Melhoria 1: data do Relatório formatada ──────────────────────────────
-  var relDateRaw = r.data_relatorio || cfg.report_date || '';
+  var relDateRaw = relDateSource || '';
   var relDateFmt = relDateRaw ? fmtDateShort(relDateRaw) : '--';
 
   var items = [
@@ -1717,8 +2222,10 @@ function renderRodape(d) {
     },
     {
       title: 'Relatório',
-      value: esc(v(r.nome_relatorio, v(cfg.report_name, 'Status Executivo'))) +
-             ' <span style="opacity:.55">&middot; ' + esc(relDateFmt) + '</span>',
+      value:
+        '<span data-edit-config="report_name">' + esc(reportNameRaw) + '</span>' +
+        '<span class="foot-inline-sep" aria-hidden="true">&middot;</span>' +
+        '<span class="foot-inline-date" data-edit-config-date="report_date" data-raw-val="' + esc(relDateRaw) + '">' + esc(relDateFmt) + '</span>',
       rawVal: null,
       editAttr: '',
       strong: false, light: true, primary: false,
@@ -1726,7 +2233,7 @@ function renderRodape(d) {
     },
   ];
 
-  el.innerHTML = items.map(function (it) {
+  var html = items.map(function (it) {
     var valClass  = 'foot-value' + (it.strong ? ' strong' : '');
     var iconClass = 'foot-icon'  + (it.light  ? ' light'  : '');
     var cardClass = 'foot-card'  + (it.primary ? ' foot-card-primary' : '');
@@ -1740,6 +2247,16 @@ function renderRodape(d) {
         '<div class="' + valClass + '"' + editExtra + '>' + it.value + '</div>' +
       '</div></div>';
   }).join('');
+  var sharedHtml = html
+    .replace(/\sdata-edit-rodape="[^"]*"/g, '')
+    .replace(/\sdata-edit-config="[^"]*"/g, '')
+    .replace(/\sdata-edit-config-date="[^"]*"/g, '')
+    .replace(/\sdata-raw-val="[^"]*"/g, '');
+  var mainFooter = document.getElementById('footerStrip');
+  if (mainFooter) mainFooter.innerHTML = html;
+  document.querySelectorAll('[data-shared-footer="true"]').forEach(function (el) {
+    el.innerHTML = sharedHtml;
+  });
 }
 
 /* ===== Exportação PDF / PPTX ===== */
@@ -2061,6 +2578,18 @@ async function applyUpdate() {
 var editMode = false;
 var _editSnapshotData = null;
 
+function _cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function _buildRenderPayload(reportData) {
+  var payload = _lastRenderData ? _cloneJson(_lastRenderData) : {};
+  var snapshot = _cloneJson(reportData || {});
+  payload.reportData = snapshot;
+  payload.data = _cloneJson(snapshot);
+  return payload;
+}
+
 function isLockedField(name) {
   var rd = (_lastRenderData && _lastRenderData.reportData) || {};
   var locks = (((rd.meta || {}).locked_fields) || []);
@@ -2088,9 +2617,10 @@ function toggleEditMode() {
 function enterEditMode() {
   if (!_appReady || _isLoadingData) return;
   if (!_lastRenderData || (!_lastRenderData.data && !_lastRenderData.reportData)) return;
-  _editSnapshotData = JSON.parse(JSON.stringify(_lastRenderData.reportData || _lastRenderData.data));
+  _editSnapshotData = _cloneJson(_lastRenderData.reportData || _lastRenderData.data);
   editMode = true;
   clearDirty();
+  renderAll(_buildRenderPayload(_editSnapshotData));
   document.body.classList.add('edit-mode');
   document.getElementById('editModeBar').style.display = 'flex';
   var btn = document.getElementById('btnEdit');
@@ -2189,7 +2719,7 @@ function _openDatePicker(anchor, rawDateBR, onChange) {
 }
 
 /* Torna elemento de data clicável (sem contenteditable) */
-function _dateField(el, rawDateBR, onSave) {
+function _dateField(el, rawDateBR, onSave, formatDisplay) {
   if (!el || el.dataset.editDateAttached) return;
   el.dataset.editDateAttached = '1';
   el.dataset.rawDate = rawDateBR || '';
@@ -2199,7 +2729,7 @@ function _dateField(el, rawDateBR, onSave) {
     if (!editMode) return;
     e.preventDefault(); e.stopPropagation();
     _openDatePicker(el, el.dataset.rawDate, function(newRaw, formatted) {
-      el.textContent = formatted;
+      el.textContent = formatDisplay ? formatDisplay(newRaw, formatted) : formatted;
       el.dataset.rawDate = newRaw;
       onSave(newRaw);
     });
@@ -2297,6 +2827,8 @@ function _addWrap(label, onClick) {
 
 /* ── Ativa todos os handlers ── */
 function _attachAllEditHandlers() {
+  _attachCoverHandlers();
+  _attachClosingHandlers();
   _attachHeaderHandlers();
   _attachKpisHandlers();
   _attachResumoHandlers();
@@ -2304,6 +2836,76 @@ function _attachAllEditHandlers() {
   _attachAcoesHandlers();
   _attachMarcosHandlers();
   _attachFooterHandlers();
+}
+
+/* ── Encerramento / Slide 4 ── */
+function _attachClosingHandlers() {
+  if (!_editSnapshotData) return;
+  if (!_editSnapshotData.config) _editSnapshotData.config = {};
+  var cfg = _editSnapshotData.config;
+
+  function bindText(id, path, normalize) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    _ce(el);
+    if (!el.dataset.syncBound) {
+      el.dataset.syncBound = '1';
+      el.addEventListener('input', function () {
+        var raw = el.textContent;
+        cfg[path] = normalize ? normalize(raw) : String(raw || '').trim();
+      });
+    }
+  }
+
+  bindText('closingTitle', 'closing_eyebrow', function (raw) { return String(raw || '').trim(); });
+  bindText('closingThanks', 'closing_thanks', function (raw) { return String(raw || '').trim(); });
+  bindText('closingLead', 'closing_lead', function (raw) { return String(raw || '').trim(); });
+  bindText('closingCardLabel', 'closing_next_step_label', function (raw) { return String(raw || '').trim(); });
+  bindText('closingMilestone', 'closing_milestone_text', function (raw) { return String(raw || '').trim(); });
+  bindText('closingDates', 'closing_dates_text', function (raw) { return String(raw || '').trim(); });
+  bindText('closingFooterLabel', 'closing_footer_label', function (raw) { return String(raw || '').trim().toUpperCase(); });
+  bindText('closingFooterMeta', 'closing_footer_meta', function (raw) { return String(raw || '').trim().toUpperCase(); });
+}
+
+/* ── Capa / Slide 1 ── */
+function _attachCoverHandlers() {
+  if (!_editSnapshotData) return;
+  if (!_editSnapshotData.config) _editSnapshotData.config = {};
+  var cfg = _editSnapshotData.config;
+
+  function bindText(id, path, normalize, rerender) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    _ce(el);
+    if (!el.dataset.syncBound) {
+      el.dataset.syncBound = '1';
+      el.addEventListener('input', function () {
+        var raw = el.textContent;
+        cfg[path] = normalize ? normalize(raw) : String(raw || '').trim();
+      });
+      if (rerender) el.addEventListener('blur', rerender);
+    }
+  }
+
+  bindText('coverEyebrow', 'cover_eyebrow', function (raw) { return String(raw || '').trim(); });
+  bindText('coverMainTitle', 'cover_main_title', _coverTitleToStorage, function () {
+    document.getElementById('coverMainTitle').innerHTML = _renderCoverTitleHtml(cfg.cover_main_title, v(cfg.cover_highlight, ''));
+  });
+  bindText('coverSubtitle', 'cover_subtitle', function (raw) { return String(raw || '').trim(); });
+  bindText('coverClientLabel', 'cover_client_label', function (raw) { return String(raw || '').trim().toUpperCase(); });
+  bindText('coverOwnerLabel', 'cover_owner_label', function (raw) { return String(raw || '').trim().toUpperCase(); });
+  bindText('coverDateLabel', 'cover_date_label', function (raw) { return String(raw || '').trim().toUpperCase(); });
+  bindText('coverDurationLabel', 'cover_duration_label', function (raw) { return String(raw || '').trim().toUpperCase(); });
+  bindText('coverClient', 'sponsor', function (raw) { return String(raw || '').trim(); });
+  bindText('coverOwner', 'owner_name', function (raw) { return String(raw || '').trim(); });
+  bindText('coverDuration', 'presentation_duration', function (raw) { return String(raw || '').trim(); });
+
+  var coverDate = document.getElementById('coverDate');
+  _dateField(coverDate, v(cfg.report_date, ''), function (newRaw) {
+    cfg.report_date = newRaw;
+  }, function (newRaw, formatted) {
+    return formatted || newRaw;
+  });
 }
 
 /* ── Header ── */
@@ -2399,14 +3001,14 @@ function _attachResumoHandlers() {
 function _reattachAddBtn(listId, label, fn) {
   var container = document.getElementById(listId);
   if (!container) return;
-  var parent = container.parentNode;
-  if (parent) parent.classList.add('edit-add-host');
+  var host = container.closest('.panel') || container.parentNode;
+  if (host) host.classList.add('edit-add-host');
   // Remove antigo wrap se existir
-  var prev = parent.querySelector('.edit-add-wrap[data-for="' + listId + '"]');
+  var prev = host.querySelector('.edit-add-wrap[data-for="' + listId + '"]');
   if (prev) prev.remove();
   var wrap = _addWrap(label, fn);
   wrap.dataset.for = listId;
-  if (parent) parent.appendChild(wrap);
+  if (host) host.appendChild(wrap);
 }
 
 function addResumoItem() {
@@ -2421,12 +3023,21 @@ function addResumoItem() {
 }
 
 /* ── Pendências Críticas ── */
-var _PEND_STATUS = ['Em atenção', 'Atrasado', 'No prazo', 'Concluído'];
-var _PEND_NIVEL  = { 'em atenção': 'warning', 'atrasado': 'danger', 'no prazo': 'success', 'concluído': 'success', 'concluido': 'success' };
+var _PEND_PRIORIDADES = ['P1', 'P2', 'P3', 'P4'];
 
-function _pendBadgeClass(val) {
-  var c = sc(val);
-  return 'status-pill ' + c;
+function _pendPriorityClass(val) {
+  var prioKey = String(val || 'P1').toLowerCase().replace(/\s/g, '');
+  return 'priority-pill prio-' + (prioKey || 'p1');
+}
+
+function _normalizePendenciaMetaValue(key, value) {
+  var text = String(value || '').trim();
+  if (!text) return null;
+  if (key === 'score') {
+    var num = Number(text);
+    return isFinite(num) ? num : text;
+  }
+  return text;
 }
 
 function _attachPendenciasHandlers() {
@@ -2439,17 +3050,63 @@ function _attachPendenciasHandlers() {
 
     _ce(tr.querySelector('.risk-title'));
 
-    // Status pill → badge dropdown
-    var pill = tr.querySelector('.status-pill');
-    if (pill && !pill.parentNode.classList.contains('badge-sel-wrap')) {
-      _badgeDropdown(pill, _PEND_STATUS, pend.status, _pendBadgeClass, function(val) {
+    var prio = tr.querySelector('.priority-pill');
+    if (prio && !prio.parentNode.classList.contains('badge-sel-wrap')) {
+      _badgeDropdown(prio, _PEND_PRIORIDADES, pend.prioridade, _pendPriorityClass, function(val) {
         if (_editSnapshotData.pendencias_criticas[idx]) {
-          _editSnapshotData.pendencias_criticas[idx].status = val;
-          _editSnapshotData.pendencias_criticas[idx].nivel  = _PEND_NIVEL[val.toLowerCase()] || 'warning';
+          _editSnapshotData.pendencias_criticas[idx].prioridade = val;
           markDirty();
         }
       });
     }
+
+    tr.querySelectorAll('.risk-meta-val[data-edit-pend-meta]').forEach(function(metaEl) {
+      _ce(metaEl);
+      var placeholderText = metaEl.dataset.placeholder || '';
+      if (placeholderText && !metaEl.dataset.placeholderBound) {
+        metaEl.dataset.placeholderBound = '1';
+        metaEl.addEventListener('focus', function () {
+          if (metaEl.classList.contains('is-placeholder')) {
+            metaEl.textContent = '';
+            metaEl.classList.remove('is-placeholder');
+          }
+        });
+        metaEl.addEventListener('blur', function () {
+          if (metaEl.textContent.trim()) return;
+          metaEl.textContent = placeholderText;
+          metaEl.classList.add('is-placeholder');
+        });
+      }
+      if (placeholderText && !String(metaEl.textContent || '').trim()) {
+        metaEl.textContent = placeholderText;
+        metaEl.classList.add('is-placeholder');
+      }
+      if (!metaEl.dataset.syncBound) {
+        metaEl.dataset.syncBound = '1';
+        metaEl.addEventListener('input', function () {
+          if (!_editSnapshotData || !_editSnapshotData.pendencias_criticas[idx]) return;
+          if (placeholderText && metaEl.classList.contains('is-placeholder')) {
+            _editSnapshotData.pendencias_criticas[idx][metaEl.dataset.editPendMeta] = null;
+            return;
+          }
+          _editSnapshotData.pendencias_criticas[idx][metaEl.dataset.editPendMeta] =
+            _normalizePendenciaMetaValue(metaEl.dataset.editPendMeta, metaEl.textContent);
+        });
+      }
+    });
+
+    tr.querySelectorAll('.risk-meta-date[data-edit-pend-date]').forEach(function(dateEl) {
+      if (!dateEl.dataset.editDateAttached) {
+        _dateField(dateEl, dateEl.dataset.rawVal || '', function(newRaw) {
+          dateEl.dataset.rawVal = newRaw;
+          if (!_editSnapshotData || !_editSnapshotData.pendencias_criticas[idx]) return;
+          _editSnapshotData.pendencias_criticas[idx][dateEl.dataset.editPendDate] = newRaw;
+          markDirty();
+        }, function(newRaw) {
+          return newRaw;
+        });
+      }
+    });
 
     // Botão remover
     if (!tr.querySelector('.edit-rm-btn')) {
@@ -2609,11 +3266,66 @@ function _attachFooterHandlers() {
       });
     }
   });
+  document.querySelectorAll('[data-edit-config-date]').forEach(function(el) {
+    var key = el.dataset.editConfigDate;
+    var rawVal = el.dataset.rawVal || '';
+    if (!el.dataset.editDateAttached) {
+      _dateField(el, rawVal, function(newRaw) {
+        el.dataset.rawVal = newRaw;
+        if (!_editSnapshotData) return;
+        if (!_editSnapshotData.config) _editSnapshotData.config = {};
+        _editSnapshotData.config[key] = newRaw;
+      });
+    }
+  });
 }
 
 /* ── Coleta dados para salvar ── */
 function collectEdits() {
   var data = JSON.parse(JSON.stringify(_editSnapshotData));
+  if (!data.config) data.config = {};
+
+  // Capa / Slide 1
+  var coverEyebrow = document.getElementById('coverEyebrow');
+  var coverTitle = document.getElementById('coverMainTitle');
+  var coverSubtitle = document.getElementById('coverSubtitle');
+  var coverClientLabel = document.getElementById('coverClientLabel');
+  var coverOwnerLabel = document.getElementById('coverOwnerLabel');
+  var coverDateLabel = document.getElementById('coverDateLabel');
+  var coverDurationLabel = document.getElementById('coverDurationLabel');
+  var coverClient = document.getElementById('coverClient');
+  var coverOwner = document.getElementById('coverOwner');
+  var coverDate = document.getElementById('coverDate');
+  var coverDuration = document.getElementById('coverDuration');
+  if (coverEyebrow && coverEyebrow.contentEditable === 'true') data.config.cover_eyebrow = coverEyebrow.textContent.trim();
+  if (coverTitle && coverTitle.contentEditable === 'true') data.config.cover_main_title = _coverTitleToStorage(coverTitle.textContent);
+  if (coverSubtitle && coverSubtitle.contentEditable === 'true') data.config.cover_subtitle = coverSubtitle.textContent.trim();
+  if (coverClientLabel && coverClientLabel.contentEditable === 'true') data.config.cover_client_label = coverClientLabel.textContent.trim().toUpperCase();
+  if (coverOwnerLabel && coverOwnerLabel.contentEditable === 'true') data.config.cover_owner_label = coverOwnerLabel.textContent.trim().toUpperCase();
+  if (coverDateLabel && coverDateLabel.contentEditable === 'true') data.config.cover_date_label = coverDateLabel.textContent.trim().toUpperCase();
+  if (coverDurationLabel && coverDurationLabel.contentEditable === 'true') data.config.cover_duration_label = coverDurationLabel.textContent.trim().toUpperCase();
+  if (coverClient && coverClient.contentEditable === 'true') data.config.sponsor = coverClient.textContent.trim();
+  if (coverOwner && coverOwner.contentEditable === 'true') data.config.owner_name = coverOwner.textContent.trim();
+  if (coverDate && coverDate.dataset.rawDate) data.config.report_date = coverDate.dataset.rawDate;
+  if (coverDuration && coverDuration.contentEditable === 'true') data.config.presentation_duration = coverDuration.textContent.trim();
+
+  // Encerramento / Slide 4
+  var closingTitle = document.getElementById('closingTitle');
+  var closingThanks = document.getElementById('closingThanks');
+  var closingLead = document.getElementById('closingLead');
+  var closingCardLabel = document.getElementById('closingCardLabel');
+  var closingMilestone = document.getElementById('closingMilestone');
+  var closingDates = document.getElementById('closingDates');
+  var closingFooterLabel = document.getElementById('closingFooterLabel');
+  var closingFooterMeta = document.getElementById('closingFooterMeta');
+  if (closingTitle && closingTitle.contentEditable === 'true') data.config.closing_eyebrow = closingTitle.textContent.trim();
+  if (closingThanks && closingThanks.contentEditable === 'true') data.config.closing_thanks = closingThanks.textContent.trim();
+  if (closingLead && closingLead.contentEditable === 'true') data.config.closing_lead = closingLead.textContent.trim();
+  if (closingCardLabel && closingCardLabel.contentEditable === 'true') data.config.closing_next_step_label = closingCardLabel.textContent.trim();
+  if (closingMilestone && closingMilestone.contentEditable === 'true') data.config.closing_milestone_text = closingMilestone.textContent.trim();
+  if (closingDates && closingDates.contentEditable === 'true') data.config.closing_dates_text = closingDates.textContent.trim();
+  if (closingFooterLabel && closingFooterLabel.contentEditable === 'true') data.config.closing_footer_label = closingFooterLabel.textContent.trim().toUpperCase();
+  if (closingFooterMeta && closingFooterMeta.contentEditable === 'true') data.config.closing_footer_meta = closingFooterMeta.textContent.trim().toUpperCase();
 
   // KPIs
   document.querySelectorAll('#kpis .kpi-card[data-kpi-orig-idx]').forEach(function(card) {
@@ -2669,6 +3381,10 @@ function collectEdits() {
       // Data: usa rawDate do dataset (atualizado pelo picker)
       if (el.dataset.rawVal) data.rodape[key] = el.dataset.rawVal;
     }
+  });
+  document.querySelectorAll('[data-edit-config-date]').forEach(function(el) {
+    var key = el.dataset.editConfigDate;
+    if (key && el.dataset.rawVal) data.config[key] = el.dataset.rawVal;
   });
 
   // Reordenar arrays
@@ -2768,6 +3484,10 @@ function _buildConfigDrawer() {
   body.innerHTML = '';
   var cfg    = d.config  || {};
   var rodape = d.rodape  || {};
+  if (!d.gantt_config) d.gantt_config = {};
+  if (!d.gantt_tarefas) d.gantt_tarefas = [];
+  if (!d.gantt_marcos) d.gantt_marcos = [];
+  var gcfg = d.gantt_config;
 
   /* ─ helpers ─ */
   function sec(title) {
@@ -2782,6 +3502,11 @@ function _buildConfigDrawer() {
   }
   function txt(val, cb) {
     var i = document.createElement('input'); i.type = 'text'; i.className = 'drawer-input';
+    i.value = val != null ? String(val) : '';
+    i.addEventListener('input', function(){ cb(i.value); markDirty(); }); return i;
+  }
+  function txtArea(val, cb) {
+    var i = document.createElement('textarea'); i.className = 'drawer-input drawer-textarea';
     i.value = val != null ? String(val) : '';
     i.addEventListener('input', function(){ cb(i.value); markDirty(); }); return i;
   }
@@ -2813,6 +3538,20 @@ function _buildConfigDrawer() {
     s.addEventListener('change', function(){ cb(s.value); markDirty(); }); return s;
   }
 
+  /* ─ Capa (main) ─ */
+  if (_hasRegistryFields('cover', 'main')) {
+    var s0 = sec(_registrySectionLabel('cover', 'Capa'));
+    addF(s0, 'Eyebrow', txt(cfg.cover_eyebrow, function(v){ d.config.cover_eyebrow = v; }));
+    addF(s0, 'Título principal', txtArea(v(cfg.cover_main_title, v(cfg.project_name, '')), function(v){ d.config.cover_main_title = _coverTitleToStorage(v); }));
+    addF(s0, 'Subtítulo', txtArea(v(cfg.cover_subtitle, v(cfg.project_subtitle, '')), function(v){ d.config.cover_subtitle = v; }));
+    addF(s0, 'Label cliente', txt(v(cfg.cover_client_label, _coverMetaDefault('client')), function(v){ d.config.cover_client_label = v.toUpperCase(); }));
+    addF(s0, 'Label apresentador', txt(v(cfg.cover_owner_label, _coverMetaDefault('owner')), function(v){ d.config.cover_owner_label = v.toUpperCase(); }));
+    addF(s0, 'Label data', txt(v(cfg.cover_date_label, _coverMetaDefault('date')), function(v){ d.config.cover_date_label = v.toUpperCase(); }));
+    addF(s0, 'Label duração', txt(v(cfg.cover_duration_label, _coverMetaDefault('duration')), function(v){ d.config.cover_duration_label = v.toUpperCase(); }));
+    addF(s0, 'Duração', txt(cfg.presentation_duration, function(v){ d.config.presentation_duration = v; }));
+    body.appendChild(s0);
+  }
+
   /* ─ Header (main) ─ */
   if (_hasRegistryFields('header', 'main')) {
     var s1 = sec(_registrySectionLabel('header', 'Projeto'));
@@ -2838,19 +3577,6 @@ function _buildConfigDrawer() {
     addF(s2, 'Total de Dias do Projeto',num(cfg.total_days,       function(v){d.config.total_days=v;}));
     addF(s2, '% Planejado (Curva S)',   num(cfg.progress_percent, function(v){d.config.progress_percent=v;}));
     body.appendChild(s2);
-  }
-
-  /* ─ Alerta (main) ─ */
-  if (_hasRegistryFields('header_alert', 'main')) {
-    var s3 = sec(_registrySectionLabel('header_alert', 'Alerta no Header'));
-    addF(s3, 'Texto', txt(cfg.alert_label, function(v){d.config.alert_label=v;}));
-    addF(s3, 'Nível', sel(cfg.alert_level, [
-      {v:'warning', l:'⚠ Atenção (amarelo)'},
-      {v:'danger',  l:'🔴 Crítico (vermelho)'},
-      {v:'success', l:'✅ OK (verde)'},
-      {v:'',        l:'— Ocultar alerta'},
-    ], function(v){d.config.alert_level=v;}));
-    body.appendChild(s3);
   }
 
   /* ─ Rodapé (main) ─ */
@@ -2885,6 +3611,29 @@ function _buildConfigDrawer() {
     s7.appendChild(_drawerCurvaS(d));
     body.appendChild(s7);
   }
+
+  /* ─ Cronograma Gantt ─ */
+  var s7b = sec('Cronograma Gantt');
+  addF(s7b, 'Título do Gantt', txt(v(gcfg.titulo, 'Cronograma & Marcos Críticos'), function(v){ d.gantt_config.titulo = v; }));
+  addF(s7b, 'Subtítulo do Gantt', txt(v(gcfg.subtitulo, ''), function(v){ d.gantt_config.subtitulo = v; }));
+  addF(s7b, 'Início da janela (dd/mm/aaaa)', txtDateFriendly(gcfg.data_inicio_janela, function(v){ d.gantt_config.data_inicio_janela = v; }));
+  addF(s7b, 'Fim da janela (dd/mm/aaaa)', txtDateFriendly(gcfg.data_fim_janela, function(v){ d.gantt_config.data_fim_janela = v; }));
+  addF(s7b, 'Escala do tempo', sel(v(gcfg.escala_tempo, 'semanas'), [{v:'semanas',l:'Semanas'},{v:'meses',l:'Meses'}], function(v){ d.gantt_config.escala_tempo = v; }));
+  addF(s7b, 'Exibir baseline', sel(v(gcfg.exibir_baseline, 'TRUE'), [{v:'TRUE',l:'Sim'},{v:'FALSE',l:'Não'}], function(v){ d.gantt_config.exibir_baseline = v; }));
+  addF(s7b, 'Exibir progresso', sel(v(gcfg.exibir_progresso, 'TRUE'), [{v:'TRUE',l:'Sim'},{v:'FALSE',l:'Não'}], function(v){ d.gantt_config.exibir_progresso = v; }));
+  addF(s7b, 'Exibir hoje', sel(v(gcfg.exibir_hoje, 'TRUE'), [{v:'TRUE',l:'Sim'},{v:'FALSE',l:'Não'}], function(v){ d.gantt_config.exibir_hoje = v; }));
+  addF(s7b, 'Exibir dependências', sel(v(gcfg.exibir_dependencias, 'FALSE'), [{v:'TRUE',l:'Sim'},{v:'FALSE',l:'Não'}], function(v){ d.gantt_config.exibir_dependencias = v; }));
+  addF(s7b, 'Altura da linha', num(v(gcfg.altura_linha, 40), function(v){ d.gantt_config.altura_linha = v; }));
+  addF(s7b, 'Largura do dia', num(v(gcfg.largura_dia, 18), function(v){ d.gantt_config.largura_dia = v; }));
+  body.appendChild(s7b);
+
+  var s7c = sec('Cronograma Gantt — Tarefas');
+  s7c.appendChild(_drawerGanttTasks(d));
+  body.appendChild(s7c);
+
+  var s7d = sec('Cronograma Gantt — Marcos');
+  s7d.appendChild(_drawerGanttMilestones(d));
+  body.appendChild(s7d);
 
   /* ─ Readonly: derivados registrados ─ */
   var readonly = _registry().fields
@@ -3035,6 +3784,92 @@ function _drawerCurvaS(d) {
   var cont=document.createElement('div'); cont.appendChild(wrap); cont.appendChild(add); return cont;
 }
 
+function _drawerGanttTasks(d) {
+  if (!d.gantt_tarefas) d.gantt_tarefas = [];
+  var STATUS = ['Concluído', 'Em andamento', 'Planejado', 'Atrasado'];
+  var wrap = document.createElement('div'); wrap.className = 'drawer-table-wrap';
+  var tbl = document.createElement('table'); tbl.className = 'drawer-table';
+  tbl.innerHTML = '<thead><tr><th>Nome</th><th>Início</th><th>Fim</th><th>Progresso</th><th>Status</th><th>Owner</th><th></th></tr></thead>';
+  var tbody = document.createElement('tbody'); tbl.appendChild(tbody); wrap.appendChild(tbl);
+
+  function mkRow(task, idx) {
+    var tr = document.createElement('tr');
+    function cell(el){ var td = document.createElement('td'); td.appendChild(el); return td; }
+    function input(value, cb, type, placeholder) {
+      var i = document.createElement('input');
+      i.type = type || 'text';
+      i.className = 'drawer-table-input';
+      i.value = value != null ? String(value) : '';
+      if (placeholder) i.placeholder = placeholder;
+      i.oninput = function () { cb(i.type === 'number' && i.value !== '' ? Number(i.value) : i.value); markDirty(); };
+      return i;
+    }
+    tr.appendChild(cell(input(task.nome, function(v){ d.gantt_tarefas[idx].nome = v; })));
+    tr.appendChild(cell(input(task.inicio, function(v){ d.gantt_tarefas[idx].inicio = v; }, 'text', 'dd/mm/aaaa')));
+    tr.appendChild(cell(input(task.fim, function(v){ d.gantt_tarefas[idx].fim = v; }, 'text', 'dd/mm/aaaa')));
+    tr.appendChild(cell(input(task.progresso, function(v){ d.gantt_tarefas[idx].progresso = v === '' ? 0 : v; }, 'number')));
+    var ss = document.createElement('select'); ss.className = 'drawer-table-select';
+    STATUS.forEach(function(o){ var op = document.createElement('option'); op.value = o; op.textContent = o; if ((task.status || '') === o) op.selected = true; ss.appendChild(op); });
+    ss.onchange = function(){ d.gantt_tarefas[idx].status = ss.value; markDirty(); };
+    tr.appendChild(cell(ss));
+    tr.appendChild(cell(input(task.owner, function(v){ d.gantt_tarefas[idx].owner = v; })));
+    var rb = document.createElement('button'); rb.type='button'; rb.className='drawer-rm-btn'; rb.innerHTML='×';
+    rb.onclick = function(){ d.gantt_tarefas.splice(idx,1); markDirty(); render(); };
+    tr.appendChild(cell(rb));
+    return tr;
+  }
+  function render() {
+    tbody.innerHTML = '';
+    d.gantt_tarefas.forEach(function (task, idx) { tbody.appendChild(mkRow(task, idx)); });
+  }
+  render();
+  var add = document.createElement('button'); add.type='button'; add.className='drawer-add-btn'; add.textContent='+ Adicionar tarefa';
+  add.onclick = function () {
+    d.gantt_tarefas.push({ id: Date.now(), parent_id: null, nome: 'Nova tarefa', inicio: '', fim: '', progresso: 0, status: 'Planejado', owner: '', dependencias: '' });
+    markDirty(); render();
+  };
+  var cont = document.createElement('div'); cont.appendChild(wrap); cont.appendChild(add); return cont;
+}
+
+function _drawerGanttMilestones(d) {
+  if (!d.gantt_marcos) d.gantt_marcos = [];
+  var wrap = document.createElement('div'); wrap.className = 'drawer-table-wrap';
+  var tbl = document.createElement('table'); tbl.className = 'drawer-table';
+  tbl.innerHTML = '<thead><tr><th>Nome</th><th>Data</th><th>Status</th><th>Tipo</th><th></th></tr></thead>';
+  var tbody = document.createElement('tbody'); tbl.appendChild(tbody); wrap.appendChild(tbl);
+
+  function mkRow(marco, idx) {
+    var tr = document.createElement('tr');
+    function cell(el){ var td = document.createElement('td'); td.appendChild(el); return td; }
+    function input(value, cb, placeholder) {
+      var i = document.createElement('input');
+      i.type = 'text'; i.className = 'drawer-table-input'; i.value = value != null ? String(value) : '';
+      if (placeholder) i.placeholder = placeholder;
+      i.oninput = function () { cb(i.value); markDirty(); };
+      return i;
+    }
+    tr.appendChild(cell(input(marco.nome, function(v){ d.gantt_marcos[idx].nome = v; })));
+    tr.appendChild(cell(input(marco.data, function(v){ d.gantt_marcos[idx].data = v; }, 'dd/mm/aaaa')));
+    tr.appendChild(cell(input(marco.status, function(v){ d.gantt_marcos[idx].status = v; })));
+    tr.appendChild(cell(input(marco.tipo, function(v){ d.gantt_marcos[idx].tipo = v; })));
+    var rb = document.createElement('button'); rb.type='button'; rb.className='drawer-rm-btn'; rb.innerHTML='×';
+    rb.onclick = function(){ d.gantt_marcos.splice(idx,1); markDirty(); render(); };
+    tr.appendChild(cell(rb));
+    return tr;
+  }
+  function render() {
+    tbody.innerHTML = '';
+    d.gantt_marcos.forEach(function (marco, idx) { tbody.appendChild(mkRow(marco, idx)); });
+  }
+  render();
+  var add = document.createElement('button'); add.type='button'; add.className='drawer-add-btn'; add.textContent='+ Adicionar marco';
+  add.onclick = function () {
+    d.gantt_marcos.push({ id: Date.now(), nome: 'Novo marco', data: '', status: 'Planejado', tipo: 'star' });
+    markDirty(); render();
+  };
+  var cont = document.createElement('div'); cont.appendChild(wrap); cont.appendChild(add); return cont;
+}
+
 /* ===== Init ===== */
 document.addEventListener('DOMContentLoaded', function () {
   try {
@@ -3050,13 +3885,16 @@ document.addEventListener('DOMContentLoaded', function () {
     window.addEventListener('resize', function () {
       syncDeckHeights();
       if (_lastRenderData) renderCurvaS(_lastRenderData.data || {});
+      if (_lastRenderData) renderGantt((_lastRenderData.reportData || _lastRenderData.data || {}));
     });
     /* Re-render Curva S ao entrar/sair do modo impressão para usar dimensões corretas */
     window.addEventListener('beforeprint', function () {
       if (_lastRenderData) renderCurvaS(_lastRenderData.data || {});
+      if (_lastRenderData) renderGantt((_lastRenderData.reportData || _lastRenderData.data || {}));
     });
     window.addEventListener('afterprint', function () {
       if (_lastRenderData) renderCurvaS(_lastRenderData.data || {});
+      if (_lastRenderData) renderGantt((_lastRenderData.reportData || _lastRenderData.data || {}));
     });
     checkForUpdates(false);
     document.addEventListener('fullscreenchange', function () {

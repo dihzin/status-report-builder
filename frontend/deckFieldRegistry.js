@@ -1,6 +1,7 @@
 /* Registry central do deck para o Builder V1 */
 (function () {
   var sections = {
+    cover: "Capa",
     header: "Header",
     header_alert: "Alerta do Header",
     timeline: "Timeline",
@@ -17,6 +18,15 @@
   window.DECK_FIELD_REGISTRY = {
     sections: sections,
     fields: [
+      { path: "config.cover_eyebrow", label: "Eyebrow da Capa", section: "cover", inputType: "text", editable: true, derived: false, visibleInDeck: true, visibleInPdf: true, visibleInPptx: true, editorMode: "main", order: 5 },
+      { path: "config.cover_main_title", label: "Título principal da Capa", section: "cover", inputType: "text", editable: true, derived: false, visibleInDeck: true, visibleInPdf: true, visibleInPptx: true, editorMode: "main", order: 10 },
+      { path: "config.cover_subtitle", label: "Subtítulo da Capa", section: "cover", inputType: "text", editable: true, derived: false, visibleInDeck: true, visibleInPdf: true, visibleInPptx: true, editorMode: "main", order: 20 },
+      { path: "config.cover_client_label", label: "Label cliente da Capa", section: "cover", inputType: "text", editable: true, derived: false, visibleInDeck: true, visibleInPdf: true, visibleInPptx: true, editorMode: "main", order: 30 },
+      { path: "config.cover_owner_label", label: "Label apresentador da Capa", section: "cover", inputType: "text", editable: true, derived: false, visibleInDeck: true, visibleInPdf: true, visibleInPptx: true, editorMode: "main", order: 40 },
+      { path: "config.cover_date_label", label: "Label data da Capa", section: "cover", inputType: "text", editable: true, derived: false, visibleInDeck: true, visibleInPdf: true, visibleInPptx: true, editorMode: "main", order: 50 },
+      { path: "config.cover_duration_label", label: "Label duração da Capa", section: "cover", inputType: "text", editable: true, derived: false, visibleInDeck: true, visibleInPdf: true, visibleInPptx: true, editorMode: "main", order: 60 },
+      { path: "config.presentation_duration", label: "Duração da Capa", section: "cover", inputType: "text", editable: true, derived: false, visibleInDeck: true, visibleInPdf: true, visibleInPptx: true, editorMode: "main", order: 70 },
+
       { path: "config.project_name", label: "Nome do Projeto", section: "header", inputType: "text", editable: true, derived: false, visibleInDeck: true, visibleInPdf: true, visibleInPptx: true, editorMode: "main", order: 10 },
       { path: "config.project_subtitle", label: "Subtítulo", section: "header", inputType: "text", editable: true, derived: false, visibleInDeck: true, visibleInPdf: true, visibleInPptx: true, editorMode: "main", order: 20 },
       { path: "config.sponsor", label: "Sponsor / Cliente", section: "header", inputType: "text", editable: true, derived: false, visibleInDeck: true, visibleInPdf: true, visibleInPptx: true, editorMode: "main", order: 30 },

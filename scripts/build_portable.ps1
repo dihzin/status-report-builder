@@ -55,12 +55,9 @@ New-Item -ItemType Directory -Path (Join-Path $portableDir 'config') -Force *> $
 
 $msPlaywright = Join-Path $env:LOCALAPPDATA 'ms-playwright'
 $embeddedMsPlaywright = Join-Path $portableDir '_internal\ms-playwright'
-$embeddedLocalBrowsers = Join-Path $portableDir '_internal\playwright\driver\package\.local-browsers'
 if (Test-Path $msPlaywright) {
     New-Item -ItemType Directory -Path $embeddedMsPlaywright -Force *> $null
     Copy-Item "$msPlaywright\*" $embeddedMsPlaywright -Recurse -Force
-    New-Item -ItemType Directory -Path $embeddedLocalBrowsers -Force *> $null
-    Copy-Item "$msPlaywright\*" $embeddedLocalBrowsers -Recurse -Force
 } else {
     Write-Warning "ms-playwright não encontrado em $msPlaywright. Rode 'python -m playwright install chromium' antes do build."
 }
