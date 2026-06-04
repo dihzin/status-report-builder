@@ -135,7 +135,7 @@ async def apply_update():
     status = 200 if payload.get("ok") else 400
     if payload.get("ok"):
         def _shutdown():
-            time.sleep(1.2)
+            time.sleep(2.5)
             os._exit(0)
         threading.Thread(target=_shutdown, daemon=True).start()
     return JSONResponse(status_code=status, content=payload)

@@ -443,6 +443,7 @@ class UpdateService:
         script_path = _updates_dir() / "apply_update.ps1"
         stage_name = f"_stage_{int(time.time())}"
         backup_name = f"_backup_{int(time.time())}"
+        state_file = str(_state_file())
         script = f"""$ErrorActionPreference = 'Stop'
 $InstallDir = '{install_dir}'
 $ZipPath = '{zip_path}'
@@ -451,17 +452,19 @@ $CurrentPid = {current_pid}
 $StageDir = Join-Path $InstallDir '{stage_name}'
 $BackupDir = Join-Path $InstallDir '{backup_name}'
 $LogFile = Join-Path $InstallDir 'updates\\apply_update.log'
+$StateFile = '{state_file}'
 New-Item -ItemType Directory -Path (Join-Path $InstallDir 'updates') -Force *> $null
+try {{
 Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] Iniciando apply."
 Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] InstallDir=$InstallDir ZipPath=$ZipPath ExeName=$ExeName CurrentPid=$CurrentPid"
 try {{
   $proc = Get-Process -Id $CurrentPid -ErrorAction Stop
   Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] Aguardando encerramento do processo antigo PID=$CurrentPid."
-  $proc.WaitForExit(20000) *> $null
+  $proc.WaitForExit(25000) *> $null
 }} catch {{
   Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] Processo antigo já não estava em execução."
 }}
-Start-Sleep -Milliseconds 800
+Start-Sleep -Milliseconds 1500
 if (Test-Path $StageDir) {{ Remove-Item -Recurse -Force $StageDir }}
 New-Item -ItemType Directory -Path $StageDir -Force *> $null
 if (Test-Path $BackupDir) {{ Remove-Item -Recurse -Force $BackupDir }}
@@ -469,9 +472,15 @@ New-Item -ItemType Directory -Path $BackupDir -Force *> $null
 Expand-Archive -Path $ZipPath -DestinationPath $StageDir -Force
 $exeCandidate = Get-ChildItem -Path $StageDir -Recurse -Filter 'StatusReportBuilder.exe' | Select-Object -First 1
 if (-not $exeCandidate) {{ throw 'StatusReportBuilder.exe não encontrado no pacote.' }}
+$sourceDir = $exeCandidate.Directory.FullName
+if ((Get-ChildItem -Path $StageDir -Filter 'StatusReportBuilder.exe').Count -eq 0) {{
+  $sourceDir = $exeCandidate.Directory.FullName
+}} else {{
+  $sourceDir = $StageDir
+}}
 $exclude = @('data','exports','logs','config','updates','app.lock')
 $toCopy = @()
-Get-ChildItem -Path $StageDir | ForEach-Object {{
+Get-ChildItem -Path $sourceDir | ForEach-Object {{
   if ($exclude -contains $_.Name) {{ return }}
   $toCopy += $_
 }}
@@ -496,8 +505,13 @@ try {{
 }}
 Remove-Item -Recurse -Force $StageDir
 Remove-Item -Recurse -Force $BackupDir
+if (Test-Path $ZipPath) {{ Remove-Item -Force $ZipPath }}
+if (Test-Path $StateFile) {{ Remove-Item -Force $StateFile }}
 Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] Relançando executável: $(Join-Path $InstallDir $ExeName)"
-Start-Process -FilePath (Join-Path $InstallDir $ExeName) -WindowStyle Hidden
+Start-Process -FilePath (Join-Path $InstallDir $ExeName)
+}} catch {{
+  try {{ Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [FATAL] $($_.Exception.Message)" }} catch {{}}
+}}
 """
         script_path.write_text(script, encoding="utf-8")
         return script_path
@@ -538,7 +552,13 @@ Start-Process -FilePath (Join-Path $InstallDir $ExeName) -WindowStyle Hidden
             script_path = self._build_apply_script(zip_path, os.getpid())
             creation_flags = 0
             if os.name == "nt":
-                creation_flags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS  # type: ignore[attr-defined]
+                # CREATE_BREAKAWAY_FROM_JOB evita que o script PS seja morto
+                # junto com o processo Python quando o Job Object do PyInstaller fecha.
+                creation_flags = (
+                    subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined]
+                    | subprocess.DETACHED_PROCESS  # type: ignore[attr-defined]
+                    | 0x01000000  # CREATE_BREAKAWAY_FROM_JOB
+                )
             subprocess.Popen(
                 [
                     "powershell",
