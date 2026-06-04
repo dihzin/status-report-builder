@@ -386,7 +386,7 @@ function openUpdateModal(mode) {
   if (_updateUiState.modalMode !== 'confirm') _updateConfirmPending = false;
   modal.classList.add('open');
   modal.setAttribute('aria-hidden', 'false');
-  document.body.classList.add('modal-open');
+  _syncModalOpenState();
   _renderUpdateSurface();
 }
 
@@ -399,7 +399,12 @@ function closeUpdateModal() {
   if (!modal) return;
   modal.classList.remove('open');
   modal.setAttribute('aria-hidden', 'true');
-  document.body.classList.remove('modal-open');
+  _syncModalOpenState();
+}
+
+function _syncModalOpenState() {
+  if (document.querySelector('.app-modal.open')) document.body.classList.add('modal-open');
+  else document.body.classList.remove('modal-open');
 }
 
 function _syncDirtyUi() {
@@ -670,7 +675,6 @@ function prevSlide() { setSlide(currentSlide - 1); }
 function nextSlide() { setSlide(currentSlide + 1); }
 
 function updateSlideView() {
-  syncDeckHeights();
   for (var i = 1; i <= totalSlides; i++) {
     var el = document.getElementById('slide' + i);
     if (!el) continue;
@@ -679,17 +683,50 @@ function updateSlideView() {
   }
   var ind = document.getElementById('slideIndicator');
   if (ind) ind.textContent = 'Slide ' + currentSlide + '/' + totalSlides;
+  refreshDeckViewportLayout();
+}
+
+function syncDeckViewportScale() {
+  var root = document.documentElement;
+  if (!root) return;
+  var baseW = 1920;
+  var baseH = 1080;
+  var inPresentation = document.body.classList.contains('presentation-mode');
+  var availW = window.innerWidth;
+  var availH = window.innerHeight;
+  if (!inPresentation) {
+    var toolbar = document.querySelector('.toolbar');
+    var banner = document.querySelector('.validation-banner');
+    if (banner && getComputedStyle(banner).display !== 'none') availH -= banner.offsetHeight;
+    if (toolbar && getComputedStyle(toolbar).display !== 'none') availH -= toolbar.offsetHeight;
+    availW -= 12;
+    availH -= 18;
+  }
+  availW = Math.max(320, availW);
+  availH = Math.max(240, availH);
+  var scale = Math.min(availW / baseW, availH / baseH);
+  if (!isFinite(scale) || scale <= 0) scale = 1;
+  root.style.setProperty('--deck-scale', scale.toFixed(5));
+  var topOffset = 0;
+  if (inPresentation) {
+    topOffset = Math.max(0, (window.innerHeight - (baseH * scale)) / 2);
+  }
+  root.style.setProperty('--deck-top-offset', Math.round(topOffset) + 'px');
+}
+
+function refreshDeckViewportLayout() {
+  requestAnimationFrame(function () {
+    syncDeckViewportScale();
+    syncDeckHeights();
+    if (_lastRenderData) renderCurvaS(_lastRenderData.data || {});
+    if (_lastRenderData) renderGantt((_lastRenderData.reportData || _lastRenderData.data || {}));
+  });
 }
 
 function syncDeckHeights() {
-  var ref = document.getElementById('slide2');
-  if (!ref) return;
-  var h = ref.offsetHeight;
-  if (!h) return;
   for (var i = 1; i <= totalSlides; i++) {
-    if (i === 2) continue;
     var el = document.getElementById('slide' + i);
-    if (el) el.style.height = h + 'px';
+    if (el) el.style.height = '1080px';
   }
 }
 
@@ -895,43 +932,93 @@ function renderGantt(d) {
   var showProgress = String(ganttCfg.exibir_progresso || 'TRUE').toLowerCase() !== 'false';
 
   if (cards) {
-    var activeTask = taskList.find(function (e) { return e.status.indexOf('andamento') >= 0; }) || taskList[0] || null;
+    var activeCandidates = taskList.filter(function (e) {
+      return e.start <= today && e.end >= today;
+    }).sort(function (a, b) {
+      var aOpen = (a.status.indexOf('atras') >= 0 || a.status.indexOf('andamento') >= 0) ? 0 : 1;
+      var bOpen = (b.status.indexOf('atras') >= 0 || b.status.indexOf('andamento') >= 0) ? 0 : 1;
+      if (aOpen !== bOpen) return aOpen - bOpen;
+      if ((Number(b.progress) || 0) !== (Number(a.progress) || 0)) return (Number(b.progress) || 0) - (Number(a.progress) || 0);
+      return a.start - b.start;
+    });
+    var nextTask = taskList.slice().sort(function (a, b) { return a.start - b.start; }).find(function (e) {
+      return e.start > today;
+    }) || null;
+    var activeTask = activeCandidates[0]
+      || taskList.find(function (e) { return e.status.indexOf('andamento') >= 0; })
+      || nextTask
+      || taskList.slice().sort(function (a, b) { return b.end - a.end; })[0]
+      || null;
     var avgProgress = taskList.length
       ? Math.round(taskList.reduce(function (sum, e) { return sum + (Number(e.progress) || 0); }, 0) / taskList.length)
       : 0;
     var nextMilestone = msList.slice().sort(function (a, b) { return a.start - b.start; }).find(function (m) { return m.start >= today; }) || msList[0] || null;
     var windowLabel = formatShortDate(minDate) + ' → ' + formatShortDate(maxDate);
+    var derived = d.derived || {};
+    var realPercent = Number(derived.real_percent);
+    if (!isFinite(realPercent)) realPercent = avgProgress;
+    var plannedPercent = Number(derived.planned_percent);
+    if (!isFinite(plannedPercent)) plannedPercent = Number((d.config || {}).progress_percent) || 0;
+    var spi = Number(derived.spi);
+    if (!isFinite(spi) && plannedPercent > 0) spi = realPercent / plannedPercent;
+    if (!isFinite(spi)) spi = 0;
+    var realTone = realPercent >= 90 ? 'done' : (spi > 0 && spi < 0.95 ? 'risk' : (realPercent > 0 ? 'live' : 'planned'));
+    var activeEyebrow = 'Próxima frente';
+    if (activeTask) {
+      if (activeTask.start <= today && activeTask.end >= today) activeEyebrow = 'Frente vigente';
+      else if (activeTask.start > today) activeEyebrow = 'Próxima frente';
+      else activeEyebrow = 'Última frente';
+    }
+    var activeMeta = 'Aguardando definição';
+    if (activeTask) {
+      if (activeTask.start <= today && activeTask.end >= today) activeMeta = (activeTask.progress || 0) + '% concluído';
+      else if (activeTask.start > today) activeMeta = 'Início em ' + formatDateBR(activeTask.start);
+      else activeMeta = 'Encerrada em ' + formatDateBR(activeTask.end);
+    }
     var summaryCards = [
       {
         label: 'Frente ativa',
         value: activeTask ? activeTask.name : 'Sem tarefa ativa',
-        meta: activeTask ? ((activeTask.progress || 0) + '% concluído') : 'Aguardando definição',
-        tone: activeTask ? _statusToneKey(activeTask.status) : 'planned'
+        meta: activeMeta,
+        tone: activeTask ? _statusToneKey(activeTask.status) : 'planned',
+        accent: activeTask ? (activeTask.owner || 'Execução principal') : 'Sem owner definido',
+        eyebrow: activeTask ? (activeEyebrow + ' · ' + (activeTask.status || 'Planejado')) : 'Próxima frente'
       },
       {
         label: 'Janela do cronograma',
         value: windowLabel,
         meta: totalWorkdays + ' dias úteis mapeados',
-        tone: 'calendar'
+        tone: 'calendar',
+        accent: 'Cadência semanal',
+        eyebrow: 'Faixa operacional'
       },
       {
-        label: 'Progresso médio',
-        value: avgProgress + '%',
-        meta: taskList.length + ' fases monitoradas',
-        tone: avgProgress >= 90 ? 'done' : (avgProgress >= 40 ? 'live' : 'planned')
+        label: 'Real acumulado',
+        value: realPercent + '%',
+        meta: 'Plano ' + plannedPercent + '% · SPI ' + spi.toFixed(2),
+        tone: realTone,
+        accent: showProgress ? 'Curva S consolidada' : 'Leitura executiva',
+        eyebrow: realTone === 'done' ? 'Fechamento' : (realTone === 'risk' ? 'Abaixo do plano' : (realTone === 'live' ? 'Ritmo de execução' : 'Ramp-up'))
       },
       {
         label: 'Próximo marco',
         value: nextMilestone ? nextMilestone.name : 'Sem marco',
         meta: nextMilestone ? formatDateBR(nextMilestone.start) : 'Sem data cadastrada',
-        tone: nextMilestone ? 'milestone' : 'planned'
+        tone: nextMilestone ? 'milestone' : 'planned',
+        accent: nextMilestone ? 'Ponto de decisão' : 'Marco pendente',
+        eyebrow: nextMilestone ? 'Checkpoint executivo' : 'Sem checkpoint'
       }
     ];
     cards.innerHTML = summaryCards.map(function (card) {
       return '<article class="gantt-summary-card tone-' + esc(card.tone) + '">' +
+        '<div class="gantt-summary-topline">' +
+          '<span class="gantt-summary-kicker">' + esc(card.eyebrow || card.label) + '</span>' +
+          '<span class="gantt-summary-accent">' + esc(card.accent || '') + '</span>' +
+        '</div>' +
         '<p class="gantt-summary-label">' + esc(card.label) + '</p>' +
         '<h3>' + esc(card.value) + '</h3>' +
         '<p class="gantt-summary-meta">' + esc(card.meta) + '</p>' +
+        '<span class="gantt-summary-orb" aria-hidden="true"></span>' +
       '</article>';
     }).join('');
   }
@@ -946,7 +1033,7 @@ function renderGantt(d) {
   // Layout executivo clean
   var msAnnotH  = 0;
   var monthRowH = 32;
-  var weekRowH  = 20;
+  var weekRowH  = 26;
   var headerH   = monthRowH + weekRowH;
   var rowH      = configuredRowH;
   var barH      = Math.max(24, rowH - 16);
@@ -1033,7 +1120,10 @@ function renderGantt(d) {
     var xws = sx(weekStarts[i]);
     var xwe = i + 1 < weekStarts.length ? sx(weekStarts[i + 1]) : sx(addDays(weekStarts[i], 5));
     var wxc = (xws + xwe) / 2;
-    html += '<text x="' + wxc.toFixed(1) + '" y="' + (msAnnotH + monthRowH + 11) + '" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="8" font-weight="600" fill="#94a3b8">S' + (i + 1) + '</text>';
+    var weekTopY = msAnnotH + monthRowH + 8;
+    var weekBottomY = msAnnotH + monthRowH + 18;
+    html += '<text x="' + wxc.toFixed(1) + '" y="' + weekTopY + '" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="6.8" font-weight="800" fill="#8b99b1">S' + (i + 1) + '</text>';
+    html += '<text x="' + wxc.toFixed(1) + '" y="' + weekBottomY + '" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="6.6" font-weight="700" fill="#9aa7bc">' + esc(formatDateBR(weekStarts[i])) + '</text>';
   }
 
   // Borda inferior do header
@@ -1054,9 +1144,9 @@ function renderGantt(d) {
     tx = sx(today);
     var phW = 38, phH = 16;
     var tagY = H - bottomZone + 4;
-    html += '<line x1="' + tx.toFixed(1) + '" y1="' + headerH + '" x2="' + tx.toFixed(1) + '" y2="' + (tagY - 2) + '" stroke="#dd6b20" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.55"/>';
-    html += '<rect x="' + (tx - phW / 2).toFixed(1) + '" y="' + tagY + '" width="' + phW + '" height="' + phH + '" rx="3" fill="#dd6b20"/>';
-    html += '<text x="' + tx.toFixed(1) + '" y="' + (tagY + phH / 2) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="7.5" font-weight="800" fill="white" letter-spacing="0.07em">HOJE</text>';
+    html += '<line data-gantt-edit="today" x1="' + tx.toFixed(1) + '" y1="' + headerH + '" x2="' + tx.toFixed(1) + '" y2="' + (tagY - 2) + '" stroke="#dd6b20" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.55"/>';
+    html += '<rect data-gantt-edit="today" x="' + (tx - phW / 2).toFixed(1) + '" y="' + tagY + '" width="' + phW + '" height="' + phH + '" rx="3" fill="#dd6b20"/>';
+    html += '<text data-gantt-edit="today" x="' + tx.toFixed(1) + '" y="' + (tagY + phH / 2) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="7.5" font-weight="800" fill="white" letter-spacing="0.07em">HOJE</text>';
   }
 
   // Anotações de marcos — diamante acima, pill abaixo
@@ -1073,16 +1163,16 @@ function renderGantt(d) {
     var lblX = Math.max(padL + 2, Math.min(W - padR - lblW - 2, mx - lblW / 2));
 
     // Linha vertical (do fim do header até acima do diamante)
-    html += '<line x1="' + mx.toFixed(1) + '" y1="' + headerH + '" x2="' + mx.toFixed(1) + '" y2="' + (dmY - 9) + '" stroke="#dd6b20" stroke-width="1" stroke-dasharray="4 3" opacity="0.4"/>';
+    html += '<line data-gantt-edit="milestone-date" data-gantt-ms-idx="' + e.idx + '" x1="' + mx.toFixed(1) + '" y1="' + headerH + '" x2="' + mx.toFixed(1) + '" y2="' + (dmY - 9) + '" stroke="#dd6b20" stroke-width="1" stroke-dasharray="4 3" opacity="0.4"/>';
 
     // Diamante
-    html += '<rect x="' + (mx - 6) + '" y="' + (dmY - 6) + '" width="12" height="12" rx="1" transform="rotate(45 ' + mx.toFixed(1) + ' ' + dmY + ')" fill="#dd6b20" stroke="white" stroke-width="1.5" filter="url(#gg)"/>';
+    html += '<rect data-gantt-edit="milestone-date" data-gantt-ms-idx="' + e.idx + '" x="' + (mx - 6) + '" y="' + (dmY - 6) + '" width="12" height="12" rx="1" transform="rotate(45 ' + mx.toFixed(1) + ' ' + dmY + ')" fill="#dd6b20" stroke="white" stroke-width="1.5" filter="url(#gg)"/>';
 
     // Pill abaixo do diamante
-    html += '<rect x="' + lblX.toFixed(1) + '" y="' + pillY + '" width="' + lblW.toFixed(1) + '" height="' + pillH + '" rx="4" fill="#1e3a6e"/>';
-    html += '<text x="' + (lblX + 9) + '" y="' + (pillY + pillH / 2) + '" dominant-baseline="middle" font-family="Arial" font-size="9" fill="#dd6b20">★</text>';
-    html += '<text x="' + (lblX + 19) + '" y="' + (pillY + pillH / 2) + '" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9" font-weight="700" fill="white">' + esc(e.name) + '</text>';
-    html += '<text x="' + (lblX + 19 + e.name.length * 5.6 + 4) + '" y="' + (pillY + pillH / 2) + '" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9" font-weight="400" fill="rgba(255,255,255,0.65)">' + esc(dateStr) + '</text>';
+    html += '<rect data-gantt-edit="milestone-name" data-gantt-ms-idx="' + e.idx + '" x="' + lblX.toFixed(1) + '" y="' + pillY + '" width="' + lblW.toFixed(1) + '" height="' + pillH + '" rx="4" fill="#1e3a6e"/>';
+    html += '<text data-gantt-edit="milestone-name" data-gantt-ms-idx="' + e.idx + '" x="' + (lblX + 9) + '" y="' + (pillY + pillH / 2) + '" dominant-baseline="middle" font-family="Arial" font-size="9" fill="#dd6b20">★</text>';
+    html += '<text data-gantt-edit="milestone-name" data-gantt-ms-idx="' + e.idx + '" x="' + (lblX + 19) + '" y="' + (pillY + pillH / 2) + '" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9" font-weight="700" fill="white">' + esc(e.name) + '</text>';
+    html += '<text data-gantt-edit="milestone-date" data-gantt-ms-idx="' + e.idx + '" x="' + (lblX + 19 + e.name.length * 5.6 + 4) + '" y="' + (pillY + pillH / 2) + '" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9" font-weight="400" fill="rgba(255,255,255,0.65)">' + esc(dateStr) + '</text>';
   });
 
   // Barras de fase + coluna de nomes
@@ -1107,7 +1197,7 @@ function renderGantt(d) {
 
     var midBarY = (barY + barH / 2);
     if (isPlanned) {
-      html += '<rect x="' + x1.toFixed(1) + '" y="' + barY.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + barH + '" rx="' + rr + '" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5 3"/>';
+      html += '<rect data-gantt-edit="task-progress" data-gantt-task-idx="' + e.idx + '" x="' + x1.toFixed(1) + '" y="' + barY.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + barH + '" rx="' + rr + '" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5 3"/>';
       if (barW > 76) {
         html += '<text x="' + (x1 + barW / 2).toFixed(1) + '" y="' + midBarY + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9.5" font-weight="500" fill="#94a3b8">' + esc(dLbl) + '</text>';
       } else {
@@ -1117,8 +1207,8 @@ function renderGantt(d) {
         }
       }
     } else {
-      html += '<rect x="' + (x1 + 1).toFixed(1) + '" y="' + (barY + 2).toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + barH + '" rx="' + rr + '" fill="' + color + '" opacity="0.12"/>';
-      html += '<rect x="' + x1.toFixed(1) + '" y="' + barY.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + barH + '" rx="' + rr + '" fill="' + color + '"/>';
+      html += '<rect data-gantt-edit="task-progress" data-gantt-task-idx="' + e.idx + '" x="' + (x1 + 1).toFixed(1) + '" y="' + (barY + 2).toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + barH + '" rx="' + rr + '" fill="' + color + '" opacity="0.12"/>';
+      html += '<rect data-gantt-edit="task-progress" data-gantt-task-idx="' + e.idx + '" x="' + x1.toFixed(1) + '" y="' + barY.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + barH + '" rx="' + rr + '" fill="' + color + '"/>';
       var progW = barW * Math.min(Math.max(e.progress / 100, 0), 1);
       if (showProgress && progW > 4) {
         html += '<rect x="' + x1.toFixed(1) + '" y="' + barY.toFixed(1) + '" width="' + progW.toFixed(1) + '" height="' + barH + '" rx="' + rr + '" fill="rgba(0,0,0,0.18)"/>';
@@ -1128,9 +1218,9 @@ function renderGantt(d) {
       var pctTxt = pctNum + '%';
       if (barW > 76) {
         html += '<text x="' + (x1 + barW / 2).toFixed(1) + '" y="' + (midBarY - 3).toFixed(1) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9.5" font-weight="600" fill="rgba(255,255,255,0.92)">' + esc(dLbl) + '</text>';
-        if (showProgress) html += '<text x="' + (x1 + barW / 2).toFixed(1) + '" y="' + (midBarY + 8).toFixed(1) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9" font-weight="800" fill="rgba(255,255,255,0.7)">' + pctTxt + '</text>';
+        if (showProgress) html += '<text data-gantt-edit="task-progress" data-gantt-task-idx="' + e.idx + '" x="' + (x1 + barW / 2).toFixed(1) + '" y="' + (midBarY + 8).toFixed(1) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9" font-weight="800" fill="rgba(255,255,255,0.7)">' + pctTxt + '</text>';
       } else if (barW > 32) {
-        if (showProgress) html += '<text x="' + (x1 + barW / 2).toFixed(1) + '" y="' + midBarY.toFixed(1) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9" font-weight="800" fill="rgba(255,255,255,0.85)">' + pctTxt + '</text>';
+        if (showProgress) html += '<text data-gantt-edit="task-progress" data-gantt-task-idx="' + e.idx + '" x="' + (x1 + barW / 2).toFixed(1) + '" y="' + midBarY.toFixed(1) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9" font-weight="800" fill="rgba(255,255,255,0.85)">' + pctTxt + '</text>';
       } else {
         var extX = x1 + barW + 5;
         if (extX + 70 < W - padR) {
@@ -1147,9 +1237,9 @@ function renderGantt(d) {
     var statusY = rowY + rowH / 2 + 8;
     var maxNameW = leftColW - 30;
     var nameStr = e.name.length > 24 ? e.name.slice(0, 23) + '…' : e.name;
-    html += '<circle cx="' + (origPadL + 9) + '" cy="' + nameY.toFixed(1) + '" r="4.5" fill="' + color + '" opacity="' + (isPlanned ? '0.38' : '1') + '"/>';
-    html += '<text x="' + (origPadL + 20) + '" y="' + nameY.toFixed(1) + '" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="' + (isPlanned ? '#94a3b8' : '#1e293b') + '">' + esc(nameStr) + '</text>';
-    html += '<text x="' + (origPadL + 20) + '" y="' + statusY.toFixed(1) + '" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9" font-weight="500" fill="' + color + '" opacity="' + (isPlanned ? '0.5' : '0.75') + '">' + esc(statusLabel) + '</text>';
+    html += '<circle data-gantt-edit="task-status" data-gantt-task-idx="' + e.idx + '" cx="' + (origPadL + 9) + '" cy="' + nameY.toFixed(1) + '" r="4.5" fill="' + color + '" opacity="' + (isPlanned ? '0.38' : '1') + '"/>';
+    html += '<text data-gantt-edit="task-name" data-gantt-task-idx="' + e.idx + '" x="' + (origPadL + 20) + '" y="' + nameY.toFixed(1) + '" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="' + (isPlanned ? '#94a3b8' : '#1e293b') + '">' + esc(nameStr) + '</text>';
+    html += '<text data-gantt-edit="task-status" data-gantt-task-idx="' + e.idx + '" x="' + (origPadL + 20) + '" y="' + statusY.toFixed(1) + '" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9" font-weight="500" fill="' + color + '" opacity="' + (isPlanned ? '0.5' : '0.75') + '">' + esc(statusLabel) + '</text>';
   });
 
   svg.innerHTML = html;
@@ -1171,6 +1261,400 @@ function renderGantt(d) {
       return '<div class="gantt-legend-item"><span class="gantt-legend-swatch" style="background:' + item.color + '"></span>' + esc(item.label) + '</div>';
     }).join('');
   }
+}
+
+function _ganttTitleDefault() {
+  return 'Cronograma & Marcos Críticos';
+}
+
+function _ganttSubtitleDefault(d) {
+  var cfg = (d && d.config) || {};
+  return 'Fase atual: ' + v(cfg.current_phase, '-') + ' | Dia ' + v(cfg.current_day, '-') + ' de ' + v(cfg.total_days, '-');
+}
+
+function _closeFloatingEditors() {
+  document.querySelectorAll('.gantt-floating-input').forEach(function (el) { el.remove(); });
+}
+
+function _openFloatingInput(anchor, opts) {
+  _closeFloatingEditors();
+  if (!anchor || !opts || typeof opts.onSave !== 'function') return;
+  var rect = anchor.getBoundingClientRect();
+  var input = document.createElement(opts.multiline ? 'textarea' : 'input');
+  input.className = 'gantt-floating-input';
+  if (!opts.multiline) input.type = opts.type || 'text';
+  if (opts.placeholder) input.placeholder = opts.placeholder;
+  input.value = opts.value != null ? String(opts.value) : '';
+  input.style.top = Math.max(12, rect.bottom + 6) + 'px';
+  input.style.left = Math.max(12, Math.min(window.innerWidth - 240, rect.left)) + 'px';
+  input.style.width = (opts.width || Math.max(180, Math.min(320, rect.width + 80))) + 'px';
+  document.body.appendChild(input);
+
+  var done = false;
+  function finish(save) {
+    if (done) return;
+    done = true;
+    if (save) opts.onSave(input.value);
+    input.remove();
+  }
+
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      finish(false);
+    }
+    if (e.key === 'Enter' && !opts.multiline) {
+      e.preventDefault();
+      finish(true);
+    }
+  });
+  input.addEventListener('blur', function () {
+    setTimeout(function () { finish(true); }, 80);
+  });
+  input.focus();
+  if (typeof input.select === 'function') input.select();
+}
+
+function _openFloatingSelect(anchor, opts) {
+  _closeFloatingEditors();
+  if (!anchor || !opts || !Array.isArray(opts.options) || typeof opts.onSave !== 'function') return;
+  var rect = anchor.getBoundingClientRect();
+  var select = document.createElement('select');
+  select.className = 'gantt-floating-input';
+  select.style.top = Math.max(12, rect.bottom + 6) + 'px';
+  select.style.left = Math.max(12, Math.min(window.innerWidth - 220, rect.left)) + 'px';
+  select.style.width = (opts.width || Math.max(160, rect.width + 90)) + 'px';
+  opts.options.forEach(function (opt) {
+    var option = document.createElement('option');
+    option.value = opt.value;
+    option.textContent = opt.label;
+    if (String(opt.value) === String(opts.value)) option.selected = true;
+    select.appendChild(option);
+  });
+  document.body.appendChild(select);
+
+  var done = false;
+  function finish(save) {
+    if (done) return;
+    done = true;
+    if (save) opts.onSave(select.value);
+    select.remove();
+  }
+
+  select.addEventListener('change', function () { finish(true); });
+  select.addEventListener('blur', function () {
+    setTimeout(function () { finish(false); }, 80);
+  });
+  select.focus();
+}
+
+function _syncGanttLivePreview(opts) {
+  if (!_editSnapshotData) return;
+  var d = _editSnapshotData;
+  if (!d.config) d.config = {};
+  if (!d.gantt_config) d.gantt_config = {};
+  var titleEl = document.getElementById('ganttTitle');
+  var subtitleEl = document.getElementById('ganttSubtitle');
+  if (titleEl && titleEl !== document.activeElement) titleEl.textContent = v(d.gantt_config.titulo, _ganttTitleDefault());
+  if (subtitleEl && subtitleEl !== document.activeElement) subtitleEl.textContent = v(d.gantt_config.subtitulo, _ganttSubtitleDefault(d));
+  renderGantt(d);
+  _bindGanttSvgTargets();
+  if (opts && opts.rebuildInlineEditor) _renderGanttInlineEditor();
+}
+
+function _makeGanttInlineField(label, control, wide) {
+  var wrap = document.createElement('div');
+  wrap.className = 'gantt-inline-field' + (wide ? ' wide' : '');
+  var lbl = document.createElement('label');
+  lbl.textContent = label;
+  wrap.appendChild(lbl);
+  wrap.appendChild(control);
+  return wrap;
+}
+
+function _renderGanttInlineEditor() {
+  var host = document.getElementById('ganttInlineEditor');
+  if (!host) return;
+  host.hidden = true;
+  host.innerHTML = '';
+}
+
+function _moveArrayItem(list, idx, direction) {
+  if (!Array.isArray(list)) return false;
+  var target = idx + direction;
+  if (idx < 0 || idx >= list.length || target < 0 || target >= list.length) return false;
+  var tmp = list[idx];
+  list[idx] = list[target];
+  list[target] = tmp;
+  return true;
+}
+
+function _isGanttManageModalOpen() {
+  var modal = document.getElementById('ganttManageModal');
+  return !!(modal && modal.classList.contains('open'));
+}
+
+function _refreshGanttEditorSurfaces() {
+  _syncGanttLivePreview({ rebuildInlineEditor: true });
+  if (_isGanttManageModalOpen()) _renderGanttManageModalBody();
+}
+
+function _isGanttSlideActive() {
+  return currentSlide === 4;
+}
+
+function openGanttManageModal() {
+  if (!_editSnapshotData) return;
+  var modal = document.getElementById('ganttManageModal');
+  if (!modal) return;
+  _renderGanttManageModalBody();
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+  _syncModalOpenState();
+}
+
+function closeGanttManageModal() {
+  var modal = document.getElementById('ganttManageModal');
+  if (!modal) return;
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
+  _syncModalOpenState();
+}
+
+function _renderGanttManageModalBody() {
+  var body = document.getElementById('ganttManageModalBody');
+  if (!body || !_editSnapshotData) return;
+  var d = _editSnapshotData;
+  if (!d.gantt_tarefas) d.gantt_tarefas = [];
+  if (!d.gantt_marcos) d.gantt_marcos = [];
+  body.innerHTML = '';
+
+  function section(title, subtitle) {
+    var wrap = document.createElement('section');
+    wrap.className = 'gantt-manage-section';
+    wrap.innerHTML = '<div class="gantt-manage-section-head"><div><h4>' + esc(title) + '</h4><p>' + esc(subtitle || '') + '</p></div></div>';
+    return wrap;
+  }
+
+  function mkTable(headers) {
+    var wrap = document.createElement('div');
+    wrap.className = 'gantt-inline-table gantt-manage-table';
+    var table = document.createElement('table');
+    table.innerHTML = '<thead><tr>' + headers.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr></thead>';
+    var tbody = document.createElement('tbody');
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    return { wrap: wrap, tbody: tbody };
+  }
+
+  function textField(value, cb, type, placeholder) {
+    var input = document.createElement('input');
+    input.type = type || 'text';
+    if (placeholder) input.placeholder = placeholder;
+    input.value = value != null ? String(value) : '';
+    input.addEventListener('input', function () {
+      cb(input.type === 'number' && input.value !== '' ? Number(input.value) : input.value);
+      markDirty();
+      _syncGanttLivePreview();
+    });
+    return input;
+  }
+
+  function selectField(value, options, cb) {
+    var select = document.createElement('select');
+    options.forEach(function (opt) {
+      var option = document.createElement('option');
+      option.value = opt.value;
+      option.textContent = opt.label;
+      if (String(opt.value) === String(value)) option.selected = true;
+      select.appendChild(option);
+    });
+    select.addEventListener('change', function () {
+      cb(select.value);
+      markDirty();
+      _syncGanttLivePreview();
+    });
+    return select;
+  }
+
+  function actionBtn(label, cls, handler, disabled) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'gantt-inline-btn gantt-inline-btn-sm' + (cls ? ' ' + cls : '');
+    btn.textContent = label;
+    if (disabled) btn.disabled = true;
+    btn.addEventListener('click', handler);
+    return btn;
+  }
+
+  var taskSection = section('Tarefas', 'Reordene com subir e descer. O preview do Gantt atualiza em tempo real.');
+  var taskTable = mkTable(['', 'Nome', 'Início', 'Fim', 'Progresso', 'Status', 'Owner', '']);
+  d.gantt_tarefas.forEach(function (task, idx) {
+    var tr = document.createElement('tr');
+    function td(el) { var cell = document.createElement('td'); cell.appendChild(el); return cell; }
+    var orderCell = document.createElement('div');
+    orderCell.className = 'gantt-order-actions';
+    orderCell.appendChild(actionBtn('↑', '', function () {
+      if (_moveArrayItem(d.gantt_tarefas, idx, -1)) { markDirty(); _refreshGanttEditorSurfaces(); }
+    }, idx === 0));
+    orderCell.appendChild(actionBtn('↓', '', function () {
+      if (_moveArrayItem(d.gantt_tarefas, idx, 1)) { markDirty(); _refreshGanttEditorSurfaces(); }
+    }, idx === d.gantt_tarefas.length - 1));
+    tr.appendChild(td(orderCell));
+    tr.appendChild(td(textField(task.nome, function (val) { d.gantt_tarefas[idx].nome = val; })));
+    tr.appendChild(td(textField(task.inicio, function (val) { d.gantt_tarefas[idx].inicio = val; }, 'text', 'dd/mm/aaaa')));
+    tr.appendChild(td(textField(task.fim, function (val) { d.gantt_tarefas[idx].fim = val; }, 'text', 'dd/mm/aaaa')));
+    tr.appendChild(td(textField(task.progresso, function (val) { d.gantt_tarefas[idx].progresso = val === '' ? 0 : val; }, 'number')));
+    tr.appendChild(td(selectField(task.status || 'Planejado', [
+      { value: 'Concluído', label: 'Concluído' },
+      { value: 'Em andamento', label: 'Em andamento' },
+      { value: 'Planejado', label: 'Planejado' },
+      { value: 'Atrasado', label: 'Atrasado' }
+    ], function (val) { d.gantt_tarefas[idx].status = val; })));
+    tr.appendChild(td(textField(task.owner, function (val) { d.gantt_tarefas[idx].owner = val; })));
+    tr.appendChild(td(actionBtn('Remover', 'danger', function () {
+      d.gantt_tarefas.splice(idx, 1);
+      markDirty();
+      _refreshGanttEditorSurfaces();
+    })));
+    taskTable.tbody.appendChild(tr);
+  });
+  taskSection.appendChild(taskTable.wrap);
+  var taskActions = document.createElement('div');
+  taskActions.className = 'gantt-inline-actions';
+  taskActions.appendChild(actionBtn('+ Adicionar tarefa', 'gantt-inline-btn-primary', function () {
+    d.gantt_tarefas.push({ id: Date.now(), parent_id: null, nome: 'Nova tarefa', inicio: '', fim: '', progresso: 0, status: 'Planejado', owner: '', dependencias: '' });
+    markDirty();
+    _refreshGanttEditorSurfaces();
+  }));
+  taskSection.appendChild(taskActions);
+  body.appendChild(taskSection);
+
+  var milestoneSection = section('Marcos', 'Ajuste nome, data e ordem dos marcos críticos sem perder o contexto do slide.');
+  var milestoneTable = mkTable(['', 'Nome', 'Data', 'Status', 'Tipo', '']);
+  d.gantt_marcos.forEach(function (milestone, idx) {
+    var tr = document.createElement('tr');
+    function td(el) { var cell = document.createElement('td'); cell.appendChild(el); return cell; }
+    var orderCell = document.createElement('div');
+    orderCell.className = 'gantt-order-actions';
+    orderCell.appendChild(actionBtn('↑', '', function () {
+      if (_moveArrayItem(d.gantt_marcos, idx, -1)) { markDirty(); _refreshGanttEditorSurfaces(); }
+    }, idx === 0));
+    orderCell.appendChild(actionBtn('↓', '', function () {
+      if (_moveArrayItem(d.gantt_marcos, idx, 1)) { markDirty(); _refreshGanttEditorSurfaces(); }
+    }, idx === d.gantt_marcos.length - 1));
+    tr.appendChild(td(orderCell));
+    tr.appendChild(td(textField(milestone.nome, function (val) { d.gantt_marcos[idx].nome = val; })));
+    tr.appendChild(td(textField(milestone.data, function (val) { d.gantt_marcos[idx].data = val; }, 'text', 'dd/mm/aaaa')));
+    tr.appendChild(td(textField(milestone.status, function (val) { d.gantt_marcos[idx].status = val; })));
+    tr.appendChild(td(textField(milestone.tipo, function (val) { d.gantt_marcos[idx].tipo = val; })));
+    tr.appendChild(td(actionBtn('Remover', 'danger', function () {
+      d.gantt_marcos.splice(idx, 1);
+      markDirty();
+      _refreshGanttEditorSurfaces();
+    })));
+    milestoneTable.tbody.appendChild(tr);
+  });
+  milestoneSection.appendChild(milestoneTable.wrap);
+  var milestoneActions = document.createElement('div');
+  milestoneActions.className = 'gantt-inline-actions';
+  milestoneActions.appendChild(actionBtn('+ Adicionar marco', 'gantt-inline-btn-primary', function () {
+    d.gantt_marcos.push({ id: Date.now(), nome: 'Novo marco', data: '', status: 'Planejado', tipo: 'star' });
+    markDirty();
+    _refreshGanttEditorSurfaces();
+  }));
+  milestoneSection.appendChild(milestoneActions);
+  body.appendChild(milestoneSection);
+}
+
+function _bindGanttSvgTargets() {
+  if (!editMode || !_editSnapshotData) return;
+  var d = _editSnapshotData;
+  var svg = document.getElementById('ganttSvg');
+  if (!svg) return;
+
+  svg.querySelectorAll('[data-gantt-edit]').forEach(function (el) {
+    if (el.dataset.ganttBound) return;
+    el.dataset.ganttBound = '1';
+    el.addEventListener('click', function (evt) {
+      evt.preventDefault();
+      evt.stopPropagation();
+      var kind = el.dataset.ganttEdit;
+      if (kind === 'today') {
+        d.gantt_config.exibir_hoje = String(v(d.gantt_config.exibir_hoje, 'TRUE')).toLowerCase() === 'false' ? 'TRUE' : 'FALSE';
+        markDirty();
+        _syncGanttLivePreview({ rebuildInlineEditor: true });
+        return;
+      }
+
+      var msIdx = parseInt(el.dataset.ganttMsIdx || '-1', 10);
+      if (msIdx >= 0 && d.gantt_marcos && d.gantt_marcos[msIdx]) {
+        if (kind === 'milestone-name') {
+          _openFloatingInput(el, {
+            value: d.gantt_marcos[msIdx].nome || '',
+            onSave: function (val) {
+              d.gantt_marcos[msIdx].nome = String(val || '').trim();
+              markDirty();
+              _syncGanttLivePreview({ rebuildInlineEditor: true });
+            }
+          });
+          return;
+        }
+        if (kind === 'milestone-date') {
+          _openDatePicker(el, d.gantt_marcos[msIdx].data || '', function (newRaw) {
+            d.gantt_marcos[msIdx].data = newRaw;
+            markDirty();
+            _syncGanttLivePreview({ rebuildInlineEditor: true });
+          });
+          return;
+        }
+      }
+
+      var taskIdx = parseInt(el.dataset.ganttTaskIdx || '-1', 10);
+      if (taskIdx >= 0 && d.gantt_tarefas && d.gantt_tarefas[taskIdx]) {
+        if (kind === 'task-name') {
+          _openFloatingInput(el, {
+            value: d.gantt_tarefas[taskIdx].nome || '',
+            onSave: function (val) {
+              d.gantt_tarefas[taskIdx].nome = String(val || '').trim();
+              markDirty();
+              _syncGanttLivePreview({ rebuildInlineEditor: true });
+            }
+          });
+          return;
+        }
+        if (kind === 'task-status') {
+          _openFloatingSelect(el, {
+            value: d.gantt_tarefas[taskIdx].status || 'Planejado',
+            options: [
+              { value: 'Concluído', label: 'Concluido' },
+              { value: 'Em andamento', label: 'Em andamento' },
+              { value: 'Planejado', label: 'Planejado' },
+              { value: 'Atrasado', label: 'Atrasado' }
+            ],
+            onSave: function (val) {
+              d.gantt_tarefas[taskIdx].status = val;
+              markDirty();
+              _syncGanttLivePreview({ rebuildInlineEditor: true });
+            }
+          });
+          return;
+        }
+        if (kind === 'task-progress') {
+          _openFloatingInput(el, {
+            type: 'number',
+            value: d.gantt_tarefas[taskIdx].progresso || 0,
+            onSave: function (val) {
+              var num = Number(val);
+              d.gantt_tarefas[taskIdx].progresso = isFinite(num) ? Math.max(0, Math.min(100, num)) : 0;
+              markDirty();
+              _syncGanttLivePreview({ rebuildInlineEditor: true });
+            }
+          });
+        }
+      }
+    });
+  });
 }
 
 function _priorityNum(priority) {
@@ -1325,17 +1809,8 @@ function _buildRiskBoardModel(d) {
       body: linked ? _truncateForBoard((_riskMitigationSummary(linked) || '') + ' • ' + (linked.responsaveis || 'Owner a definir'), 112) : 'Formalizar owner, prazo e desbloqueio para a frente seguinte.'
     };
   });
-  // Em view mode: preenche até 3 usando fallback dos riscos
-  // Em edit mode: mostra só decisões reais (para que o botão de exclusão funcione corretamente)
-  if (!editMode) {
-    while (decisions.length < 3) {
-      var fallback = sorted[decisions.length] || topRisk;
-      decisions.push({
-        title: fallback ? _truncateForBoard(fallback.item, 56) : 'Sem decisão adicional',
-        body: fallback ? _truncateForBoard(_riskMitigationSummary(fallback), 112) : 'Nenhuma decisão crítica adicional cadastrada.'
-      });
-    }
-  }
+  // Sem fallback automático — mostrar apenas proximas_acoes reais (até 3)
+  // Fallbacks causavam duplicatas e reaparecimento de itens já excluídos
 
   var legend = ['P1', 'P2', 'P3', 'P4'].map(function (p) {
     var count = openItems.filter(function (item) { return String(item.prioridade || '').toUpperCase() === p; }).length;
@@ -2374,11 +2849,13 @@ async function requestPresentationMode() {
       else if (document.body.requestFullscreen) await document.body.requestFullscreen();
       document.body.classList.add('presentation-mode');
       _isPresentationMode = true;
+      refreshDeckViewportLayout();
       showToast('Modo apresentação ativo. Use setas para navegar e ESC para sair.', 'success');
     } else {
       if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen();
       document.body.classList.remove('presentation-mode');
       _isPresentationMode = false;
+      refreshDeckViewportLayout();
     }
   } catch (_) {
     showToast('Não foi possível ativar o modo apresentação neste navegador.', 'error');
@@ -2640,6 +3117,11 @@ function enterEditMode() {
   if (btn) btn.classList.add('active');
   _attachAllEditHandlers();
   _syncAppStateUi();
+  if (_isGanttSlideActive()) {
+    requestAnimationFrame(function () {
+      if (editMode && _isGanttSlideActive()) openGanttManageModal();
+    });
+  }
 }
 
 function cancelEditMode() {
@@ -2653,6 +3135,8 @@ function _exitEditMode() {
   editMode = false;
   _editSnapshotData = null;
   clearDirty();
+  closeGanttManageModal();
+  _closeFloatingEditors();
   // Limpa artefatos de UI criados dinamicamente no modo edição.
   document.querySelectorAll('.edit-add-wrap, .edit-rm-btn').forEach(function(el){ el.remove(); });
   document.querySelectorAll('.edit-add-host').forEach(function(el){ el.classList.remove('edit-add-host'); });
@@ -2662,6 +3146,7 @@ function _exitEditMode() {
   if (btn) btn.classList.remove('active');
   // Remove any floating date pickers
   document.querySelectorAll('.date-overlay-input').forEach(function(el){ el.remove(); });
+  _renderGanttInlineEditor();
   _syncDirtyUi();
   _syncAppStateUi();
 }
@@ -2848,6 +3333,7 @@ function _attachAllEditHandlers() {
   _attachPendenciasHandlers();
   _attachAcoesHandlers();
   _attachMarcosHandlers();
+  _attachGanttHandlers();
   _attachFooterHandlers();
   _attachRiskBoardHandlers();
 }
@@ -3560,6 +4046,30 @@ function _attachMarcosHandlers() {
   });
 }
 
+function _attachGanttHandlers() {
+  if (!_editSnapshotData) return;
+  if (!_editSnapshotData.gantt_config) _editSnapshotData.gantt_config = {};
+  var gcfg = _editSnapshotData.gantt_config;
+
+  function bindText(el, key, fallbackValue) {
+    if (!el) return;
+    _ce(el);
+    if (el.textContent.trim() === '-' && fallbackValue) el.textContent = fallbackValue;
+    if (!el.dataset.syncBound) {
+      el.dataset.syncBound = '1';
+      el.addEventListener('input', function () {
+        gcfg[key] = String(el.textContent || '').trim();
+        markDirty();
+      });
+    }
+  }
+
+  bindText(document.getElementById('ganttTitle'), 'titulo', _ganttTitleDefault());
+  bindText(document.getElementById('ganttSubtitle'), 'subtitulo', _ganttSubtitleDefault(_editSnapshotData));
+  _renderGanttInlineEditor();
+  _bindGanttSvgTargets();
+}
+
 /* ── Footer — datas com picker, texto com contenteditable ── */
 function _attachFooterHandlers() {
   document.querySelectorAll('[data-edit-rodape]').forEach(function(el) {
@@ -3662,6 +4172,13 @@ function collectEdits() {
   if (closingDates && closingDates.contentEditable === 'true') data.config.closing_dates_text = closingDates.textContent.trim();
   if (closingFooterLabel && closingFooterLabel.contentEditable === 'true') data.config.closing_footer_label = closingFooterLabel.textContent.trim().toUpperCase();
   if (closingFooterMeta && closingFooterMeta.contentEditable === 'true') data.config.closing_footer_meta = closingFooterMeta.textContent.trim().toUpperCase();
+
+  // Gantt / Slide 4
+  var ganttTitle = document.getElementById('ganttTitle');
+  var ganttSubtitle = document.getElementById('ganttSubtitle');
+  if (!data.gantt_config) data.gantt_config = {};
+  if (ganttTitle && ganttTitle.contentEditable === 'true') data.gantt_config.titulo = ganttTitle.textContent.trim();
+  if (ganttSubtitle && ganttSubtitle.contentEditable === 'true') data.gantt_config.subtitulo = ganttSubtitle.textContent.trim();
 
   // KPIs
   document.querySelectorAll('#kpis .kpi-card[data-kpi-orig-idx]').forEach(function(card) {
@@ -3777,6 +4294,7 @@ function openConfigDrawer() {
   document.getElementById('configDrawer').classList.add('open');
   document.getElementById('configDrawer').setAttribute('aria-hidden', 'false');
   document.getElementById('configDrawerBackdrop').style.display = 'block';
+  _attachGanttDrawerPreviewBridge();
 }
 
 function closeConfigDrawer() {
@@ -3785,6 +4303,30 @@ function closeConfigDrawer() {
   var b = document.getElementById('configDrawerBackdrop');
   if (b) b.style.display = 'none';
   _closeBadgeMenus();
+  _closeFloatingEditors();
+}
+
+function _attachGanttDrawerPreviewBridge() {
+  var drawer = document.getElementById('configDrawer');
+  if (!drawer || drawer.dataset.ganttPreviewBound) return;
+  drawer.dataset.ganttPreviewBound = '1';
+
+  function maybeRefresh(target, rebuildInlineEditor) {
+    if (!target || !target.closest || !target.closest('[data-live-preview="gantt"]')) return;
+    setTimeout(function () {
+      _syncGanttLivePreview({ rebuildInlineEditor: !!rebuildInlineEditor });
+    }, 0);
+  }
+
+  drawer.addEventListener('input', function (evt) {
+    maybeRefresh(evt.target, false);
+  });
+  drawer.addEventListener('change', function (evt) {
+    maybeRefresh(evt.target, false);
+  });
+  drawer.addEventListener('click', function (evt) {
+    maybeRefresh(evt.target, true);
+  });
 }
 
 function _registry() {
@@ -3950,6 +4492,7 @@ function _buildConfigDrawer() {
 
   /* ─ Cronograma Gantt ─ */
   var s7b = sec('Cronograma Gantt');
+  s7b.dataset.livePreview = 'gantt';
   addF(s7b, 'Título do Gantt', txt(v(gcfg.titulo, 'Cronograma & Marcos Críticos'), function(v){ d.gantt_config.titulo = v; }));
   addF(s7b, 'Subtítulo do Gantt', txt(v(gcfg.subtitulo, ''), function(v){ d.gantt_config.subtitulo = v; }));
   addF(s7b, 'Início da janela (dd/mm/aaaa)', txtDateFriendly(gcfg.data_inicio_janela, function(v){ d.gantt_config.data_inicio_janela = v; }));
@@ -3964,10 +4507,12 @@ function _buildConfigDrawer() {
   body.appendChild(s7b);
 
   var s7c = sec('Cronograma Gantt — Tarefas');
+  s7c.dataset.livePreview = 'gantt';
   s7c.appendChild(_drawerGanttTasks(d));
   body.appendChild(s7c);
 
   var s7d = sec('Cronograma Gantt — Marcos');
+  s7d.dataset.livePreview = 'gantt';
   s7d.appendChild(_drawerGanttMilestones(d));
   body.appendChild(s7d);
 
@@ -4125,7 +4670,7 @@ function _drawerGanttTasks(d) {
   var STATUS = ['Concluído', 'Em andamento', 'Planejado', 'Atrasado'];
   var wrap = document.createElement('div'); wrap.className = 'drawer-table-wrap';
   var tbl = document.createElement('table'); tbl.className = 'drawer-table';
-  tbl.innerHTML = '<thead><tr><th>Nome</th><th>Início</th><th>Fim</th><th>Progresso</th><th>Status</th><th>Owner</th><th></th></tr></thead>';
+  tbl.innerHTML = '<thead><tr><th></th><th>Nome</th><th>Início</th><th>Fim</th><th>Progresso</th><th>Status</th><th>Owner</th><th></th></tr></thead>';
   var tbody = document.createElement('tbody'); tbl.appendChild(tbody); wrap.appendChild(tbl);
 
   function mkRow(task, idx) {
@@ -4140,6 +4685,13 @@ function _drawerGanttTasks(d) {
       i.oninput = function () { cb(i.type === 'number' && i.value !== '' ? Number(i.value) : i.value); markDirty(); };
       return i;
     }
+    var order = document.createElement('div'); order.className = 'drawer-order-actions';
+    var up = document.createElement('button'); up.type='button'; up.className='drawer-order-btn'; up.textContent='↑'; up.disabled = idx === 0;
+    up.onclick = function(){ if (_moveArrayItem(d.gantt_tarefas, idx, -1)) { markDirty(); render(); _refreshGanttEditorSurfaces(); } };
+    var down = document.createElement('button'); down.type='button'; down.className='drawer-order-btn'; down.textContent='↓'; down.disabled = idx === d.gantt_tarefas.length - 1;
+    down.onclick = function(){ if (_moveArrayItem(d.gantt_tarefas, idx, 1)) { markDirty(); render(); _refreshGanttEditorSurfaces(); } };
+    order.appendChild(up); order.appendChild(down);
+    tr.appendChild(cell(order));
     tr.appendChild(cell(input(task.nome, function(v){ d.gantt_tarefas[idx].nome = v; })));
     tr.appendChild(cell(input(task.inicio, function(v){ d.gantt_tarefas[idx].inicio = v; }, 'text', 'dd/mm/aaaa')));
     tr.appendChild(cell(input(task.fim, function(v){ d.gantt_tarefas[idx].fim = v; }, 'text', 'dd/mm/aaaa')));
@@ -4150,7 +4702,7 @@ function _drawerGanttTasks(d) {
     tr.appendChild(cell(ss));
     tr.appendChild(cell(input(task.owner, function(v){ d.gantt_tarefas[idx].owner = v; })));
     var rb = document.createElement('button'); rb.type='button'; rb.className='drawer-rm-btn'; rb.innerHTML='×';
-    rb.onclick = function(){ d.gantt_tarefas.splice(idx,1); markDirty(); render(); };
+    rb.onclick = function(){ d.gantt_tarefas.splice(idx,1); markDirty(); render(); _refreshGanttEditorSurfaces(); };
     tr.appendChild(cell(rb));
     return tr;
   }
@@ -4162,7 +4714,7 @@ function _drawerGanttTasks(d) {
   var add = document.createElement('button'); add.type='button'; add.className='drawer-add-btn'; add.textContent='+ Adicionar tarefa';
   add.onclick = function () {
     d.gantt_tarefas.push({ id: Date.now(), parent_id: null, nome: 'Nova tarefa', inicio: '', fim: '', progresso: 0, status: 'Planejado', owner: '', dependencias: '' });
-    markDirty(); render();
+    markDirty(); render(); _refreshGanttEditorSurfaces();
   };
   var cont = document.createElement('div'); cont.appendChild(wrap); cont.appendChild(add); return cont;
 }
@@ -4171,7 +4723,7 @@ function _drawerGanttMilestones(d) {
   if (!d.gantt_marcos) d.gantt_marcos = [];
   var wrap = document.createElement('div'); wrap.className = 'drawer-table-wrap';
   var tbl = document.createElement('table'); tbl.className = 'drawer-table';
-  tbl.innerHTML = '<thead><tr><th>Nome</th><th>Data</th><th>Status</th><th>Tipo</th><th></th></tr></thead>';
+  tbl.innerHTML = '<thead><tr><th></th><th>Nome</th><th>Data</th><th>Status</th><th>Tipo</th><th></th></tr></thead>';
   var tbody = document.createElement('tbody'); tbl.appendChild(tbody); wrap.appendChild(tbl);
 
   function mkRow(marco, idx) {
@@ -4184,12 +4736,19 @@ function _drawerGanttMilestones(d) {
       i.oninput = function () { cb(i.value); markDirty(); };
       return i;
     }
+    var order = document.createElement('div'); order.className = 'drawer-order-actions';
+    var up = document.createElement('button'); up.type='button'; up.className='drawer-order-btn'; up.textContent='↑'; up.disabled = idx === 0;
+    up.onclick = function(){ if (_moveArrayItem(d.gantt_marcos, idx, -1)) { markDirty(); render(); _refreshGanttEditorSurfaces(); } };
+    var down = document.createElement('button'); down.type='button'; down.className='drawer-order-btn'; down.textContent='↓'; down.disabled = idx === d.gantt_marcos.length - 1;
+    down.onclick = function(){ if (_moveArrayItem(d.gantt_marcos, idx, 1)) { markDirty(); render(); _refreshGanttEditorSurfaces(); } };
+    order.appendChild(up); order.appendChild(down);
+    tr.appendChild(cell(order));
     tr.appendChild(cell(input(marco.nome, function(v){ d.gantt_marcos[idx].nome = v; })));
     tr.appendChild(cell(input(marco.data, function(v){ d.gantt_marcos[idx].data = v; }, 'dd/mm/aaaa')));
     tr.appendChild(cell(input(marco.status, function(v){ d.gantt_marcos[idx].status = v; })));
     tr.appendChild(cell(input(marco.tipo, function(v){ d.gantt_marcos[idx].tipo = v; })));
     var rb = document.createElement('button'); rb.type='button'; rb.className='drawer-rm-btn'; rb.innerHTML='×';
-    rb.onclick = function(){ d.gantt_marcos.splice(idx,1); markDirty(); render(); };
+    rb.onclick = function(){ d.gantt_marcos.splice(idx,1); markDirty(); render(); _refreshGanttEditorSurfaces(); };
     tr.appendChild(cell(rb));
     return tr;
   }
@@ -4201,7 +4760,7 @@ function _drawerGanttMilestones(d) {
   var add = document.createElement('button'); add.type='button'; add.className='drawer-add-btn'; add.textContent='+ Adicionar marco';
   add.onclick = function () {
     d.gantt_marcos.push({ id: Date.now(), nome: 'Novo marco', data: '', status: 'Planejado', tipo: 'star' });
-    markDirty(); render();
+    markDirty(); render(); _refreshGanttEditorSurfaces();
   };
   var cont = document.createElement('div'); cont.appendChild(wrap); cont.appendChild(add); return cont;
 }
@@ -4219,9 +4778,7 @@ document.addEventListener('DOMContentLoaded', function () {
       e.returnValue = '';
     });
     window.addEventListener('resize', function () {
-      syncDeckHeights();
-      if (_lastRenderData) renderCurvaS(_lastRenderData.data || {});
-      if (_lastRenderData) renderGantt((_lastRenderData.reportData || _lastRenderData.data || {}));
+      refreshDeckViewportLayout();
     });
     /* Re-render Curva S ao entrar/sair do modo impressão para usar dimensões corretas */
     window.addEventListener('beforeprint', function () {
@@ -4238,7 +4795,7 @@ document.addEventListener('DOMContentLoaded', function () {
         _isPresentationMode = false;
         document.body.classList.remove('presentation-mode');
       }
-      syncDeckHeights();
+      refreshDeckViewportLayout();
     });
     document.addEventListener('keydown', function (ev) {
       if (ev.key === 'Escape') {

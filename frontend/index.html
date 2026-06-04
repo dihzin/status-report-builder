@@ -419,6 +419,7 @@
     </div>
 
     <div class="gantt-legend" id="ganttLegend"></div>
+    <div class="gantt-inline-editor" id="ganttInlineEditor" hidden></div>
   </section>
   <footer class="footer-strip deck-shared-footer" data-shared-footer="true" role="contentinfo"></footer>
   </section>
@@ -446,6 +447,23 @@
     </div>
   </section>
 </main>
+
+<div id="ganttManageModal" class="app-modal" aria-hidden="true">
+  <div class="app-modal-backdrop" onclick="closeGanttManageModal()"></div>
+  <div class="app-modal-dialog gantt-manage-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="ganttManageModalTitle">
+    <div class="app-modal-header">
+      <div>
+        <p class="app-modal-eyebrow">Gantt</p>
+        <h3 id="ganttManageModalTitle">Editor completo de tarefas e marcos</h3>
+      </div>
+      <button class="app-modal-close" type="button" onclick="closeGanttManageModal()" aria-label="Fechar">&times;</button>
+    </div>
+    <div id="ganttManageModalBody" class="app-modal-body gantt-manage-modal-body"></div>
+    <div class="app-modal-footer">
+      <button class="tb-btn tb-btn-soft" type="button" onclick="closeGanttManageModal()">Fechar</button>
+    </div>
+  </div>
+</div>
 
 <div id="updateModal" class="app-modal" aria-hidden="true">
   <div class="app-modal-backdrop" onclick="closeUpdateModal()"></div>
