@@ -492,13 +492,21 @@ foreach ($item in $toCopy) {{
 }}
 try {{
   foreach ($item in $toCopy) {{
-    Copy-Item -Path $item.FullName -Destination (Join-Path $InstallDir $item.Name) -Recurse -Force
+    $dest = Join-Path $InstallDir $item.Name
+    if ($item.PSIsContainer) {{
+      $rc = robocopy $item.FullName $dest /mir /r:2 /w:1
+      if ($LASTEXITCODE -ge 8) {{ throw "robocopy falhou ($LASTEXITCODE) copiando $($item.Name)" }}
+    }} else {{
+      Copy-Item -Path $item.FullName -Destination $dest -Force
+    }}
   }}
   Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] Apply concluído."
 }} catch {{
   Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [ERROR] Falha no apply, iniciando rollback: $($_.Exception.Message)"
   foreach ($item in Get-ChildItem -Path $BackupDir) {{
-    Copy-Item -Path $item.FullName -Destination (Join-Path $InstallDir $item.Name) -Recurse -Force
+    $dest = Join-Path $InstallDir $item.Name
+    if ($item.PSIsContainer) {{ robocopy $item.FullName $dest /mir /r:1 /w:0 *> $null }}
+    else {{ Copy-Item -Path $item.FullName -Destination $dest -Force }}
   }}
   Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] Rollback concluído."
   throw
