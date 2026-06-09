@@ -2225,12 +2225,21 @@ function renderKPIs(d) {
   // Tipos omitidos: compass/progress redundam com o topbar; calendar é metadado (está no rodapé)
   var SKIP_TIPOS = { compass: true, progress: true, calendar: true };
 
+  // Pré-computa contagens do RAID para o KPI "risco atual"
+  var _raidOpenItems = (d.pendencias_criticas || []).filter(_isRiskOpen);
+  var _raidOpenCount = _raidOpenItems.length;
+  var _raidP1Count   = _raidOpenItems.filter(function(i){ return _priorityNum(i.prioridade) === 1; }).length;
+  var _raidKpiVal    = _raidOpenCount + (_raidOpenCount === 1 ? ' aberto' : ' abertos') +
+                       (_raidP1Count > 0 ? ' / ' + _raidP1Count + (_raidP1Count === 1 ? ' crítico' : ' críticos') : '');
+
   el.innerHTML = kpis.map(function (k, origIdx) {
     if (SKIP_TIPOS[k.tipo || '']) return '';
     var tipo  = k.tipo  || '';
     var nivel = v(k.nivel, 'success');
     var val   = v(k.valor, '');
     var label = v(k.titulo, '');
+    // KPI "risco atual": valor sempre derivado ao vivo de pendencias_criticas
+    if (String(label).toLowerCase().indexOf('risco atual') >= 0) val = _raidKpiVal;
     var sub   = v(k.subtitulo, '');
 
     if (tipo === 'calendar' || /^\d{4}-\d{2}-\d{2}T/.test(val)) {
