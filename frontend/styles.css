@@ -2721,6 +2721,13 @@ body.presentation-mode .page-shell {
 .critical-table .empty-state {
   width: 100%;
 }
+.critical-table .pendencias-overflow td {
+  padding: 4px 12px 6px;
+  font-size: 11px;
+  color: var(--p-text-muted, #888);
+  font-style: italic;
+  border-top: 1px dashed var(--p-border, #e0e0e0);
+}
 
 /* ===== Summary ===== */
 .summary-list {

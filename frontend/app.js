@@ -2305,7 +2305,25 @@ function renderPendencias(d) {
       '<p>Nenhuma pendência crítica cadastrada</p></td></tr>';
     return;
   }
-  el.innerHTML = items.map(function (p, idx) {
+
+  // Em view mode: top 3 ordenados por prioridade+score. Edit mode: todos na ordem original.
+  var displayItems;
+  if (editMode) {
+    displayItems = items.map(function(p, i) { return { item: p, origIdx: i }; });
+  } else {
+    displayItems = items
+      .map(function(p, i) { return { item: p, origIdx: i }; })
+      .sort(function(a, b) {
+        var p = _priorityNum(a.item.prioridade) - _priorityNum(b.item.prioridade);
+        return p !== 0 ? p : Number(b.item.score || 0) - Number(a.item.score || 0);
+      })
+      .slice(0, 3);
+  }
+  var extra = (!editMode && items.length > 3) ? items.length - 3 : 0;
+
+  el.innerHTML = displayItems.map(function (entry) {
+    var p   = entry.item;
+    var idx = entry.origIdx;
     // Pill de prioridade — escala de vermelho (P1 mais escuro → P4 mais suave)
     var prioKey = (p.prioridade || '').toLowerCase().replace(/\s/g, '');
     var prioCls = 'prio-' + (prioKey || 'p1');
@@ -2332,7 +2350,9 @@ function renderPendencias(d) {
       '<td><span class="priority-pill ' + prioCls + '">' + esc(p.prioridade) + '</span></td>' +
       '<td><div class="risk-title">' + esc(p.item) + '</div>' + metaHtml + '</td>' +
       '</tr>';
-  }).join('');
+  }).join('') + (extra > 0
+    ? '<tr class="pendencias-overflow"><td colspan="2">+' + extra + ' no Risk Board</td></tr>'
+    : '');
 }
 
 /* ===== Próximas Ações ===== */
