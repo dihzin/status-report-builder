@@ -8,7 +8,7 @@ from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 
 from backend.watcher import start_watcher
 from backend.exporter import export_pdf, export_pptx
@@ -90,6 +90,15 @@ _MEDIA_TYPES = {
     ".json": "application/json",
     ".woff2": "font/woff2",
 }
+
+
+def _render_frontend_html(file_path: Path) -> HTMLResponse:
+    html = file_path.read_text(encoding="utf-8")
+    version_suffix = f"?v={APP_VERSION}"
+    html = html.replace('href="styles.css"', f'href="styles.css{version_suffix}"')
+    html = html.replace('src="deckFieldRegistry.js"', f'src="deckFieldRegistry.js{version_suffix}"')
+    html = html.replace('src="app.js"', f'src="app.js{version_suffix}"')
+    return HTMLResponse(content=html)
 
 
 @app.get("/health")
@@ -200,6 +209,8 @@ async def serve_frontend(full_path: str):
     target = full_path if full_path else "index.html"
     file_path = FRONTEND_DIR / target
     if file_path.exists() and file_path.is_file():
+        if file_path.suffix.lower() == ".html":
+            return _render_frontend_html(file_path)
         mt = _MEDIA_TYPES.get(file_path.suffix.lower())
         return FileResponse(str(file_path), media_type=mt)
-    return FileResponse(str(FRONTEND_DIR / "index.html"), media_type="text/html")
+    return _render_frontend_html(FRONTEND_DIR / "index.html")

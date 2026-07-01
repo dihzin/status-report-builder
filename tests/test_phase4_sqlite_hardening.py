@@ -1,7 +1,9 @@
 import asyncio
 import base64
+import gc
 import importlib
 import sqlite3
+import time
 from pathlib import Path
 
 from pptx import Presentation
@@ -32,6 +34,7 @@ def _service(root: Path) -> ReportService:
 
 def _patch_db(monkeypatch, root: Path):
     import backend.db as db_module
+
     monkeypatch.setattr(db_module, "ROOT_DIR", root)
     monkeypatch.setattr(db_module, "DATA_DIR", root / "data")
     monkeypatch.setattr(db_module, "DB_PATH", root / "data" / "status_builder.db")
@@ -69,23 +72,33 @@ def test_existing_db_without_excel_still_runs(tmp_path, monkeypatch):
 
     svc = _service(root)
     svc.get_status_payload()
-    excel.unlink()
+    gc.collect()
+    for _ in range(5):
+        try:
+            excel.unlink()
+            break
+        except PermissionError:
+            time.sleep(0.1)
+    else:
+        raise AssertionError("Nao foi possivel remover status_projeto.xlsx durante o teste")
 
     payload = svc.get_status_payload()
     assert payload["reportData"]
 
 
-def test_empty_db_without_excel_returns_friendly_error(tmp_path, monkeypatch):
+def test_empty_db_without_excel_creates_template_and_seeds_sqlite(tmp_path, monkeypatch):
     root = _root(tmp_path)
     _patch_db(monkeypatch, root)
     ensure_db()
 
     svc = _service(root)
-    try:
-        svc.get_status_payload()
-        assert False, "Era esperado erro quando SQLite está vazio e Excel ausente"
-    except RuntimeError as exc:
-        assert "SQLite vazio" in str(exc)
+    payload = svc.get_status_payload()
+
+    assert payload["reportData"]
+    assert _excel_path(root).exists()
+    src, version = _current_snapshot_meta(_db_path(root))
+    assert src == "excel_import"
+    assert version == 1
 
 
 def test_save_legacy_and_canonical_with_unique_versions_and_single_current(tmp_path, monkeypatch):
@@ -123,8 +136,8 @@ def test_excel_manual_change_does_not_override_sqlite(tmp_path, monkeypatch):
     svc.get_status_payload()
     svc.save_payload({"reportData": {"config": {"project_name": "SQLITE_PRIORITY"}}})
 
-    # altera Excel manualmente
     import openpyxl
+
     wb = openpyxl.load_workbook(str(excel))
     ws = wb["CONFIG"]
     for row in ws.iter_rows(min_row=1):
@@ -147,6 +160,7 @@ def test_export_pdf_and_pptx_use_sqlite_data(tmp_path, monkeypatch):
     svc.save_payload({"reportData": {"config": {"project_name": "PPTX_SQLITE_NAME"}}})
 
     import backend.exporter as exporter_module
+
     monkeypatch.setattr(exporter_module, "ROOT_DIR", root)
     monkeypatch.setattr(exporter_module, "PDF_DIR", root / "exports" / "pdf")
     monkeypatch.setattr(exporter_module, "PPTX_DIR", root / "exports" / "pptx")
@@ -160,7 +174,6 @@ def test_export_pdf_and_pptx_use_sqlite_data(tmp_path, monkeypatch):
         if action == "pdf":
             p.write_bytes(b"%PDF-FAKE")
         elif action == "screenshot":
-            # 1x1 PNG branco
             png_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Zl9sAAAAASUVORK5CYII="
             p.write_bytes(base64.b64decode(png_b64))
 
@@ -346,6 +359,7 @@ def test_status_does_not_depend_on_excel_validation_when_flag_false(tmp_path, mo
     create_template(str(_excel_path(root)))
 
     import backend.services.report_service as report_service_module
+
     monkeypatch.setenv("VALIDATE_EXCEL_SCHEMA", "false")
     importlib.reload(report_service_module)
 

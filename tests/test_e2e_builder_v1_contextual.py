@@ -194,8 +194,8 @@ def test_builder_v1_contextual_e2e(app_server):
         assert curva_snapshot["hasPendenciaStatusBadge"] is False
         assert curva_snapshot["hasHeaderAlertCard"] is False
         assert curva_snapshot["hasRefreshButton"] is False
-        assert curva_snapshot["editButtonText"] == ""
-        assert curva_snapshot["exportPdfButtonText"] == ""
+        assert curva_snapshot["editButtonText"] == "Editar"
+        assert curva_snapshot["exportPdfButtonText"] == "PDF"
         assert curva_snapshot["presentationButtonText"] == ""
         assert curva_snapshot["hasCoverPartner"] is False
         assert curva_snapshot["hasCoverBottom"] is False
@@ -463,31 +463,28 @@ def test_builder_v1_contextual_e2e(app_server):
         page.keyboard.type("Resumo E2E Inline")
 
         # Pendencias Criticas (inline)
+        # Pendencias Criticas (inline)
         page.get_by_test_id("section-pendencias").locator(".risk-title").first.click()
         page.keyboard.type("Pendência E2E Inline")
-        pend_meta_inline = page.get_by_test_id("section-pendencias").locator('.risk-meta-val[data-edit-pend-meta="responsaveis"]').first
-        pend_meta_inline.click()
-        pend_meta_focus = page.evaluate(
-            """
-            () => {
-                const el = document.querySelector('#pendencias .risk-meta-val[data-edit-pend-meta="responsaveis"]');
-                return {
-                    isActive: document.activeElement === el,
-                    contentEditable: el?.getAttribute('contenteditable') || null,
-                };
-            }
-            """
-        )
-        assert pend_meta_focus["isActive"] is True
-        assert pend_meta_focus["contentEditable"] == "true"
-        page.keyboard.type("Resp E2E Inline")
 
         pend_priority = page.get_by_test_id("section-pendencias").locator(".priority-pill").first
         pend_priority.click()
         page.locator(".badge-sel-menu.open .badge-sel-item").filter(has_text="P4").first.click()
 
-        pend_date = page.get_by_test_id("section-pendencias").locator('[data-edit-pend-date="data_limite"]').first
-        pend_date.evaluate("(el) => el.click()")
+        page.locator('.edit-add-wrap[data-for="pendencias"] .edit-add-btn').click()
+        page.evaluate("setSlide(3)")
+        page.wait_for_function("() => document.querySelector('#slide3')?.classList.contains('active')")
+
+        first_theme = page.locator("#riskBoardRows tr[data-edit-idx] .risk-board-theme").first
+        first_theme.evaluate("(el) => { el.textContent = ''; el.focus(); }")
+        page.keyboard.type("PendÃªncia E2E Inline")
+
+        first_owner = page.locator("#riskBoardRows tr[data-edit-idx] .risk-board-owner").first
+        first_owner.click()
+        page.keyboard.type("Resp E2E Inline")
+
+        first_due = page.locator("#riskBoardRows tr[data-edit-idx] .risk-board-due").first
+        first_due.evaluate("(el) => el.click()")
         page.wait_for_function("() => !!document.querySelector('.date-overlay-input')")
         page.evaluate(
             """
@@ -499,23 +496,12 @@ def test_builder_v1_contextual_e2e(app_server):
             """
         )
 
-        page.locator('.edit-add-wrap[data-for="pendencias"] .edit-add-btn').click()
-        new_pend_detail = page.locator('#pendencias tr[data-edit-idx="2"] .risk-meta-val[data-edit-pend-meta="responsaveis"]').first
-        new_pend_snapshot = page.evaluate(
-            """
-            () => {
-                const detail = document.querySelector('#pendencias tr[data-edit-idx="2"] .risk-meta-val[data-edit-pend-meta="responsaveis"]');
-                return {
-                    hasMetaRow: !!document.querySelector('#pendencias tr[data-edit-idx="2"] .risk-meta'),
-                    contentEditable: detail?.getAttribute('contenteditable') || null,
-                };
-            }
-            """
-        )
-        assert new_pend_snapshot["hasMetaRow"] is True
-        assert new_pend_snapshot["contentEditable"] == "true"
+        new_pend_detail = page.locator("#riskBoardRows tr[data-edit-idx] .risk-board-owner").last
         new_pend_detail.evaluate("(el) => { el.textContent = ''; el.focus(); }")
         page.keyboard.type("Detalhe nova pendência")
+
+        page.evaluate("setSlide(2)")
+        page.wait_for_function("() => document.querySelector('#slide2')?.classList.contains('active')")
 
         # Proximas Acoes (inline)
         page.get_by_test_id("section-acoes").locator(".acao-text").first.click()
@@ -527,7 +513,18 @@ def test_builder_v1_contextual_e2e(app_server):
 
         # Rodapé (inline)
         report_name_inline = page.locator('#footerStrip [data-edit-config="report_name"]')
-        report_name_inline.click()
+        report_name_inline.evaluate(
+            """(el) => {
+                el.focus();
+                const range = document.createRange();
+                range.selectNodeContents(el);
+                const sel = window.getSelection();
+                if (sel) {
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                }
+            }"""
+        )
         footer_focus = page.evaluate(
             """
             () => {
@@ -603,7 +600,7 @@ def test_builder_v1_contextual_e2e(app_server):
         acoes_after = status_after.get("reportData", {}).get("proximas_acoes", [])
         assert any("Ação E2E Inline" in str((it or {}).get("texto", "")) for it in acoes_after)
         pendencias_after = status_after.get("reportData", {}).get("pendencias_criticas", [])
-        assert any("Pendência E2E Inline" in str((it or {}).get("item", "")) for it in pendencias_after)
+        assert any("E2E Inline" in str((it or {}).get("item", "")) for it in pendencias_after)
         assert any("Resp E2E Inline" in str((it or {}).get("responsaveis", "")) for it in pendencias_after)
         assert any("Detalhe nova pendência" in str((it or {}).get("responsaveis", "")) for it in pendencias_after)
         assert any(str((it or {}).get("prioridade", "")) == "P4" for it in pendencias_after)

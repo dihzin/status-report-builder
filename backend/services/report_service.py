@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from backend.db import ensure_db
+from backend.excel_reader import create_template
 from backend.excel_writer import write_excel
 from backend.report_data import build_report_data, to_legacy_data_shape
 from backend.repositories.report_repository import ReportRepository
@@ -42,7 +43,8 @@ class ReportService:
             return
 
         if not self.excel_path.exists():
-            raise RuntimeError("SQLite vazio e arquivo status_projeto.xlsx não encontrado")
+            self.excel_path.parent.mkdir(parents=True, exist_ok=True)
+            create_template(str(self.excel_path))
 
         self.excel_import.backup_excel_if_exists()
         report_data, legacy_data, _, _ = self.excel_import.import_from_excel()

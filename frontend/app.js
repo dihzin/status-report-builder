@@ -913,6 +913,17 @@ function renderGantt(d) {
 
   // Cores por status: navy + laranja (branding do projeto)
   var phasePalette = ['#4361ee','#e85d04','#2d9d5f','#7b2fbe','#0891b2','#c0392b','#f6a623']; // unused, kept for safety
+  var ganttType = {
+    month: 11.5,
+    sideLabel: 9.5,
+    weekLabel: 7.8,
+    weekDate: 7.4,
+    today: 8.2,
+    barDate: 10.6,
+    barProgress: 9.8,
+    phaseName: 12.5,
+    phaseStatus: 10.2
+  };
 
   var hasConcluido = false;
   var hasAndamento = false;
@@ -1109,11 +1120,11 @@ function renderGantt(d) {
     var endIdx = m.startIdx + m.count;
     var x2 = endIdx < weekStarts.length ? sx(weekStarts[endIdx]) : sx(addDays(weekStarts[weekStarts.length - 1], 7));
     var mx = (x1 + x2) / 2;
-    html += '<text x="' + mx.toFixed(1) + '" y="' + (msAnnotH + 16) + '" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="10.5" font-weight="800" fill="#1e3a6e" letter-spacing="0.1em">' + esc(m.label) + '</text>';
+    html += '<text x="' + mx.toFixed(1) + '" y="' + (msAnnotH + 16) + '" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="' + ganttType.month + '" font-weight="800" fill="#1e3a6e" letter-spacing="0.1em">' + esc(m.label) + '</text>';
   });
 
   // Label "FASE" no header da coluna esquerda
-  html += '<text x="' + (origPadL + 10) + '" y="' + (msAnnotH + 16) + '" font-family="Inter,system-ui,sans-serif" font-size="8.5" font-weight="800" fill="#1e3a6e" letter-spacing="0.1em" opacity="0.55">FASE</text>';
+  html += '<text x="' + (origPadL + 10) + '" y="' + (msAnnotH + 16) + '" font-family="Inter,system-ui,sans-serif" font-size="' + ganttType.sideLabel + '" font-weight="800" fill="#1e3a6e" letter-spacing="0.1em" opacity="0.55">FASE</text>';
 
   // Labels de semana (S1 … Sn)
   for (var i = 0; i < weekStarts.length; i++) {
@@ -1122,8 +1133,8 @@ function renderGantt(d) {
     var wxc = (xws + xwe) / 2;
     var weekTopY = msAnnotH + monthRowH + 8;
     var weekBottomY = msAnnotH + monthRowH + 18;
-    html += '<text x="' + wxc.toFixed(1) + '" y="' + weekTopY + '" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="6.8" font-weight="800" fill="#8b99b1">S' + (i + 1) + '</text>';
-    html += '<text x="' + wxc.toFixed(1) + '" y="' + weekBottomY + '" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="6.6" font-weight="700" fill="#9aa7bc">' + esc(formatDateBR(weekStarts[i])) + '</text>';
+    html += '<text x="' + wxc.toFixed(1) + '" y="' + weekTopY + '" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="' + ganttType.weekLabel + '" font-weight="800" fill="#8b99b1">S' + (i + 1) + '</text>';
+    html += '<text x="' + wxc.toFixed(1) + '" y="' + weekBottomY + '" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="' + ganttType.weekDate + '" font-weight="700" fill="#9aa7bc">' + esc(formatDateBR(weekStarts[i])) + '</text>';
   }
 
   // Borda inferior do header
@@ -1146,7 +1157,7 @@ function renderGantt(d) {
     var tagY = H - bottomZone + 4;
     html += '<line data-gantt-edit="today" x1="' + tx.toFixed(1) + '" y1="' + headerH + '" x2="' + tx.toFixed(1) + '" y2="' + (tagY - 2) + '" stroke="#dd6b20" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.55"/>';
     html += '<rect data-gantt-edit="today" x="' + (tx - phW / 2).toFixed(1) + '" y="' + tagY + '" width="' + phW + '" height="' + phH + '" rx="3" fill="#dd6b20"/>';
-    html += '<text data-gantt-edit="today" x="' + tx.toFixed(1) + '" y="' + (tagY + phH / 2) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="7.5" font-weight="800" fill="white" letter-spacing="0.07em">HOJE</text>';
+    html += '<text data-gantt-edit="today" x="' + tx.toFixed(1) + '" y="' + (tagY + phH / 2) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="' + ganttType.today + '" font-weight="800" fill="white" letter-spacing="0.07em">HOJE</text>';
   }
 
   // Anotações de marcos — diamante acima, pill abaixo
@@ -1199,11 +1210,11 @@ function renderGantt(d) {
     if (isPlanned) {
       html += '<rect data-gantt-edit="task-progress" data-gantt-task-idx="' + e.idx + '" x="' + x1.toFixed(1) + '" y="' + barY.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + barH + '" rx="' + rr + '" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5 3"/>';
       if (barW > 76) {
-        html += '<text x="' + (x1 + barW / 2).toFixed(1) + '" y="' + midBarY + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9.5" font-weight="500" fill="#94a3b8">' + esc(dLbl) + '</text>';
+        html += '<text x="' + (x1 + barW / 2).toFixed(1) + '" y="' + midBarY + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="' + ganttType.barDate + '" font-weight="500" fill="#94a3b8">' + esc(dLbl) + '</text>';
       } else {
         var extX = x1 + barW + 5;
         if (extX + 80 < W - padR) {
-          html += '<text x="' + extX.toFixed(1) + '" y="' + midBarY + '" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9.5" font-weight="500" fill="#94a3b8">' + esc(dLbl) + '</text>';
+          html += '<text x="' + extX.toFixed(1) + '" y="' + midBarY + '" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="' + ganttType.barDate + '" font-weight="500" fill="#94a3b8">' + esc(dLbl) + '</text>';
         }
       }
     } else {
@@ -1217,14 +1228,14 @@ function renderGantt(d) {
       var pctNum = Math.round(Math.min(Math.max(e.progress, 0), 100));
       var pctTxt = pctNum + '%';
       if (barW > 76) {
-        html += '<text x="' + (x1 + barW / 2).toFixed(1) + '" y="' + (midBarY - 3).toFixed(1) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9.5" font-weight="600" fill="rgba(255,255,255,0.92)">' + esc(dLbl) + '</text>';
-        if (showProgress) html += '<text data-gantt-edit="task-progress" data-gantt-task-idx="' + e.idx + '" x="' + (x1 + barW / 2).toFixed(1) + '" y="' + (midBarY + 8).toFixed(1) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9" font-weight="800" fill="rgba(255,255,255,0.7)">' + pctTxt + '</text>';
+        html += '<text x="' + (x1 + barW / 2).toFixed(1) + '" y="' + (midBarY - 3).toFixed(1) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="' + ganttType.barDate + '" font-weight="600" fill="rgba(255,255,255,0.92)">' + esc(dLbl) + '</text>';
+        if (showProgress) html += '<text data-gantt-edit="task-progress" data-gantt-task-idx="' + e.idx + '" x="' + (x1 + barW / 2).toFixed(1) + '" y="' + (midBarY + 8).toFixed(1) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="' + ganttType.barProgress + '" font-weight="800" fill="rgba(255,255,255,0.7)">' + pctTxt + '</text>';
       } else if (barW > 32) {
-        if (showProgress) html += '<text data-gantt-edit="task-progress" data-gantt-task-idx="' + e.idx + '" x="' + (x1 + barW / 2).toFixed(1) + '" y="' + midBarY.toFixed(1) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9" font-weight="800" fill="rgba(255,255,255,0.85)">' + pctTxt + '</text>';
+        if (showProgress) html += '<text data-gantt-edit="task-progress" data-gantt-task-idx="' + e.idx + '" x="' + (x1 + barW / 2).toFixed(1) + '" y="' + midBarY.toFixed(1) + '" text-anchor="middle" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="' + ganttType.barProgress + '" font-weight="800" fill="rgba(255,255,255,0.85)">' + pctTxt + '</text>';
       } else {
         var extX = x1 + barW + 5;
         if (extX + 70 < W - padR) {
-          html += '<text x="' + extX.toFixed(1) + '" y="' + midBarY + '" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9.5" font-weight="600" fill="' + color + '">' + esc(dLbl) + '</text>';
+          html += '<text x="' + extX.toFixed(1) + '" y="' + midBarY + '" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="' + ganttType.barDate + '" font-weight="600" fill="' + color + '">' + esc(dLbl) + '</text>';
         }
       }
     }
@@ -1238,8 +1249,8 @@ function renderGantt(d) {
     var maxNameW = leftColW - 30;
     var nameStr = e.name.length > 24 ? e.name.slice(0, 23) + '…' : e.name;
     html += '<circle data-gantt-edit="task-status" data-gantt-task-idx="' + e.idx + '" cx="' + (origPadL + 9) + '" cy="' + nameY.toFixed(1) + '" r="4.5" fill="' + color + '" opacity="' + (isPlanned ? '0.38' : '1') + '"/>';
-    html += '<text data-gantt-edit="task-name" data-gantt-task-idx="' + e.idx + '" x="' + (origPadL + 20) + '" y="' + nameY.toFixed(1) + '" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="11" font-weight="700" fill="' + (isPlanned ? '#94a3b8' : '#1e293b') + '">' + esc(nameStr) + '</text>';
-    html += '<text data-gantt-edit="task-status" data-gantt-task-idx="' + e.idx + '" x="' + (origPadL + 20) + '" y="' + statusY.toFixed(1) + '" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="9" font-weight="500" fill="' + color + '" opacity="' + (isPlanned ? '0.5' : '0.75') + '">' + esc(statusLabel) + '</text>';
+    html += '<text data-gantt-edit="task-name" data-gantt-task-idx="' + e.idx + '" x="' + (origPadL + 20) + '" y="' + nameY.toFixed(1) + '" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="' + ganttType.phaseName + '" font-weight="700" fill="' + (isPlanned ? '#94a3b8' : '#1e293b') + '">' + esc(nameStr) + '</text>';
+    html += '<text data-gantt-edit="task-status" data-gantt-task-idx="' + e.idx + '" x="' + (origPadL + 20) + '" y="' + statusY.toFixed(1) + '" dominant-baseline="middle" font-family="Inter,system-ui,sans-serif" font-size="' + ganttType.phaseStatus + '" font-weight="500" fill="' + color + '" opacity="' + (isPlanned ? '0.5' : '0.75') + '">' + esc(statusLabel) + '</text>';
   });
 
   svg.innerHTML = html;
@@ -1696,6 +1707,15 @@ function _riskStatusTone(status) {
   return 'neutral';
 }
 
+function _normalizeRiskImpactValue(value) {
+  var s = String(value || '').trim().toLowerCase();
+  if (!s) return null;
+  if (s === 'alto' || s === 'high') return 'High';
+  if (s === 'mÃ©dio' || s === 'medio' || s === 'medium') return 'Medium';
+  if (s === 'baixo' || s === 'low') return 'Low';
+  return null;
+}
+
 function _humanLevel(val) {
   var s = String(val || '').trim();
   if (!s) return '';
@@ -1744,6 +1764,25 @@ function _riskImpactSummary(item) {
   return 'Avaliar impacto';
 }
 
+function _riskImpactDisplay(item) {
+  var impact = _humanLevel(item.impacto);
+  if (impact) return impact;
+  if (item.impacto_display) return String(item.impacto_display).trim();
+  var prob = _humanLevel(item.probabilidade);
+  if (prob) return prob + ' prob.';
+  if (Number(item.score || 0) > 0) return 'Score ' + item.score;
+  return 'Avaliar impacto';
+}
+
+function _heatmapColumnForItem(item) {
+  if (Number(item.score || 0) >= 10 || _priorityNum(item.prioridade) === 1) return 'CrÃ­tico';
+  var p = _priorityNum(item.prioridade);
+  if (p === 2) return 'Alto';
+  if (p === 3) return 'MÃ©dio';
+  if (p === 4) return 'Baixo';
+  return 'MÃ©dio';
+}
+
 function _riskMitigationSummary(item) {
   var raw = String(item.comentarios || item.estrategia || '').trim();
   if (!raw) return 'Definir plano de mitigação e owner final';
@@ -1752,10 +1791,102 @@ function _riskMitigationSummary(item) {
 
 function _riskMetaSummary(item) {
   var parts = [];
-  if (item.responsaveis) parts.push(item.responsaveis);
   if (item.id_origem) parts.push(item.id_origem);
   if (item.categoria) parts.push(item.categoria);
   return parts.length ? parts.join(' • ') : 'Sem contexto adicional';
+}
+
+function _riskCompactSubtitle(item) {
+  var subtitle = String(
+    item.id_origem ||
+    item.categoria ||
+    item.comentarios ||
+    item.estrategia ||
+    item.responsaveis ||
+    ''
+  ).trim();
+  return subtitle;
+}
+
+function _parseRiskScoreValue(rawValue) {
+  var raw = String(rawValue || '').trim();
+  if (!raw) return null;
+  var normalized = raw.replace(/^score\s*/i, '').trim();
+  if (!normalized) return null;
+  var num = parseFloat(normalized);
+  return isFinite(num) ? num : normalized;
+}
+
+function _rebuildImpactHeatmap(board, items) {
+  if (!board) return board;
+  var heatRows = ['Alto', 'MÃ©dio', 'Baixo'];
+  var heatCols = ['Baixo', 'MÃ©dio', 'Alto', 'CrÃ­tico'];
+  var heatmap = {};
+  heatRows.forEach(function (row) {
+    heatmap[row] = {};
+    heatCols.forEach(function (col) { heatmap[row][col] = 0; });
+  });
+  (items || []).filter(_isRiskOpen).forEach(function (item) {
+    var row = _humanLevel(item.impacto) || 'MÃ©dio';
+    var col = _heatmapColumnForItem(item);
+    if (!heatmap[row]) row = 'MÃ©dio';
+    if (!(col in heatmap[row])) col = col === 'CrÃ­tico' ? 'CrÃ­tico' : 'MÃ©dio';
+    heatmap[row][col] += 1;
+  });
+  board.heatRows = heatRows;
+  board.heatCols = heatCols;
+  board.heatmap = heatmap;
+  return board;
+}
+
+function _humanLevel(val) {
+  var s = String(val || '').trim();
+  if (!s) return '';
+  var low = s.toLowerCase();
+  if (low === 'high') return 'Alto';
+  if (low === 'medium') return 'Médio';
+  if (low === 'low') return 'Baixo';
+  return s;
+}
+
+function _normalizeRiskImpactValue(value) {
+  var s = String(value || '').trim().toLowerCase();
+  if (!s) return null;
+  if (s === 'alto' || s === 'high') return 'High';
+  if (s === 'médio' || s === 'medio' || s === 'medium') return 'Medium';
+  if (s === 'baixo' || s === 'low') return 'Low';
+  return null;
+}
+
+function _heatmapColumnForItem(item) {
+  if (Number(item.score || 0) >= 10 || _priorityNum(item.prioridade) === 1) return 'Crítico';
+  var p = _priorityNum(item.prioridade);
+  if (p === 2) return 'Alto';
+  if (p === 3) return 'Médio';
+  if (p === 4) return 'Baixo';
+  return 'Médio';
+}
+
+function _rebuildImpactHeatmap(board, items) {
+  if (!board) return board;
+  var heatRows = ['Alto', 'Médio', 'Baixo'];
+  var heatCols = ['Baixo', 'Médio', 'Alto', 'Crítico'];
+  var heatmap = {};
+  heatRows.forEach(function (row) {
+    heatmap[row] = {};
+    heatCols.forEach(function (col) { heatmap[row][col] = 0; });
+  });
+  (items || []).filter(_isRiskOpen).forEach(function (item) {
+    var row = _humanLevel(item.impacto) || 'Médio';
+    var col = _heatmapColumnForItem(item);
+    if (!heatmap[row]) row = 'Médio';
+    if (!(col in heatmap[row])) col = col === 'Crítico' ? 'Crítico' : 'Médio';
+    heatmap[row][col] += 1;
+  });
+  board.heatRows = heatRows;
+  board.heatCols = heatCols;
+  board.heatmap = heatmap;
+  return board;
 }
 
 function _buildRiskBoardModel(d) {
@@ -1783,21 +1914,24 @@ function _buildRiskBoardModel(d) {
   // Em view mode: top 5 ordenados por prioridade (comportamento padrão)
   var displayItems = editMode ? pendencias : sorted.slice(0, 5);
   var boardRows = displayItems.map(function (item) {
+    var isEditRow = !!editMode;
     return {
       origIdx: pendencias.indexOf(item),
       type: _riskTypeForBoard(item),
       tone: _riskToneForBoard(item),
       priority: String(item.prioridade || 'P?').toUpperCase(),
       priorityLabel: _priorityLabel(item.prioridade),
-      theme: _truncateForBoard(item.item, 44),
-      meta: _truncateForBoard(_riskMetaSummary(item), 56),
-      impact: _riskImpactSummary(item),
-      impactMeta: item.score ? 'Score ' + item.score : (item.estrategia ? _humanLevel(item.estrategia) : 'Sem score'),
-      mitigation: _riskMitigationSummary(item),
-      owner: _truncateForBoard(item.responsaveis || 'A definir', 18),
+      theme: isEditRow ? String(item.item || '').trim() : _truncateForBoard(item.item, 44),
+      meta: _riskCompactSubtitle(item),
+      impact: isEditRow ? String(_riskImpactDisplay(item) || '').trim() : _riskImpactDisplay(item),
+      impactMeta: isEditRow
+        ? (item.score !== null && item.score !== undefined && String(item.score) !== '' ? String(item.score).trim() : (item.estrategia ? _humanLevel(item.estrategia) : ''))
+        : (item.score ? 'Score ' + item.score : (item.estrategia ? _humanLevel(item.estrategia) : 'Sem score')),
+      mitigation: isEditRow ? String(item.comentarios || item.estrategia || '').trim() : _riskMitigationSummary(item),
+      owner: isEditRow ? String(item.responsaveis || '').trim() : _truncateForBoard(item.responsaveis || 'A definir', 18),
       due: item.data_limite ? fmtDateShort(item.data_limite) : '-',
       rawDue: item.data_limite || '',
-      status: _truncateForBoard(item.status || 'Aberto', 18),
+      status: isEditRow ? String(item.status || '').trim() : _truncateForBoard(item.status || 'Aberto', 18),
       statusTone: _riskStatusTone(item.status)
     };
   });
@@ -1894,7 +2028,7 @@ function renderDeckSlides(d) {
   set('ganttTitle', v(ganttCfg.titulo, 'Cronograma & Marcos Críticos'));
   set('ganttSubtitle', v(ganttCfg.subtitulo, 'Fase atual: ' + v(cfg.current_phase, '-') + ' | Dia ' + v(cfg.current_day, '-') + ' de ' + v(cfg.total_days, '-')));
 
-  var riskBoard = _buildRiskBoardModel(d);
+  var riskBoard = _rebuildImpactHeatmap(_buildRiskBoardModel(d), d.pendencias_criticas || []);
   set('riskSummaryExecutive', riskBoard.summaryExecutive);
   set('riskSummaryTopRisk', riskBoard.summaryTopRisk);
   set('riskSummaryImpact', riskBoard.summaryImpact);
@@ -2287,7 +2421,7 @@ function renderResumo(d) {
   }
   el.innerHTML = items.map(function (r, idx) {
     var s        = (r.status || '').toLowerCase();
-    var dotClass = s.includes('conclu') ? 'status-dot' : 'status-dot pending';
+    var dotClass = s.includes('conclu') ? 'status-dot completed' : 'status-dot pending';
     var dotText  = s.includes('conclu') ? '&#10003;' : '';
     return '<li data-edit-idx="' + idx + '">' +
       '<span class="' + dotClass + '" aria-hidden="true">' + dotText + '</span>' +
@@ -2328,22 +2462,9 @@ function renderPendencias(d) {
     var prioKey = (p.prioridade || '').toLowerCase().replace(/\s/g, '');
     var prioCls = 'prio-' + (prioKey || 'p1');
 
-    var meta = [];
-    if (p.responsaveis) meta.push('<span class="risk-meta-val" data-edit-pend-meta="responsaveis">' + esc(p.responsaveis) + '</span>');
-    if (p.id_origem)    meta.push('<span class="risk-meta-label">ID </span><span class="risk-meta-val" data-edit-pend-meta="id_origem">' + esc(p.id_origem) + '</span>');
-    if (p.score !== null && p.score !== undefined && String(p.score) !== '') {
-      meta.push('<span class="risk-meta-label">Score </span><span class="risk-meta-val" data-edit-pend-meta="score">' + esc(String(p.score)) + '</span>');
-    }
-    if (p.categoria)    meta.push('<span class="risk-meta-val" data-edit-pend-meta="categoria">' + esc(p.categoria) + '</span>');
-    if (p.estrategia)   meta.push('<span class="risk-meta-val" data-edit-pend-meta="estrategia">' + esc(p.estrategia) + '</span>');
-    if (p.data_limite)  meta.push('<span class="risk-meta-label">Prazo: </span><span class="risk-meta-val risk-meta-date" data-edit-pend-date="data_limite" data-raw-val="' + esc(p.data_limite) + '">' + esc(p.data_limite) + '</span>');
-    if (!meta.length && editMode) {
-      meta.push('<span class="risk-meta-val risk-meta-placeholder is-placeholder" data-edit-pend-meta="responsaveis" data-placeholder="Detalhes da pendência">Detalhes da pendência</span>');
-    }
-    var metaHtml = meta.length
-      ? '<div class="risk-meta">' + meta.map(function(part) {
-          return '<span class="risk-meta-part">' + part + '</span>';
-        }).join('<span class="risk-meta-sep" aria-hidden="true">&middot;</span>') + '</div>'
+    var compactSubtitle = _riskCompactSubtitle(p);
+    var metaHtml = compactSubtitle
+      ? '<div class="risk-meta"><span class="risk-meta-val">' + esc(compactSubtitle) + '</span></div>'
       : '';
 
     return '<tr data-edit-idx="' + idx + '">' +
@@ -3109,6 +3230,30 @@ function _buildRenderPayload(reportData) {
   return payload;
 }
 
+function _syncCoverPreview(cfg) {
+  cfg = cfg || {};
+  var highlight = v(cfg.cover_highlight, '');
+  var set = function (id, text) {
+    var e = document.getElementById(id);
+    if (e) e.textContent = text;
+  };
+  var setHtml = function (id, html) {
+    var e = document.getElementById(id);
+    if (e) e.innerHTML = html;
+  };
+  setHtml('coverMainTitle', _renderCoverTitleHtml(v(cfg.cover_main_title, v(cfg.project_name, 'Projeto')), highlight));
+  set('coverEyebrow', v(cfg.cover_eyebrow, ''));
+  set('coverSubtitle', v(cfg.cover_subtitle, v(cfg.project_subtitle, '')));
+  set('coverClientLabel', v(cfg.cover_client_label, _coverMetaDefault('client')));
+  set('coverOwnerLabel', v(cfg.cover_owner_label, _coverMetaDefault('owner')));
+  set('coverDateLabel', v(cfg.cover_date_label, _coverMetaDefault('date')));
+  set('coverDurationLabel', v(cfg.cover_duration_label, _coverMetaDefault('duration')));
+  set('coverClient', v(cfg.sponsor, '-'));
+  set('coverOwner', v(cfg.owner_name, '-'));
+  set('coverDate', v(cfg.report_date, '-'));
+  set('coverDuration', v(cfg.presentation_duration, ''));
+}
+
 function isLockedField(name) {
   var rd = (_lastRenderData && _lastRenderData.reportData) || {};
   var locks = (((rd.meta || {}).locked_fields) || []);
@@ -3250,6 +3395,8 @@ function _dateField(el, rawDateBR, onSave, formatDisplay) {
   if (!el || el.dataset.editDateAttached) return;
   el.dataset.editDateAttached = '1';
   el.dataset.rawDate = rawDateBR || '';
+  el.dataset.rawVal = rawDateBR || '';
+  el.dataset.dateDirty = el.dataset.dateDirty || '0';
   el.classList.add('edit-date-field');
 
   el.addEventListener('click', function(e) {
@@ -3258,6 +3405,8 @@ function _dateField(el, rawDateBR, onSave, formatDisplay) {
     _openDatePicker(el, el.dataset.rawDate, function(newRaw, formatted) {
       el.textContent = formatDisplay ? formatDisplay(newRaw, formatted) : formatted;
       el.dataset.rawDate = newRaw;
+      el.dataset.rawVal = newRaw;
+      el.dataset.dateDirty = '1';
       onSave(newRaw);
     });
   });
@@ -3266,6 +3415,7 @@ function _dateField(el, rawDateBR, onSave, formatDisplay) {
 /* ── Badge dropdown premium (substitui native select) ── */
 function _closeBadgeMenus() {
   document.querySelectorAll('.badge-sel-menu.open').forEach(function(m){ m.classList.remove('open'); });
+  document.querySelectorAll('.badge-open').forEach(function(el){ el.classList.remove('badge-open'); });
 }
 
 /* Mapeamento status → classe CSS (compatível com road-status e status-pill) */
@@ -3280,6 +3430,7 @@ function _bdotClass(status) {
 function _badgeDropdown(el, options, currentVal, computeBadgeClass, onChange) {
   if (!el || el.parentNode.classList.contains('badge-sel-wrap')) return;
 
+  var ownerRow = el.closest('.milestone-row');
   var wrap = document.createElement('span');
   wrap.className = 'badge-sel-wrap';
 
@@ -3308,6 +3459,7 @@ function _badgeDropdown(el, options, currentVal, computeBadgeClass, onChange) {
       badge.textContent = opt.toUpperCase();
       if (computeBadgeClass) badge.className = computeBadgeClass(opt) + ' badge-sel-trigger';
       menu.classList.remove('open');
+      if (ownerRow) ownerRow.classList.remove('badge-open');
       onChange(opt);
       markDirty();
     });
@@ -3318,7 +3470,10 @@ function _badgeDropdown(el, options, currentVal, computeBadgeClass, onChange) {
     e.stopPropagation();
     var isOpen = menu.classList.contains('open');
     _closeBadgeMenus();
-    if (!isOpen) menu.classList.add('open');
+    if (!isOpen) {
+      menu.classList.add('open');
+      if (ownerRow) ownerRow.classList.add('badge-open');
+    }
   });
 
   document.addEventListener('click', _closeBadgeMenus);
@@ -3370,6 +3525,7 @@ function _attachAllEditHandlers() {
 /* ── Risk & Issue Board (Slide 3) ── */
 var _RISK_STATUSES = ['Em atenção', 'Mitigate', 'Monitor', 'Aberto', 'Controlado', 'Concluído'];
 var _RISK_TIPOS    = ['Risk', 'Issue', 'Action'];
+var _RISK_IMPACTOS = ['Alto', 'Médio', 'Baixo'];
 
 function _riskPillPriorityClass(val) {
   return 'risk-priority-pill p' + _priorityNum(val);
@@ -3389,7 +3545,7 @@ function _riskTypeChipClass(val) {
 function _rerenderRiskBoard() {
   if (!_editSnapshotData) return;
   var d = _editSnapshotData;
-  var riskBoard = _buildRiskBoardModel(d);
+  var riskBoard = _rebuildImpactHeatmap(_buildRiskBoardModel(d), d.pendencias_criticas || []);
 
   function _sh(id, html) { var e = document.getElementById(id); if (e) e.innerHTML = html; }
   function _st(id, txt)  { var e = document.getElementById(id); if (e) e.textContent = txt; }
@@ -3442,6 +3598,21 @@ function _rerenderRiskBoard() {
   );
 }
 
+function _syncRiskBoardMirrors(opts) {
+  if (!_editSnapshotData) return;
+  var options = opts || {};
+
+  if (options.pendencias) {
+    renderPendencias({ pendencias_criticas: _editSnapshotData.pendencias_criticas || [] });
+    if (typeof _attachPendenciasHandlers === 'function') _attachPendenciasHandlers();
+  }
+
+  if (options.acoes) {
+    renderAcoes({ proximas_acoes: _editSnapshotData.proximas_acoes || [] });
+    if (typeof _attachAcoesHandlers === 'function') _attachAcoesHandlers();
+  }
+}
+
 function addRiskItem() {
   if (!_editSnapshotData) return;
   if (!_editSnapshotData.pendencias_criticas) _editSnapshotData.pendencias_criticas = [];
@@ -3452,6 +3623,7 @@ function addRiskItem() {
     impacto: null, estrategia: null, data_limite: null, comentarios: null
   });
   markDirty();
+  _syncRiskBoardMirrors({ pendencias: true });
   _rerenderRiskBoard();
   _attachRiskBoardHandlers();
 }
@@ -3477,6 +3649,7 @@ function _attachRiskBoardHandlers() {
             if (!(_editSnapshotData.pendencias_criticas || [])[idx]) return;
             _editSnapshotData.pendencias_criticas[idx].item = String(themeEl.textContent || '').trim();
             markDirty();
+            _syncRiskBoardMirrors({ pendencias: true });
           });
         }
       }
@@ -3557,16 +3730,15 @@ function _attachRiskBoardHandlers() {
 
       /* Impacto linha 1 (impacto_display — texto livre) */
       var impactEl = tr.querySelector('.risk-board-impact');
-      if (impactEl) {
-        _ce(impactEl);
-        if (!impactEl.dataset.syncBound) {
-          impactEl.dataset.syncBound = '1';
-          impactEl.addEventListener('input', function () {
-            if (!(_editSnapshotData.pendencias_criticas || [])[idx]) return;
-            _editSnapshotData.pendencias_criticas[idx].impacto_display = String(impactEl.textContent || '').trim() || null;
-            markDirty();
-          });
-        }
+      if (impactEl && !impactEl.parentNode.classList.contains('badge-sel-wrap')) {
+        _badgeDropdown(impactEl, _RISK_IMPACTOS, _humanLevel(pendArr[idx].impacto) || 'Médio', null, function (val) {
+          if (!(_editSnapshotData.pendencias_criticas || [])[idx]) return;
+          _editSnapshotData.pendencias_criticas[idx].impacto = _normalizeRiskImpactValue(val);
+          _editSnapshotData.pendencias_criticas[idx].impacto_display = null;
+          markDirty();
+          _rerenderRiskBoard();
+          _attachRiskBoardHandlers();
+        });
       }
 
       /* Meta/contexto (id_origem + categoria — texto livre) */
@@ -3591,9 +3763,7 @@ function _attachRiskBoardHandlers() {
           scoreEl.dataset.syncBound = '1';
           scoreEl.addEventListener('input', function () {
             if (!(_editSnapshotData.pendencias_criticas || [])[idx]) return;
-            var raw = String(scoreEl.textContent || '').trim();
-            var num = parseFloat(raw);
-            _editSnapshotData.pendencias_criticas[idx].score = isFinite(num) ? num : (raw || null);
+            _editSnapshotData.pendencias_criticas[idx].score = _parseRiskScoreValue(scoreEl.textContent);
             markDirty();
           });
         }
@@ -3608,6 +3778,7 @@ function _attachRiskBoardHandlers() {
             if (!_editSnapshotData || !_editSnapshotData.pendencias_criticas) return;
             _editSnapshotData.pendencias_criticas.splice(capturedIdx, 1);
             markDirty();
+            _syncRiskBoardMirrors({ pendencias: true });
             _rerenderRiskBoard();
             _attachRiskBoardHandlers();
           }));
@@ -3646,6 +3817,7 @@ function _attachRiskBoardHandlers() {
             if (!(_editSnapshotData.proximas_acoes || [])[idx]) return;
             _editSnapshotData.proximas_acoes[idx].texto = String(strongEl.textContent || '').trim();
             markDirty();
+            _syncRiskBoardMirrors({ acoes: true });
           });
         }
       }
@@ -3657,10 +3829,9 @@ function _attachRiskBoardHandlers() {
             if (!_editSnapshotData || !_editSnapshotData.proximas_acoes) return;
             _editSnapshotData.proximas_acoes.splice(capturedIdx, 1);
             markDirty();
+            _syncRiskBoardMirrors({ acoes: true });
             _rerenderRiskBoard();
             _attachRiskBoardHandlers();
-            renderAcoes({ proximas_acoes: _editSnapshotData.proximas_acoes });
-            if (typeof _attachAcoesHandlers === 'function') _attachAcoesHandlers();
           }));
         }(idx));
       }
@@ -3678,10 +3849,9 @@ function _attachRiskBoardHandlers() {
         if (_editSnapshotData.proximas_acoes.length >= 3) return;
         _editSnapshotData.proximas_acoes.push({ texto: 'Nova decisão', status: 'Em andamento' });
         markDirty();
+        _syncRiskBoardMirrors({ acoes: true });
         _rerenderRiskBoard();
         _attachRiskBoardHandlers();
-        renderAcoes({ proximas_acoes: _editSnapshotData.proximas_acoes });
-        if (typeof _attachAcoesHandlers === 'function') _attachAcoesHandlers();
       });
       decAddWrap.dataset.for = 'riskDecisionList';
       decPanel.appendChild(decAddWrap);
@@ -3816,7 +3986,16 @@ function _attachResumoHandlers() {
     var idx = parseInt(li.dataset.editIdx, 10);
 
     // Texto editável
-    _ce(li.querySelector('.resumo-text'));
+    var textEl = li.querySelector('.resumo-text');
+    _ce(textEl);
+    if (textEl && !textEl.dataset.syncBound) {
+      textEl.dataset.syncBound = '1';
+      textEl.addEventListener('input', function() {
+        if (_editSnapshotData && _editSnapshotData.resumo_executivo && _editSnapshotData.resumo_executivo[idx]) {
+          _editSnapshotData.resumo_executivo[idx].texto = textEl.textContent.trim();
+        }
+      });
+    }
 
     // Toggle de status no dot — sem outline permanente
     var dot = li.querySelector('.status-dot');
@@ -3827,6 +4006,7 @@ function _attachResumoHandlers() {
         var cur = ((_editSnapshotData.resumo_executivo[idx] || {}).status || '').toLowerCase();
         var ns = cur.includes('conclu') ? 'andamento' : 'concluido';
         _editSnapshotData.resumo_executivo[idx].status = ns;
+        dot.classList.toggle('completed', ns.includes('conclu'));
         dot.classList.toggle('pending', !ns.includes('conclu'));
         dot.innerHTML = ns.includes('conclu') ? '&#10003;' : '';
         markDirty();
@@ -4000,7 +4180,16 @@ function _attachAcoesHandlers() {
 
   container.querySelectorAll('li[data-edit-idx]').forEach(function(li) {
     var idx = parseInt(li.dataset.editIdx, 10);
-    _ce(li.querySelector('.acao-text'));
+    var textEl = li.querySelector('.acao-text');
+    _ce(textEl);
+    if (textEl && !textEl.dataset.syncBound) {
+      textEl.dataset.syncBound = '1';
+      textEl.addEventListener('input', function() {
+        if (_editSnapshotData && _editSnapshotData.proximas_acoes && _editSnapshotData.proximas_acoes[idx]) {
+          _editSnapshotData.proximas_acoes[idx].texto = textEl.textContent.trim();
+        }
+      });
+    }
     if (!li.querySelector('.edit-rm-btn')) {
       li.appendChild(_rmBtn(function() {
         _editSnapshotData.proximas_acoes.splice(idx, 1);
@@ -4181,7 +4370,9 @@ function collectEdits() {
   if (coverDurationLabel && coverDurationLabel.contentEditable === 'true') data.config.cover_duration_label = coverDurationLabel.textContent.trim().toUpperCase();
   if (coverClient && coverClient.contentEditable === 'true') data.config.sponsor = coverClient.textContent.trim();
   if (coverOwner && coverOwner.contentEditable === 'true') data.config.owner_name = coverOwner.textContent.trim();
-  if (coverDate && coverDate.dataset.rawDate) data.config.report_date = coverDate.dataset.rawDate;
+  if (coverDate && coverDate.dataset.dateDirty === '1') {
+    data.config.report_date = coverDate.dataset.rawVal || coverDate.dataset.rawDate || data.config.report_date;
+  }
   if (coverDuration && coverDuration.contentEditable === 'true') data.config.presentation_duration = coverDuration.textContent.trim();
 
   // Encerramento / Slide 4
@@ -4236,11 +4427,52 @@ function collectEdits() {
   });
 
   // Pendências
+  document.querySelectorAll('#riskBoardRows tr[data-edit-idx]').forEach(function(tr) {
+    var idx = parseInt(tr.dataset.editIdx, 10);
+    if (!data.pendencias_criticas || !data.pendencias_criticas[idx]) return;
+
+    var themeEl = tr.querySelector('.risk-board-theme');
+    var impactEl = tr.querySelector('.risk-board-impact');
+    var mitigationEl = tr.querySelector('.risk-board-mitigation');
+    var ownerEl = tr.querySelector('.risk-board-owner');
+    var dueEl = tr.querySelector('.risk-board-due');
+    var typeEl = tr.querySelector('.risk-type-chip');
+    var priorityEl = tr.querySelector('.risk-priority-pill');
+    var statusEl = tr.querySelector('.risk-status-pill');
+    var metaEl = tr.querySelector('.risk-board-meta-edit');
+    var scoreEl = tr.querySelector('.risk-board-score-edit');
+
+    if (themeEl) data.pendencias_criticas[idx].item = themeEl.textContent.trim();
+    if (impactEl) {
+      data.pendencias_criticas[idx].impacto = _normalizeRiskImpactValue(impactEl.textContent) || data.pendencias_criticas[idx].impacto;
+      data.pendencias_criticas[idx].impacto_display = null;
+    }
+    if (mitigationEl) data.pendencias_criticas[idx].comentarios = mitigationEl.textContent.trim() || null;
+    if (ownerEl) data.pendencias_criticas[idx].responsaveis = ownerEl.textContent.trim() || null;
+    if (dueEl && dueEl.dataset.rawDue !== undefined) data.pendencias_criticas[idx].data_limite = dueEl.dataset.rawDue || null;
+    if (typeEl) data.pendencias_criticas[idx].tipo = typeEl.textContent.trim() || data.pendencias_criticas[idx].tipo;
+    if (priorityEl) data.pendencias_criticas[idx].prioridade = priorityEl.textContent.trim() || data.pendencias_criticas[idx].prioridade;
+    if (statusEl) data.pendencias_criticas[idx].status = statusEl.textContent.trim() || data.pendencias_criticas[idx].status;
+    if (metaEl) data.pendencias_criticas[idx].id_origem = metaEl.textContent.trim() || null;
+    if (scoreEl) {
+      data.pendencias_criticas[idx].score = _parseRiskScoreValue(scoreEl.textContent);
+    }
+  });
+
+  document.querySelectorAll('#riskDecisionList li[data-edit-idx]').forEach(function(li) {
+    var activeSlide = li.closest('.deck-slide.active');
+    if (!activeSlide) return;
+    var idx = parseInt(li.dataset.editIdx, 10);
+    if (!data.proximas_acoes || !data.proximas_acoes[idx]) return;
+    var strongEl = li.querySelector('strong');
+    if (strongEl) data.proximas_acoes[idx].texto = strongEl.textContent.trim();
+  });
+
   document.querySelectorAll('#pendencias tr[data-edit-idx]').forEach(function(tr) {
     var idx = parseInt(tr.dataset.editIdx, 10);
     if (!data.pendencias_criticas || !data.pendencias_criticas[idx]) return;
     var rt = tr.querySelector('.risk-title');
-    if (rt && rt.contentEditable === 'true') data.pendencias_criticas[idx].item = rt.textContent.trim();
+    if (rt && rt.contentEditable === 'true' && !document.querySelector('#riskBoardRows tr[data-edit-idx]')) data.pendencias_criticas[idx].item = rt.textContent.trim();
     // status/nivel já atualizado pelo onChange do badge dropdown
   });
 
@@ -4251,7 +4483,9 @@ function collectEdits() {
     var ne = row.querySelector('.ms-name-text');
     var de = row.querySelector('.ms-date-text');
     if (ne && ne.contentEditable === 'true') data.marcos[idx].nome = ne.textContent.trim();
-    if (de && de.dataset.rawDate) data.marcos[idx].data_alvo = de.dataset.rawDate;
+    if (de && (de.dataset.rawVal || de.dataset.rawDate)) {
+      data.marcos[idx].data_alvo = de.dataset.rawVal || de.dataset.rawDate;
+    }
     // status já atualizado pelo onChange
   });
 
@@ -4261,12 +4495,16 @@ function collectEdits() {
     var key = el.dataset.editRodape;
     if (el.dataset.editDateAttached) {
       // Data: usa rawDate do dataset (atualizado pelo picker)
-      if (el.dataset.rawVal) data.rodape[key] = el.dataset.rawVal;
+      if (el.dataset.dateDirty === '1' && (el.dataset.rawVal || el.dataset.rawDate)) {
+        data.rodape[key] = el.dataset.rawVal || el.dataset.rawDate;
+      }
     }
   });
   document.querySelectorAll('[data-edit-config-date]').forEach(function(el) {
     var key = el.dataset.editConfigDate;
-    if (key && el.dataset.rawVal) data.config[key] = el.dataset.rawVal;
+    if (key && el.dataset.dateDirty === '1' && (el.dataset.rawVal || el.dataset.rawDate)) {
+      data.config[key] = el.dataset.rawVal || el.dataset.rawDate;
+    }
   });
 
   // Reordenar arrays
@@ -4448,30 +4686,31 @@ function _buildConfigDrawer() {
   /* ─ Capa (main) ─ */
   if (_hasRegistryFields('cover', 'main')) {
     var s0 = sec(_registrySectionLabel('cover', 'Capa'));
-    addF(s0, 'Eyebrow', txt(cfg.cover_eyebrow, function(v){ d.config.cover_eyebrow = v; }));
-    addF(s0, 'Título principal', txtArea(v(cfg.cover_main_title, v(cfg.project_name, '')), function(v){ d.config.cover_main_title = _coverTitleToStorage(v); }));
-    addF(s0, 'Subtítulo', txtArea(v(cfg.cover_subtitle, v(cfg.project_subtitle, '')), function(v){ d.config.cover_subtitle = v; }));
-    addF(s0, 'Label cliente', txt(v(cfg.cover_client_label, _coverMetaDefault('client')), function(v){ d.config.cover_client_label = v.toUpperCase(); }));
-    addF(s0, 'Label apresentador', txt(v(cfg.cover_owner_label, _coverMetaDefault('owner')), function(v){ d.config.cover_owner_label = v.toUpperCase(); }));
-    addF(s0, 'Label data', txt(v(cfg.cover_date_label, _coverMetaDefault('date')), function(v){ d.config.cover_date_label = v.toUpperCase(); }));
-    addF(s0, 'Label duração', txt(v(cfg.cover_duration_label, _coverMetaDefault('duration')), function(v){ d.config.cover_duration_label = v.toUpperCase(); }));
-    addF(s0, 'Duração', txt(cfg.presentation_duration, function(v){ d.config.presentation_duration = v; }));
+    addF(s0, 'Eyebrow', txt(cfg.cover_eyebrow, function(v){ d.config.cover_eyebrow = v; _syncCoverPreview(d.config); }));
+    addF(s0, 'Título principal', txtArea(v(cfg.cover_main_title, v(cfg.project_name, '')), function(v){ d.config.cover_main_title = _coverTitleToStorage(v); _syncCoverPreview(d.config); }));
+    addF(s0, 'Subtítulo', txtArea(v(cfg.cover_subtitle, v(cfg.project_subtitle, '')), function(v){ d.config.cover_subtitle = v; _syncCoverPreview(d.config); }));
+    addF(s0, 'Label cliente', txt(v(cfg.cover_client_label, _coverMetaDefault('client')), function(v){ d.config.cover_client_label = v.toUpperCase(); _syncCoverPreview(d.config); }));
+    addF(s0, 'Label apresentador', txt(v(cfg.cover_owner_label, _coverMetaDefault('owner')), function(v){ d.config.cover_owner_label = v.toUpperCase(); _syncCoverPreview(d.config); }));
+    addF(s0, 'Label data', txt(v(cfg.cover_date_label, _coverMetaDefault('date')), function(v){ d.config.cover_date_label = v.toUpperCase(); _syncCoverPreview(d.config); }));
+    addF(s0, 'Label duração', txt(v(cfg.cover_duration_label, _coverMetaDefault('duration')), function(v){ d.config.cover_duration_label = v.toUpperCase(); _syncCoverPreview(d.config); }));
+    addF(s0, 'Duração', txt(cfg.presentation_duration, function(v){ d.config.presentation_duration = v; _syncCoverPreview(d.config); }));
     body.appendChild(s0);
   }
 
   /* ─ Header (main) ─ */
   if (_hasRegistryFields('header', 'main')) {
     var s1 = sec(_registrySectionLabel('header', 'Projeto'));
-    addF(s1, 'Nome do Projeto',    txt(cfg.project_name,     function(v){d.config.project_name=v;}));
-    addF(s1, 'Subtítulo',          txt(cfg.project_subtitle, function(v){d.config.project_subtitle=v;}));
-    addF(s1, 'Sponsor / Cliente',  txt(cfg.sponsor,          function(v){d.config.sponsor=v;}));
+    addF(s1, 'Nome do Projeto',    txt(cfg.project_name,     function(v){d.config.project_name=v; _syncCoverPreview(d.config);}));
+    addF(s1, 'Subtítulo',          txt(cfg.project_subtitle, function(v){d.config.project_subtitle=v; _syncCoverPreview(d.config);}));
+    addF(s1, 'Sponsor / Cliente',  txt(cfg.sponsor,          function(v){d.config.sponsor=v; _syncCoverPreview(d.config);}));
     addF(s1, 'Parceiro',           txt(cfg.partner_name,     function(v){d.config.partner_name=v;}));
     addF(s1, 'Responsável (PM)',   txt(cfg.owner_name,       function(v){
       d.config.owner_name = v;
       if (!d.rodape) d.rodape = {};
       d.rodape.owner_relatorio = v;
+      _syncCoverPreview(d.config);
     }));
-    addF(s1, 'Data do Relatório',  txtDateFriendly(cfg.report_date, function(v){d.config.report_date=v;}));
+    addF(s1, 'Data do Relatório',  txtDateFriendly(cfg.report_date, function(v){d.config.report_date=v; _syncCoverPreview(d.config);}));
     addF(s1, 'Nome do Relatório',  txt(cfg.report_name,      function(v){d.config.report_name=v;}));
     body.appendChild(s1);
   }
