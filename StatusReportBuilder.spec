@@ -7,6 +7,10 @@ hiddenimports = (
     collect_submodules('uvicorn')
     + collect_submodules('watchfiles')
     + collect_submodules('backend')
+    + collect_submodules('pptx')
+    + [
+        'openpyxl.cell._writer',
+    ]
 )
 
 a = Analysis(
