@@ -11,8 +11,6 @@ import webbrowser
 from pathlib import Path
 
 import uvicorn
-from backend.main import app as fastapi_app
-from backend import export_worker
 
 
 def _portable_root() -> Path:
@@ -43,7 +41,8 @@ def _load_settings(config_dir: Path) -> dict:
             payload = json.loads(settings_path.read_text(encoding="utf-8"))
             if isinstance(payload, dict):
                 default.update(payload)
-    settings_path.write_text(json.dumps(default, ensure_ascii=False, indent=2), encoding="utf-8")
+    with contextlib.suppress(OSError):
+        settings_path.write_text(json.dumps(default, ensure_ascii=False, indent=2), encoding="utf-8")
     return default
 
 
@@ -90,16 +89,21 @@ def main() -> int:
 
     if len(sys.argv) >= 3 and sys.argv[1] == "--export-worker":
         _configure_runtime_env(base, paths)
+        from backend import export_worker
+
         cmd = json.loads(sys.argv[2])
         return export_worker.run_command(cmd)
 
     settings = _load_settings(paths["config"])
 
     log_path = paths["logs"] / "launcher.log"
+    log_handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
+    with contextlib.suppress(OSError):
+        log_handlers.insert(0, logging.FileHandler(log_path, encoding="utf-8"))
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[logging.FileHandler(log_path, encoding="utf-8"), logging.StreamHandler(sys.stdout)],
+        handlers=log_handlers,
     )
 
     lock_path = None
@@ -109,6 +113,7 @@ def main() -> int:
         port = _find_free_port(host, int(settings.get("preferred_port") or 0))
 
         _configure_runtime_env(base, paths)
+        from backend.main import app as fastapi_app
 
         url = f"http://{host}:{port}"
         if bool(settings.get("open_browser", True)):
