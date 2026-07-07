@@ -3157,16 +3157,8 @@ async function applyUpdate() {
     showToast('Atualização automática disponível apenas na versão portátil.', 'info');
     return;
   }
-  if (!_updateUiState.downloaded || !_updateConfirmPending) {
-    _updateConfirmPending = true;
-    _setUpdatePhase('preparing', {
-      status: 'Pronto para instalar',
-      detail: 'A atualização foi validada. Confirme para fechar e reiniciar o aplicativo.',
-      bytes: 'Backup, rollback e arquivos preservados continuam ativos durante o apply.',
-      progress: 82,
-      variant: 'accent'
-    });
-    openUpdateModal('confirm');
+  if (!_updateUiState.downloaded) {
+    showToast('Baixe e valide a atualização antes de instalar.', 'info');
     return;
   }
   _updateConfirmPending = false;

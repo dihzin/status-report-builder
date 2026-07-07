@@ -15,6 +15,7 @@ from backend.services.update_service import (
     UpdateService,
     _is_newer,
     _normalize_version,
+    _ps_single_quote,
 )
 
 
@@ -102,6 +103,10 @@ def test_is_newer_semver():
     assert _is_newer("v0.6.1", "0.6.0")
     assert not _is_newer("v0.6.0", "0.6.0")
     assert not _is_newer("v0.5.9", "0.6.0")
+
+
+def test_ps_single_quote_escapes_apostrophes():
+    assert _ps_single_quote(r"C:\Apps\Salva's App") == r"'C:\Apps\Salva''s App'"
 
 
 def test_download_blocked_in_dev_mode(monkeypatch):
@@ -330,6 +335,8 @@ def test_build_apply_script_waits_for_old_process_and_logs_restart(monkeypatch, 
     content = script_path.read_text(encoding="utf-8")
 
     assert "$CurrentPid = 4242" in content
+    assert "Stop-Process -Id $CurrentPid -Force" in content
+    assert "-WorkingDirectory $InstallDir" in content
     assert "Aguardando encerramento do processo antigo" in content
     assert "Rollback concluído." in content
     assert "Relançando executável" in content

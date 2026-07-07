@@ -60,6 +60,10 @@ def _state_file() -> Path:
     return _updates_dir() / "update_state.json"
 
 
+def _ps_single_quote(value: Path | str) -> str:
+    return "'" + str(value).replace("'", "''") + "'"
+
+
 @dataclass
 class UpdateCheckResult:
     ok: bool
@@ -445,14 +449,14 @@ class UpdateService:
         backup_name = f"_backup_{int(time.time())}"
         state_file = str(_state_file())
         script = f"""$ErrorActionPreference = 'Stop'
-$InstallDir = '{install_dir}'
-$ZipPath = '{zip_path}'
-$ExeName = '{exe_name}'
+$InstallDir = {_ps_single_quote(install_dir)}
+$ZipPath = {_ps_single_quote(zip_path)}
+$ExeName = {_ps_single_quote(exe_name)}
 $CurrentPid = {current_pid}
 $StageDir = Join-Path $InstallDir '{stage_name}'
 $BackupDir = Join-Path $InstallDir '{backup_name}'
 $LogFile = Join-Path $InstallDir 'updates\\apply_update.log'
-$StateFile = '{state_file}'
+$StateFile = {_ps_single_quote(state_file)}
 New-Item -ItemType Directory -Path (Join-Path $InstallDir 'updates') -Force *> $null
 try {{
 Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] Iniciando apply."
@@ -460,7 +464,11 @@ Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] InstallDir=$Inst
 try {{
   $proc = Get-Process -Id $CurrentPid -ErrorAction Stop
   Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] Aguardando encerramento do processo antigo PID=$CurrentPid."
-  $proc.WaitForExit(25000) *> $null
+  if (-not $proc.WaitForExit(25000)) {{
+    Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [WARN] Processo antigo nÃ£o encerrou no tempo esperado; forÃ§ando encerramento."
+    Stop-Process -Id $CurrentPid -Force -ErrorAction Stop
+    Start-Sleep -Milliseconds 1000
+  }}
 }} catch {{
   Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] Processo antigo já não estava em execução."
 }}
@@ -516,7 +524,7 @@ Remove-Item -Recurse -Force $BackupDir
 if (Test-Path $ZipPath) {{ Remove-Item -Force $ZipPath }}
 if (Test-Path $StateFile) {{ Remove-Item -Force $StateFile }}
 Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [INFO] Relançando executável: $(Join-Path $InstallDir $ExeName)"
-Start-Process -FilePath (Join-Path $InstallDir $ExeName)
+Start-Process -FilePath (Join-Path $InstallDir $ExeName) -WorkingDirectory $InstallDir
 }} catch {{
   try {{ Add-Content -Path $LogFile -Value "$(Get-Date -Format o) [FATAL] $($_.Exception.Message)" }} catch {{}}
 }}
