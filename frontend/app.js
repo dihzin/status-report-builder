@@ -132,6 +132,13 @@ function esc(s) {
     .replace(/'/g, '&#39;');
 }
 
+/** Formatação inline segura para textos executivos: **trecho** vira negrito. */
+function formatExecutiveText(s) {
+  var safe = esc(s);
+  if (editMode) return safe;
+  return safe.replace(/\*\*([^*\r\n]+)\*\*/g, '<strong>$1</strong>');
+}
+
 function reEsc(s) {
   return String(s === null || s === undefined ? '' : s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -1893,7 +1900,7 @@ function _buildRiskBoardModel(d) {
   var cfg = d.config || {};
   var fases = Array.isArray(d.fases) ? d.fases : [];
   var pendencias = (d.pendencias_criticas || []).slice();
-  var acoes = (d.proximas_acoes || []).slice();
+  var decisoes = (d.decisoes_necessarias || []).slice();
   var openItems = pendencias.filter(_isRiskOpen);
   var sorted = pendencias.slice().sort(function (a, b) {
     var p = _priorityNum(a.prioridade) - _priorityNum(b.prioridade);
@@ -1906,9 +1913,9 @@ function _buildRiskBoardModel(d) {
   var summaryExecutive = p1Count > 0
     ? p1Count + ' issue' + (p1Count > 1 ? 's críticos' : ' crítico')
     : (openCount > 0 ? openCount + (openCount === 1 ? ' item' : ' itens') + ' em atenção' : 'Nenhum item crítico');
-  var summaryTopRisk = topRisk ? _truncateForBoard(topRisk.item, 42) : 'Sem riscos críticos';
+  var summaryTopRisk = topRisk ? String(topRisk.item || '').trim() : 'Sem riscos críticos';
   var summaryImpact = _nextPhaseLabel(fases, cfg.current_phase);
-  var summaryDecision = acoes[0] && acoes[0].texto ? _truncateForBoard(acoes[0].texto, 40) : 'Definir decisão executiva';
+  var summaryDecision = decisoes[0] && decisoes[0].texto ? _truncateForBoard(decisoes[0].texto, 40) : 'Definir decisão executiva';
 
   // Em edit mode: ordem original (sem sort, sem limite) → novo item sempre no final
   // Em view mode: top 5 ordenados por prioridade (comportamento padrão)
@@ -1936,14 +1943,13 @@ function _buildRiskBoardModel(d) {
     };
   });
 
-  var decisions = acoes.slice(0, 3).map(function (acao, idx) {
-    var linked = sorted[idx] || null;
+  var decisions = decisoes.slice(0, 3).map(function (decisao) {
     return {
-      title: _truncateForBoard(acao.texto || 'Definir encaminhamento', 56),
-      body: linked ? _truncateForBoard((_riskMitigationSummary(linked) || '') + ' • ' + (linked.responsaveis || 'Owner a definir'), 112) : 'Formalizar owner, prazo e desbloqueio para a frente seguinte.'
+      title: _truncateForBoard(decisao.texto || 'Definir encaminhamento', 56),
+      body: decisao.subtitulo ? _truncateForBoard(decisao.subtitulo, 112) : ''
     };
   });
-  // Sem fallback automático — mostrar apenas proximas_acoes reais (até 3)
+  // Sem fallback automático — mostrar apenas decisoes_necessarias reais (até 3)
   // Fallbacks causavam duplicatas e reaparecimento de itens já excluídos
 
   var legend = ['P1', 'P2', 'P3', 'P4'].map(function (p) {
@@ -2425,7 +2431,7 @@ function renderResumo(d) {
     var dotText  = s.includes('conclu') ? '&#10003;' : '';
     return '<li data-edit-idx="' + idx + '">' +
       '<span class="' + dotClass + '" aria-hidden="true">' + dotText + '</span>' +
-      '<span class="resumo-text">' + esc(r.texto) + '</span></li>';
+      '<span class="resumo-text">' + formatExecutiveText(r.texto) + '</span></li>';
   }).join('');
 }
 
@@ -2440,20 +2446,29 @@ function renderPendencias(d) {
     return;
   }
 
-  // Em view mode: top 3 ordenados por prioridade+score. Edit mode: todos na ordem original.
+  // Em view mode: somente P1, ordenadas por score. Edit mode: todos na ordem original.
   var displayItems;
+  var viewItems = [];
   if (editMode) {
     displayItems = items.map(function(p, i) { return { item: p, origIdx: i }; });
   } else {
-    displayItems = items
+    viewItems = items
       .map(function(p, i) { return { item: p, origIdx: i }; })
-      .sort(function(a, b) {
-        var p = _priorityNum(a.item.prioridade) - _priorityNum(b.item.prioridade);
-        return p !== 0 ? p : Number(b.item.score || 0) - Number(a.item.score || 0);
+      .filter(function(entry) {
+        return String(entry.item.prioridade || '').trim().toUpperCase() === 'P1';
       })
-      .slice(0, 3);
+      .sort(function(a, b) {
+        return Number(b.item.score || 0) - Number(a.item.score || 0);
+      });
+    displayItems = viewItems.slice(0, 3);
   }
-  var extra = (!editMode && items.length > 3) ? items.length - 3 : 0;
+  var extra = (!editMode && viewItems.length > 3) ? viewItems.length - 3 : 0;
+  if (!editMode && !displayItems.length) {
+    el.innerHTML = '<tr><td colspan="3" class="empty-state">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r="1"/></svg>' +
+      '<p>Nenhuma pendência P1 cadastrada</p></td></tr>';
+    return;
+  }
 
   el.innerHTML = displayItems.map(function (entry) {
     var p   = entry.item;
@@ -2488,7 +2503,7 @@ function renderAcoes(d) {
   }
   el.innerHTML = items.map(function (a, idx) {
     return '<li data-edit-idx="' + idx + '"><span class="arrow-dot" aria-hidden="true">&#8250;</span>' +
-      '<span class="acao-text">' + esc(v(a.texto, '')) + '</span></li>';
+      '<span class="acao-text">' + formatExecutiveText(v(a.texto, '')) + '</span></li>';
   }).join('');
 }
 
@@ -2676,6 +2691,16 @@ function renderCurvaS(d) {
   var realCoords = pontos
     .filter(function (p) { return p.realizado !== null && p.realizado !== undefined && p.realizado !== ''; })
     .map(function (p) { return [sx(parseFloat(p.dia) || 0), sy(parseFloat(p.realizado) || 0)]; });
+
+  // A curva representa avanço acumulado: antes da primeira semana, ambas as
+  // séries partem da origem (dia 0, 0%), mesmo que esse marco não esteja salvo.
+  var firstCurveDay = Math.min.apply(null, pontos.map(function (p) {
+    return parseFloat(p.dia) || 0;
+  }));
+  if (firstCurveDay > 0) {
+    plannedCoords.unshift([sx(0), sy(0)]);
+    if (realCoords.length) realCoords.unshift([sx(0), sy(0)]);
+  }
 
   // Se planejado e realizado estiverem iguais (ou praticamente iguais), evita percepção de desvio.
   var sameTrend = pontos.length > 0 && pontos.every(function (p) {
@@ -3791,13 +3816,13 @@ function _attachRiskBoardHandlers() {
     }
   }
 
-  /* ── Decisões necessárias: título da ação ── */
+  /* ── Decisões necessárias ── */
   var decList = document.getElementById('riskDecisionList');
   if (decList) {
     decList.querySelectorAll('li[data-edit-idx]').forEach(function (li) {
       var idx = parseInt(li.dataset.editIdx, 10);
-      var acoesArr = _editSnapshotData.proximas_acoes || [];
-      if (idx < 0 || idx >= acoesArr.length) return;
+      var decisoesArr = _editSnapshotData.decisoes_necessarias || [];
+      if (idx < 0 || idx >= decisoesArr.length) return;
 
       /* Edição do título */
       var strongEl = li.querySelector('strong');
@@ -3806,10 +3831,24 @@ function _attachRiskBoardHandlers() {
         if (!strongEl.dataset.syncBound) {
           strongEl.dataset.syncBound = '1';
           strongEl.addEventListener('input', function () {
-            if (!(_editSnapshotData.proximas_acoes || [])[idx]) return;
-            _editSnapshotData.proximas_acoes[idx].texto = String(strongEl.textContent || '').trim();
+            if (!(_editSnapshotData.decisoes_necessarias || [])[idx]) return;
+            _editSnapshotData.decisoes_necessarias[idx].texto = String(strongEl.textContent || '').trim();
             markDirty();
-            _syncRiskBoardMirrors({ acoes: true });
+          });
+        }
+      }
+
+      /* Edição do subtítulo independente */
+      var subtitleEl = li.querySelector('p');
+      if (subtitleEl) {
+        if (!subtitleEl.textContent.trim()) subtitleEl.textContent = 'Digite um subtítulo';
+        _ce(subtitleEl);
+        if (!subtitleEl.dataset.syncBound) {
+          subtitleEl.dataset.syncBound = '1';
+          subtitleEl.addEventListener('input', function () {
+            if (!(_editSnapshotData.decisoes_necessarias || [])[idx]) return;
+            _editSnapshotData.decisoes_necessarias[idx].subtitulo = String(subtitleEl.textContent || '').trim();
+            markDirty();
           });
         }
       }
@@ -3818,10 +3857,9 @@ function _attachRiskBoardHandlers() {
       if (!li.querySelector('.edit-rm-btn')) {
         (function (capturedIdx) {
           li.appendChild(_rmBtn(function () {
-            if (!_editSnapshotData || !_editSnapshotData.proximas_acoes) return;
-            _editSnapshotData.proximas_acoes.splice(capturedIdx, 1);
+            if (!_editSnapshotData || !_editSnapshotData.decisoes_necessarias) return;
+            _editSnapshotData.decisoes_necessarias.splice(capturedIdx, 1);
             markDirty();
-            _syncRiskBoardMirrors({ acoes: true });
             _rerenderRiskBoard();
             _attachRiskBoardHandlers();
           }));
@@ -3837,11 +3875,14 @@ function _attachRiskBoardHandlers() {
       if (prevDecWrap) prevDecWrap.remove();
       var decAddWrap = _addWrap('Adicionar decisão', function () {
         if (!_editSnapshotData) return;
-        if (!_editSnapshotData.proximas_acoes) _editSnapshotData.proximas_acoes = [];
-        if (_editSnapshotData.proximas_acoes.length >= 3) return;
-        _editSnapshotData.proximas_acoes.push({ texto: 'Nova decisão', status: 'Em andamento' });
+        if (!_editSnapshotData.decisoes_necessarias) _editSnapshotData.decisoes_necessarias = [];
+        if (_editSnapshotData.decisoes_necessarias.length >= 3) return;
+        _editSnapshotData.decisoes_necessarias.push({
+          texto: 'Nova decisão',
+          subtitulo: 'Digite um subtítulo',
+          status: 'Em andamento'
+        });
         markDirty();
-        _syncRiskBoardMirrors({ acoes: true });
         _rerenderRiskBoard();
         _attachRiskBoardHandlers();
       });
@@ -3980,6 +4021,7 @@ function _attachResumoHandlers() {
     // Texto editável
     var textEl = li.querySelector('.resumo-text');
     _ce(textEl);
+    if (textEl) textEl.title = 'Use **texto** para destacar palavras em negrito';
     if (textEl && !textEl.dataset.syncBound) {
       textEl.dataset.syncBound = '1';
       textEl.addEventListener('input', function() {
@@ -4174,6 +4216,7 @@ function _attachAcoesHandlers() {
     var idx = parseInt(li.dataset.editIdx, 10);
     var textEl = li.querySelector('.acao-text');
     _ce(textEl);
+    if (textEl) textEl.title = 'Use **texto** para destacar palavras em negrito';
     if (textEl && !textEl.dataset.syncBound) {
       textEl.dataset.syncBound = '1';
       textEl.addEventListener('input', function() {
@@ -4455,9 +4498,11 @@ function collectEdits() {
     var activeSlide = li.closest('.deck-slide.active');
     if (!activeSlide) return;
     var idx = parseInt(li.dataset.editIdx, 10);
-    if (!data.proximas_acoes || !data.proximas_acoes[idx]) return;
+    if (!data.decisoes_necessarias || !data.decisoes_necessarias[idx]) return;
     var strongEl = li.querySelector('strong');
-    if (strongEl) data.proximas_acoes[idx].texto = strongEl.textContent.trim();
+    if (strongEl) data.decisoes_necessarias[idx].texto = strongEl.textContent.trim();
+    var subtitleEl = li.querySelector('p');
+    if (subtitleEl) data.decisoes_necessarias[idx].subtitulo = subtitleEl.textContent.trim();
   });
 
   document.querySelectorAll('#pendencias tr[data-edit-idx]').forEach(function(tr) {
@@ -4502,6 +4547,7 @@ function collectEdits() {
   // Reordenar arrays
   if (data.resumo_executivo) data.resumo_executivo = data.resumo_executivo.map(function(r,i){ return Object.assign({},r,{ordem:i+1}); });
   if (data.proximas_acoes)   data.proximas_acoes   = data.proximas_acoes.map(function(a,i){ return Object.assign({},a,{ordem:i+1}); });
+  if (data.decisoes_necessarias) data.decisoes_necessarias = data.decisoes_necessarias.map(function(d,i){ return Object.assign({},d,{ordem:i+1}); });
   if (data.marcos)           data.marcos           = data.marcos.map(function(m,i){ return Object.assign({},m,{ordem:i+1}); });
   if (data.fases)            data.fases            = data.fases.map(function(f,i){ return Object.assign({},f,{ordem:i+1}); });
   if (data.kpis)             data.kpis             = data.kpis.map(function(k,i){ return Object.assign({},k,{ordem:i+1}); });

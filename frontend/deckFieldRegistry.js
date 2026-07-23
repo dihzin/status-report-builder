@@ -9,6 +9,7 @@
     resumo_executivo: "Resumo Executivo",
     pendencias_criticas: "Pendências Críticas",
     proximas_acoes: "Próximas Ações",
+    decisoes_necessarias: "Decisões Necessárias",
     curva_s: "Curva S",
     marcos_datas_alvo: "Marcos e Datas-Alvo",
     rodape: "Rodapé",
@@ -51,6 +52,7 @@
       { path: "resumo_executivo", label: "Resumo Executivo (lista)", section: "resumo_executivo", inputType: "list", editable: true, derived: false, visibleInDeck: true, visibleInPdf: true, visibleInPptx: true, editorMode: "contextual", order: 300 },
       { path: "pendencias_criticas", label: "Pendências Críticas (lista)", section: "pendencias_criticas", inputType: "table", editable: true, derived: false, visibleInDeck: true, visibleInPdf: true, visibleInPptx: true, editorMode: "contextual", order: 400 },
       { path: "proximas_acoes", label: "Próximas Ações (lista)", section: "proximas_acoes", inputType: "list", editable: true, derived: false, visibleInDeck: true, visibleInPdf: true, visibleInPptx: true, editorMode: "contextual", order: 500 },
+      { path: "decisoes_necessarias", label: "Decisões Necessárias (lista)", section: "decisoes_necessarias", inputType: "list", editable: true, derived: false, visibleInDeck: true, visibleInPdf: true, visibleInPptx: true, editorMode: "contextual", order: 510 },
       { path: "curva_s", label: "Curva S (lista)", section: "curva_s", inputType: "table", editable: true, derived: false, visibleInDeck: true, visibleInPdf: true, visibleInPptx: true, editorMode: "contextual", order: 600 },
       { path: "marcos", label: "Marcos (lista)", section: "marcos_datas_alvo", inputType: "list", editable: true, derived: false, visibleInDeck: true, visibleInPdf: true, visibleInPptx: true, editorMode: "contextual", order: 700 },
 
