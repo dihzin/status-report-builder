@@ -32,6 +32,13 @@ def build_report_data(raw_data: dict | None) -> dict:
     Mantém chaves legadas para compatibilidade com frontend e endpoints atuais.
     """
     raw = raw_data or {}
+    # Snapshots anteriores não possuíam uma lista própria para decisões e o
+    # slide de riscos reutilizava as próximas ações. Preserve o conteúdo atual
+    # uma única vez como ponto de partida, mantendo as listas independentes
+    # depois que a nova chave passar a existir.
+    raw_decisions = raw.get("decisoes_necessarias")
+    if not isinstance(raw_decisions, list):
+        raw_decisions = _as_list(_clone(raw.get("proximas_acoes")))[:3]
 
     report_data = {
         "meta": {
@@ -55,6 +62,7 @@ def build_report_data(raw_data: dict | None) -> dict:
         "resumo_executivo": _as_list(_clone(raw.get("resumo_executivo"))),
         "pendencias_criticas": _as_list(_clone(raw.get("pendencias_criticas"))),
         "proximas_acoes": _as_list(_clone(raw.get("proximas_acoes"))),
+        "decisoes_necessarias": _as_list(_clone(raw_decisions)),
         "curva_s": _as_list(_clone(raw.get("curva_s"))),
         "marcos": _as_list(_clone(raw.get("marcos"))),
         "gantt_tarefas": _as_list(_clone(raw.get("gantt_tarefas"))),
@@ -63,7 +71,7 @@ def build_report_data(raw_data: dict | None) -> dict:
     }
 
     # Normaliza "ordem" como campo de sistema (sempre sequencial)
-    for key in ("fases", "kpis", "resumo_executivo", "proximas_acoes", "marcos"):
+    for key in ("fases", "kpis", "resumo_executivo", "proximas_acoes", "decisoes_necessarias", "marcos"):
         report_data[key] = [
             {**item, "ordem": idx + 1} if isinstance(item, dict) else item
             for idx, item in enumerate(report_data.get(key, []))
@@ -123,6 +131,7 @@ def to_legacy_data_shape(report_data: dict | None) -> dict:
         "resumo_executivo": _as_list(_clone(rd.get("resumo_executivo"))),
         "pendencias_criticas": _as_list(_clone(rd.get("pendencias_criticas"))),
         "proximas_acoes": _as_list(_clone(rd.get("proximas_acoes"))),
+        "decisoes_necessarias": _as_list(_clone(rd.get("decisoes_necessarias"))),
         "curva_s": _as_list(_clone(rd.get("curva_s"))),
         "marcos": _as_list(_clone(rd.get("marcos"))),
         "gantt_tarefas": _as_list(_clone(rd.get("gantt_tarefas"))),

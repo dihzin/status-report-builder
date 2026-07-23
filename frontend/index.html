@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Status Executivo do Projeto</title>
+<link rel="icon" type="image/png" href="assets/stratesys-favicon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css" />
@@ -177,6 +178,15 @@
       </article>
 
       <article class="panel">
+        <div class="panel-title blue">
+          <span class="title-badge blue" aria-hidden="true">›</span>
+          Próximas Ações
+        </div>
+        <div class="panel-rule blue"></div>
+        <ul class="actions-list" id="acoes" data-testid="section-acoes" aria-label="Próximas ações"></ul>
+      </article>
+
+      <article class="panel">
         <div class="panel-title red">
           <span class="title-badge red" aria-hidden="true">!</span>
           Pendências Críticas
@@ -193,15 +203,6 @@
           </thead>
           <tbody id="pendencias" data-testid="section-pendencias"></tbody>
         </table>
-      </article>
-
-      <article class="panel">
-        <div class="panel-title blue">
-          <span class="title-badge blue" aria-hidden="true">›</span>
-          Próximas Ações
-        </div>
-        <div class="panel-rule blue"></div>
-        <ul class="actions-list" id="acoes" data-testid="section-acoes" aria-label="Próximas ações"></ul>
       </article>
     </section>
 
@@ -530,6 +531,6 @@
 </div>
 
 <script src="deckFieldRegistry.js"></script>
-<script src="app.js"></script>
+<script src="app.js?v=20260723-pendencias-p1"></script>
 </body>
 </html>

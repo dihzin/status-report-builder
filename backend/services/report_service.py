@@ -67,8 +67,10 @@ class ReportService:
         if not current:
             raise RuntimeError("Não foi possível carregar snapshot atual do SQLite")
 
-        report_data = current.get("report_data") or {}
-        legacy_data = current.get("legacy_data") or to_legacy_data_shape(report_data)
+        # Também aplica migrações compatíveis do contrato (por exemplo, a
+        # separação entre decisões e próximas ações) ao ler snapshots antigos.
+        report_data = build_report_data(current.get("report_data") or current.get("legacy_data") or {})
+        legacy_data = to_legacy_data_shape(report_data)
         validation_errors: list[str] = []
         file_error = None
 
